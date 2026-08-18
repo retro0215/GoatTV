@@ -1,14 +1,14 @@
 name: Android CI
 
 # Two jobs:
-#   check — unit tests + lint. Runs on everything, including pull requests. Gates the build.
-#   build — assembles the APK, and publishes a GitHub Release on v* tags. Never runs for a PR, so
+#   check â€” unit tests + lint. Runs on everything, including pull requests. Gates the build.
+#   build â€” assembles the APK, and publishes a GitHub Release on v* tags. Never runs for a PR, so
 #           PR branches still don't produce APKs (the restriction added in ac33c65 is unchanged);
 #           they only get the test/lint verdict.
 on:
   push:
     branches: [ main ]
-    tags: [ "5star-v*" ]
+    tags: [ "v*", "5star-v*" ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -66,7 +66,7 @@ jobs:
 
   build:
     needs: check
-    # PRs get the check job only — no APK, no release. Unchanged from ac33c65.
+    # PRs get the check job only â€” no APK, no release. Unchanged from ac33c65.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
@@ -89,21 +89,23 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-
       - name: Compute version (from the git tag on releases)
         id: ver
+        shell: bash
         run: |
           if [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
-            NAME="${GITHUB_REF_NAME#5star-v}"                 # tag v1.2.0 -> 1.2.0
+            NAME="${GITHUB_REF_NAME#5star-v}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            NAME="${GITHUB_REF_NAME#v}"
+          else
+            NAME="99.99.99"
+          fi
+          if [[ "$GITHUB_REF" == refs/tags/5star-v* || "$GITHUB_REF" == refs/tags/v* ]]; then
             IFS='.' read -r MA MI PA <<< "$NAME"
-            CODE=$(( ${MA:-0} * 10000 + ${MI:-0} * 100 + ${PA:-0} ))   # 1.2.0 -> 10200
+            CODE=$(( ${MA:-0} * 10000 + ${MI:-0} * 100 + ${PA:-0} ))
             [ "$CODE" -gt 0 ] || CODE=1
           else
-            # Dev (non-tag) builds mirror the local-build fallback in app/build.gradle.kts:
-            # pinned HIGH so a dev APK always installs over any published release
-            # (no INSTALL_FAILED_VERSION_DOWNGRADE) and the in-app updater stays quiet.
-            NAME="99.99.99"
-            CODE=99999
+            CODE=999999
           fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
@@ -113,7 +115,7 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          # Runs on every push (not just tags) so dev builds are also signed RELEASE builds —
+          # Runs on every push (not just tags) so dev builds are also signed RELEASE builds â€”
           # required since R8 was enabled: only assembleRelease exercises shrinking/keep rules,
           # and a release-signed dev APK installs straight over a published release for testing.
           # Fork PRs have no secrets, so they fall back to a debug build below.
@@ -122,7 +124,7 @@ jobs:
             echo "KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
             echo "Release signing configured."
           else
-            echo "No KEYSTORE_BASE64 secret set — building a debug-signed APK."
+            echo "No KEYSTORE_BASE64 secret set â€” building a debug-signed APK."
           fi
 
       - name: Build APK
@@ -133,7 +135,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           # Shared secret for the default metadata Worker's edge rule. Forks have no secret and
-          # resolve "" — the app then falls back to the unprotected workers.dev base URL.
+          # resolve "" â€” the app then falls back to the unprotected workers.dev base URL.
           OWNTV_EDGE_KEY: ${{ secrets.OWNTV_EDGE_KEY }}
         run: |
           chmod +x ./gradlew
@@ -141,14 +143,14 @@ jobs:
             echo "Building signed release APKs (both ABI flavors)"
             ./gradlew assembleRelease --stacktrace
             # Product flavors split the output by flavor subfolder:
-            #   standard/release  -> arm (arm64-v8a + armeabi-v7a) — the main download
-            #   x86_64/release    -> x86_64 — emulator / rare x86 box
+            #   standard/release  -> arm (arm64-v8a + armeabi-v7a) â€” the main download
+            #   x86_64/release    -> x86_64 â€” emulator / rare x86 box
             ARM_SRC=$(ls app/build/outputs/apk/standard/release/*.apk | head -n1)
             X86_SRC=$(ls app/build/outputs/apk/x86_64/release/*.apk | head -n1)
             echo "Built arm:    $ARM_SRC"
             echo "Built x86_64: $X86_SRC"
             echo "ARM_SRC=$ARM_SRC" >> "$GITHUB_ENV"
-            echo "X86_SRC=$X86_SRC" >> "$GITHUB_ENV"
+            echo "X86_64_SRC=$X86_SRC" >> "$GITHUB_ENV"
           else
             echo "Building debug APK"
             ./gradlew assembleDebug
@@ -159,29 +161,27 @@ jobs:
             echo "ARM_SRC=$SRC" >> "$GITHUB_ENV"
           fi
 
-      - name: Name the APK (5Star-Ultra-v<version>)
+      - name: Name the APK
         run: |
           mkdir -p dist
           if [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             OUT="5Star-Ultra-v${{ steps.ver.outputs.name }}.apk"
-          else
-            OUT="5Star-Ultra-dev-${GITHUB_SHA::7}.apk"
-          fi
-          cp "$ARM_SRC" "dist/5Star-Ultra.apk"
-          echo "APK_OUT=$OUT" >> "$GITHUB_ENV"
-          echo "Packaged dist/$OUT (arm: arm64-v8a + armeabi-v7a)"
-          # Tag builds also ship a stable-named copy so a fixed URL always serves the latest signed
-          # release: https://github.com/<repo>/releases/latest/download/5Star-Ultra.apk
-          # (used by the Fire TV Downloader code and any "always-latest" sideload link).
-          if [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             cp "$ARM_SRC" "dist/5Star-Ultra.apk"
-            # Separate x86_64 build for emulators / rare Intel boxes. Pinned to the version only —
-            # no always-latest copy, since real devices (the Downloader audience) don't need it.
-            if [ -n "$X86_SRC" ]; then
-              cp "$X86_SRC" "dist/5Star-Ultra-x86_64-v${{ steps.ver.outputs.name }}.apk"
-              echo "Packaged dist/5Star-Ultra-x86_64-v${{ steps.ver.outputs.name }}.apk"
+            if [ -n "$X86_64_SRC" ]; then
+              cp "$X86_64_SRC" "dist/5Star-Ultra-x86_64-v${{ steps.ver.outputs.name }}.apk"
             fi
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            OUT="GoatTV-v${{ steps.ver.outputs.name }}.apk"
+            cp "$ARM_SRC" "dist/GoatTV.apk"
+            if [ -n "$X86_64_SRC" ]; then
+              cp "$X86_64_SRC" "dist/GoatTV-x86_64-v${{ steps.ver.outputs.name }}.apk"
+            fi
+          else
+            OUT="app-dev-${GITHUB_SHA::7}.apk"
           fi
+          cp "$ARM_SRC" "dist/$OUT"
+          echo "APK_OUT=$OUT" >> "$GITHUB_ENV"
+          echo "Packaged dist/$OUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -192,12 +192,12 @@ jobs:
           if-no-files-found: error
 
       - name: Extract release notes from CHANGELOG_APP.md
-        if: startsWith(github.ref, 'refs/tags/5star-v')
+        if: startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v')
         env:
           TAG: ${{ github.ref_name }}
         run: |
           # The release body is what the in-app updater shows as "What's new", so it must be the
-          # SHORT, bullet-only notes from CHANGELOG_APP.md — never CHANGELOG.md, which is the long
+          # SHORT, bullet-only notes from CHANGELOG_APP.md â€” never CHANGELOG.md, which is the long
           # developer/contributor changelog and is read manually on GitHub.
           #
           # This runs here rather than only in release-notes.yml because a release published by
@@ -205,7 +205,7 @@ jobs:
           # It stays as a fallback for releases published by hand from the GitHub UI.
           #
           # Take "## <tag>" up to the next "## v" header; the header may carry a date/"unreleased"
-          # tail ("## v4.1.5 — 2026-07-26") or nothing at all, so match the version as a whole word.
+          # tail ("## v4.1.5 â€” 2026-07-26") or nothing at all, so match the version as a whole word.
           if [ -f CHANGELOG_APP.md ]; then
             awk -v ver="$TAG" '
               $0 ~ ("^## " ver "([ \t]|$)") { flag=1; next }
@@ -219,23 +219,31 @@ jobs:
             mv dist/RELEASE_NOTES.trimmed.md dist/RELEASE_NOTES.md
           fi
           if [ ! -s dist/RELEASE_NOTES.md ]; then
-            echo "::warning::No CHANGELOG_APP.md section for $TAG — publishing a placeholder body."
+            echo "::warning::No CHANGELOG_APP.md section for $TAG â€” publishing a placeholder body."
             echo "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/CHANGELOG.md) for details." \
               > dist/RELEASE_NOTES.md
           fi
           echo "--- Release notes ---"
           cat dist/RELEASE_NOTES.md
 
-      - name: Publish GitHub Release
+      - name: Publish GoatTV GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: GoatTV v${{ steps.ver.outputs.name }}
+          files: |
+            dist/${{ env.APK_OUT }}
+            dist/GoatTV.apk
+            dist/GoatTV-x86_64-v${{ steps.ver.outputs.name }}.apk
+          body_path: dist/RELEASE_NOTES.md
+
+      - name: Publish 5Star GitHub Release
         if: startsWith(github.ref, 'refs/tags/5star-v')
         uses: softprops/action-gh-release@v2
         with:
-          name: 5Star Ultra v${{ steps.ver.outputs.name }}   
+          name: 5Star Ultra v${{ steps.ver.outputs.name }}
           files: |
             dist/${{ env.APK_OUT }}
             dist/5Star-Ultra.apk
             dist/5Star-Ultra-x86_64-v${{ steps.ver.outputs.name }}.apk
           body_path: dist/RELEASE_NOTES.md
-          # Must stay false: it appends GitHub's auto commit/PR list under the body, which buries the
-          # short in-app notes the updater dialog shows.
-          generate_release_notes: false
