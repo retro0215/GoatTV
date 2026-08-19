@@ -111,20 +111,26 @@ jobs:
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "Version: $NAME (code $CODE)"
 
-      - name: Decode signing keystore (if configured)
+      - name: Decode signing keystores (if configured)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          FIVESTAR_KEYSTORE_BASE64: ${{ secrets.FIVESTAR_KEYSTORE_BASE64 }}
         run: |
-          # Runs on every push (not just tags) so dev builds are also signed RELEASE builds â€”
-          # required since R8 was enabled: only assembleRelease exercises shrinking/keep rules,
-          # and a release-signed dev APK installs straight over a published release for testing.
+          # Runs on every push (not just tags) so dev builds are also signed RELEASE builds —
+          # required since R8 was enabled: only assembleRelease exercises shrinking/keep rules.
           # Fork PRs have no secrets, so they fall back to a debug build below.
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
-            echo "Release signing configured."
-          else
-            echo "No KEYSTORE_BASE64 secret set â€” building a debug-signed APK."
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/goat.keystore"
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/goat.keystore" >> "$GITHUB_ENV"
+            echo "GoatTV signing configured."
+          fi
+          if [ -n "$FIVESTAR_KEYSTORE_BASE64" ]; then
+            echo "$FIVESTAR_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fivestar.keystore"
+            echo "FIVESTAR_KEYSTORE_FILE=$RUNNER_TEMP/fivestar.keystore" >> "$GITHUB_ENV"
+            echo "5Star signing configured."
+          fi
+          if [ -z "$KEYSTORE_BASE64" ] && [ -z "$FIVESTAR_KEYSTORE_BASE64" ]; then
+            echo "No signing secrets set — building debug-signed APKs."
           fi
 
       - name: Build APK
@@ -134,6 +140,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          FIVESTAR_KEYSTORE_PASSWORD: ${{ secrets.FIVESTAR_KEYSTORE_PASSWORD }}
+          FIVESTAR_KEY_ALIAS: ${{ secrets.FIVESTAR_KEY_ALIAS }}
+          FIVESTAR_KEY_PASSWORD: ${{ secrets.FIVESTAR_KEY_PASSWORD }}
           # Shared secret for the default metadata Worker's edge rule. Forks have no secret and
           # resolve "" â€” the app then falls back to the unprotected workers.dev base URL.
           OWNTV_EDGE_KEY: ${{ secrets.OWNTV_EDGE_KEY }}

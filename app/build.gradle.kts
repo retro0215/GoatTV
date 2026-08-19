@@ -91,6 +91,33 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing helpers and configs. Defined here so flavors can reference them below.
+    fun signingValue(env: String, property: String): String? =
+        System.getenv(env)
+            ?: providers.gradleProperty(property).orNull
+            ?: localSigningProps.getProperty(property)
+
+    signingConfigs {
+        val goatFile = signingValue("KEYSTORE_FILE", "owntv.keystoreFile")
+        if (goatFile != null) {
+            create("goat") {
+                storeFile = file(goatFile)
+                storePassword = signingValue("KEYSTORE_PASSWORD", "owntv.keystorePassword")
+                keyAlias = signingValue("KEY_ALIAS", "owntv.keyAlias")
+                keyPassword = signingValue("KEY_PASSWORD", "owntv.keyPassword")
+            }
+        }
+        val fivestarFile = signingValue("FIVESTAR_KEYSTORE_FILE", "fivestar.keystoreFile")
+        if (fivestarFile != null) {
+            create("fivestar") {
+                storeFile = file(fivestarFile)
+                storePassword = signingValue("FIVESTAR_KEYSTORE_PASSWORD", "fivestar.keystorePassword")
+                keyAlias = signingValue("FIVESTAR_KEY_ALIAS", "fivestar.keyAlias")
+                keyPassword = signingValue("FIVESTAR_KEY_PASSWORD", "fivestar.keyPassword")
+            }
+        }
+    }
+
     // ABI and Brand dimensions
     flavorDimensions += listOf("abi", "brand")
     productFlavors {
@@ -112,6 +139,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/5Star-Ultra\"")
             buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
+            signingConfig = signingConfigs.findByName("goat")
         }
         create("fivestar") {
             dimension = "brand"
@@ -120,6 +148,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"5star-v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/5Star-Ultra\"")
             buildConfigField("String", "BRAND_UA", "\"5Star Ultra\"")
+            signingConfig = signingConfigs.findByName("fivestar")
         }
     }
 
@@ -138,23 +167,6 @@ android {
     // When neither source is configured — fork CI, or a fresh clone — nothing here applies and
     // builds still succeed, just unsigned.
     // Third source: the standalone out-of-repo properties file, loaded above defaultConfig.
-    fun signingValue(env: String, property: String): String? =
-        System.getenv(env)
-            ?: providers.gradleProperty(property).orNull
-            ?: localSigningProps.getProperty(property)
-
-    val releaseKeystore = signingValue("KEYSTORE_FILE", "owntv.keystoreFile")
-    signingConfigs {
-        if (releaseKeystore != null) {
-            create("release") {
-                storeFile = file(releaseKeystore)
-                storePassword = signingValue("KEYSTORE_PASSWORD", "owntv.keystorePassword")
-                keyAlias = signingValue("KEY_ALIAS", "owntv.keyAlias")
-                keyPassword = signingValue("KEY_PASSWORD", "owntv.keyPassword")
-            }
-        }
-    }
-
     testOptions {
         // JVM unit tests hit android.util.Log / SystemClock in the code under test (StalkerAuthManager
         // etc.); return defaults (no-op log, 0 clock) instead of "not mocked" crashes.
@@ -180,9 +192,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            if (releaseKeystore != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
         }
 
     }
