@@ -162,7 +162,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val advancedRowFocus = remember { FocusRequester() }
     var confirmClearAdvanced by remember { mutableStateOf(false) }
     var showModePicker by remember { mutableStateOf(false) }
-    var showPhoneHandover by remember { mutableStateOf(false) }
+    var showRemoteHandover by remember { mutableStateOf(false) }
     LaunchedEffect(storedKey, storedUrl) {
         if (!seeded) {
             key = storedKey; url = storedUrl
@@ -170,17 +170,17 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         }
     }
 
-    // A key handed over from the phone lands straight in the field. Saving stays a deliberate act:
+    // A key handed over from the remote device lands straight in the field. Saving stays a deliberate act:
     // the user still presses Save, so an accidental send cannot silently replace a working key.
     val keyReceivedMessage = stringResource(R.string.settings_metadata_key_received)
     val toast = tv.own.owntv.ui.components.rememberInAppToast()
-    LaunchedEffect(showPhoneHandover) {
-        if (!showPhoneHandover) return@LaunchedEffect
+    LaunchedEffect(showRemoteHandover) {
+        if (!showRemoteHandover) return@LaunchedEffect
         vm.remoteTmdbConfigs.collect { received ->
             key = received.apiKey
             url = received.serverUrl
             showAdvanced = true
-            showPhoneHandover = false
+            showRemoteHandover = false
             toast.show(keyReceivedMessage)
         }
     }
@@ -348,7 +348,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             val urlFieldFocus = remember { FocusRequester() }
             val saveFocus = remember { FocusRequester() }
             // Typing a 32-character key with a D-pad is the real reason people stay on the shared
-            // service, so offer the phone handover directly above the field it fills.
+            // service, so offer the remote hand-over directly above the field it fills.
             Spacer(Modifier.height(10.dp))
             GroupLabel(stringResource(R.string.settings_metadata_connection))
             ServiceSettingsRow(
@@ -356,7 +356,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 title = stringResource(R.string.settings_metadata_key_from_phone),
                 desc = stringResource(R.string.settings_metadata_key_from_phone_desc),
                 chevron = true,
-                onClick = { showPhoneHandover = true },
+                onClick = { showRemoteHandover = true },
             )
             Spacer(Modifier.height(12.dp))
             OwnTVTextField(
@@ -432,7 +432,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         AdvancedMetadataPopup(
             key = key, url = url,
             onKeyChange = { key = it }, onUrlChange = { url = it },
-            onRemote = { showAdvanced = false; showPhoneHandover = true },
+            onRemote = { showAdvanced = false; showRemoteHandover = true },
             onRemove = {
                 showAdvanced = false
                 if (storedKey.isNotBlank() || storedUrl.isNotBlank()) confirmClearAdvanced = true
@@ -446,7 +446,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     }
     LaunchedEffect(showAdvanced) {
         if (showAdvanced) advancedWasOpen = true
-        else if (advancedWasOpen && !showPhoneHandover) {
+        else if (advancedWasOpen && !showRemoteHandover) {
             advancedWasOpen = false
             kotlinx.coroutines.delay(80)
             runCatching { advancedRowFocus.requestFocus() }
@@ -472,13 +472,13 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
 
     tv.own.owntv.ui.components.InAppToast(toast)
 
-    if (showPhoneHandover) {
+    if (showRemoteHandover) {
         CompanionKeyDialog(
             titleRes = R.string.settings_metadata_remote_advanced,
             state = vm.remoteState.collectAsStateWithLifecycle().value,
             onStart = vm::startRemoteTmdbConfigListener,
             onStop = vm::stopRemoteListener,
-            onDismiss = { showPhoneHandover = false },
+            onDismiss = { showRemoteHandover = false },
         )
     }
 
@@ -583,7 +583,7 @@ private fun AdvancedMetadataPopup(
             Spacer(Modifier.height(12.dp))
             Row2(
                 icon = OwnTVIcon.SHARE,
-                title = stringResource(R.string.settings_metadata_remote_advanced),
+                title = stringResource(R.string.settings_metadata_key_from_phone),
                 desc = stringResource(R.string.settings_metadata_key_from_phone_desc),
                 chevron = true,
                 modifier = Modifier.focusRequester(firstFocus),
@@ -605,13 +605,13 @@ private fun AdvancedMetadataPopup(
 }
 
 /**
- * QR + PIN panel for handing a TMDB key over from a phone.
+ * QR + PIN panel for handing a TMDB key over from another device.
  *
  * Deliberately a dialog rather than a screen: it is a short-lived side trip from the field it fills,
  * and keeping it here avoids threading a new route through the settings navigation for something the
  * user sees once.
  *
- * The QR encodes the LAN URL only — never the PIN, which is shown on the TV and typed on the phone.
+ * The QR encodes the LAN URL only — never the PIN, which is shown on the TV and typed on the remote device.
  * A photographed QR on its own therefore cannot push a key. The listener starts when the dialog opens
  * and is stopped on dispose, so it never outlives the panel.
  */

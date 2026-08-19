@@ -95,6 +95,22 @@
     <string name="settings_metadata_tmdb_only_description">所有字段优先使用 TMDB；仅当 TMDB 没有信息时才回退到播放列表。</string>
     <string name="settings_selected">已选择</string>
     <string name="settings_metadata_allowance">每日额度</string>
+    <string name="settings_metadata_reset_automatic">自动重置</string>
+    <string name="settings_metadata_library_details">媒体库详情</string>
+    <string name="settings_metadata_test_connection">测试当前连接</string>
+    <string name="settings_allowance_available">可用</string>
+    <string name="settings_allowance_refills"><xliff:g id="time">%1$s</xliff:g> 恢复</string>
+    <string name="settings_allowance_minute">分钟</string>
+    <string name="settings_allowance_hour">小时</string>
+    <string name="settings_allowance_day">天</string>
+    <plurals name="settings_allowance_value">
+        <item quantity="other">剩余 <xliff:g id="remaining">%1$d</xliff:g> / <xliff:g id="limit">%2$d</xliff:g></item>
+    </plurals>
+    <string name="settings_metadata_active_source">当前来源</string>
+    <string name="settings_metadata_shared_worker_description">OwnTV Worker · 无需设置</string>
+    <string name="settings_metadata_connection">连接</string>
+    <string name="settings_metadata_remote_advanced">获取高级 TMDB 信息</string>
+    <string name="settings_metadata_remote_advanced_description">使用你自己的 TMDB API 密钥或自建 Worker，而不是共享的默认服务。</string>
     <string name="settings_metadata_usage_label">用量</string>
     <string name="settings_metadata_usage_value"><xliff:g id="min_used">%1$d</xliff:g>/<xliff:g id="min_total">%2$d</xliff:g> 分钟 · <xliff:g id="hr_used">%3$d</xliff:g>/<xliff:g id="hr_total">%4$d</xliff:g> 小时 · <xliff:g id="day_used">%5$d</xliff:g>/<xliff:g id="day_total">%6$d</xliff:g> 天</string>
     <string name="settings_metadata_source_label">来源</string>
@@ -110,9 +126,9 @@
     <string name="settings_advanced_options">高级选项</string>
     <string name="settings_advanced_metadata_description">使用你自己的 TMDB API 密钥或自托管服务器，而不是默认的共享服务。</string>
     <string name="settings_metadata_server_description">两项均留空即可使用内置共享服务器（无需初始设置）。输入你自己的 TMDB API 密钥可直接调用 TMDB，或输入自托管服务器 URL 以使用自己的代理/镜像。URL 的优先级高于密钥。</string>
-    <string name="settings_metadata_key_from_phone">用手机获取密钥</string>
-    <string name="settings_metadata_key_from_phone_desc">用手机扫描二维码，在手机上登录 TMDB 并发送密钥。无需用遥控器输入。</string>
-    <string name="settings_metadata_key_received">已从手机接收 TMDB 密钥</string>
+    <string name="settings_metadata_key_from_phone">用其他设备获取密钥</string>
+    <string name="settings_metadata_key_from_phone_desc">用手机、平板或电脑扫描二维码，在该设备上登录 TMDB 并发送密钥。无需用遥控器输入。</string>
+    <string name="settings_metadata_key_received">已接收 TMDB 密钥</string>
     <string name="settings_tmdb_api_key">TMDB API 密钥（v3）</string>
     <string name="settings_self_host_url">自托管服务器 URL</string>
     <string name="settings_test">测试</string>
@@ -177,6 +193,15 @@
     <string name="settings_theme_description">浅色、深色或跟随系统</string>
     <string name="settings_accent">强调色</string>
     <string name="settings_accent_description">为界面着色 — 可使用预设、调色板或十六进制代码</string>
+    <string name="settings_focus_highlight">焦点高亮</string>
+    <string name="settings_focus_highlight_description">焦点项周围边框的颜色和粗细</string>
+    <string name="settings_focus_highlight_chip"><xliff:g id="color">%1$s</xliff:g> · <xliff:g id="thickness">%2$s</xliff:g></string>
+    <string name="settings_focus_thickness">粗细</string>
+    <string name="settings_focus_width_thin">细</string>
+    <string name="settings_focus_width_normal">标准</string>
+    <string name="settings_focus_width_thick">粗</string>
+    <string name="settings_focus_width_extra">超粗</string>
+    <string name="settings_focus_highlight_sample">已选中</string>
     <string name="settings_glass_effect">玻璃效果</string>
     <string name="settings_glass_description">半透明磨砂面板、背景图和透明度</string>
     <string name="settings_ui_zoom">界面缩放</string>
@@ -225,6 +250,8 @@
     <string name="settings_startup_home">主屏幕</string>
     <string name="settings_startup_last_channel">上次观看的频道</string>
     <string name="settings_startup_favorites">直播 · 收藏夹</string>
+    <string name="settings_startup_specific_channel">指定频道</string>
+    <string name="settings_startup_channel_unavailable">启动频道不可用，已打开首页。</string>
     <string name="settings_all_history">所有观看记录</string>
     <string name="settings_choose_history">选择要为此用户档案移除的内容。播放列表、收藏夹和下载内容不受影响。</string>
     <string name="settings_clear_history_confirm">清除<xliff:g id="scope">%1$s</xliff:g>观看记录？</string>
@@ -295,6 +322,7 @@
     <string name="settings_search_keywords_history">最近观看 继续观看 移除</string>
     <string name="settings_search_keywords_theme">浅色 深色 系统</string>
     <string name="settings_search_keywords_accent">着色 调色板 十六进制 预设</string>
+    <string name="settings_search_keywords_focus">焦点 边框 边界 选中 光标 轮廓</string>
     <string name="settings_search_keywords_zoom">缩放 界面 大小</string>
     <string name="settings_search_keywords_animation">动画 流畅 性能</string>
     <string name="settings_search_keywords_weather">顶部栏 标签 位置 摄氏度 华氏度</string>
@@ -414,7 +442,22 @@
     <string name="settings_preferred_subtitle_language">首选字幕语言</string>
     <string name="settings_preferred_language_description">有此字幕轨道时自动选择。</string>
     <string name="settings_open_subtitles">OpenSubtitles</string>
+    <string name="settings_open_subtitles_connected">已连接</string>
+    <string name="settings_open_subtitles_reset_in"><xliff:g id="hours">%1$d</xliff:g> 小时 <xliff:g id="minutes">%2$d</xliff:g> 分钟后</string>
     <string name="settings_open_subtitles_description">登录以搜索和下载字幕，并管理已下载的字幕。每个用户档案单独设置；需要免费的 opensubtitles.com 账户。</string>
+    <string name="settings_open_subtitles_advanced">高级选项</string>
+    <string name="settings_open_subtitles_advanced_description">使用你自己的应用 API 密钥或自建的 OpenSubtitles Worker。</string>
+    <string name="settings_open_subtitles_setup_title">设置 OpenSubtitles</string>
+    <string name="settings_open_subtitles_setup_description">使用你的 OpenSubtitles 账号登录。</string>
+    <string name="settings_open_subtitles_setup_remote">远程</string>
+    <string name="settings_open_subtitles_setup_remote_description">在同一 Wi-Fi 下另一台设备（手机、平板或电脑）的浏览器中填写你的信息。</string>
+    <string name="settings_open_subtitles_setup_local">在此输入</string>
+    <string name="settings_open_subtitles_setup_local_description">用遥控器在这台电视上输入你的信息。</string>
+    <string name="settings_open_subtitles_api_key">OpenSubtitles 应用 API 密钥</string>
+    <string name="settings_worker_server_url">Worker / 服务器网址</string>
+    <string name="settings_shared">共享</string>
+    <string name="settings_open_subtitles_access_priority">两项都留空即使用 OwnTV 的共享 Worker。自定义 Worker 网址优先于直接填写的 API 密钥。账号登录状态仍按配置文件分别保存。</string>
+    <string name="settings_remove_custom_access">移除自定义访问</string>
     <string name="settings_audio">音频</string>
     <string name="settings_preferred_audio_language">首选音频语言</string>
     <string name="settings_audio_sync">音视频同步</string>
@@ -480,7 +523,7 @@
     <string name="settings_guide_synced">电视节目指南已同步</string>
     <string name="settings_guide_sync_failed">电视节目指南同步失败</string>
     <string name="settings_restore_remote_title">从其他设备恢复</string>
-    <string name="settings_restore_remote_description">在连接到同一 Wi-Fi 的手机或笔记本电脑上，扫描二维码（或打开 URL），输入此 PIN，选择您的 OwnTV 备份文件，然后点按“发送到电视”。之后，您可以在此处选择要恢复的内容。</string>
+    <string name="settings_restore_remote_description">在连接到同一 Wi-Fi 的手机、平板或电脑上，扫描二维码（或打开 URL），输入此 PIN，选择您的 OwnTV 备份文件，然后点按“发送到电视”。之后，您可以在此处选择要恢复的内容。</string>
     <string name="settings_opening_server">正在启动服务器…</string>
     <string name="settings_enter_pin_browser">在浏览器中输入此 PIN</string>
     <string name="settings_companion_qr">配套服务 URL 的二维码</string>
@@ -488,7 +531,7 @@
     <string name="settings_try_again">重试</string>
     <string name="settings_new_pin">使用新 PIN 重新开始</string>
     <string name="settings_download_remote_title">在其他设备上下载</string>
-    <string name="settings_download_remote_description">在连接到同一 Wi-Fi 的手机或笔记本电脑上，扫描二维码（或打开 URL），输入此 PIN，然后下载并妥善保存您的备份文件。</string>
+    <string name="settings_download_remote_description">在连接到同一 Wi-Fi 的手机、平板或电脑上，扫描二维码（或打开 URL），输入此 PIN，然后下载并妥善保存您的备份文件。</string>
     <string name="settings_preparing_backup">正在准备备份…</string>
     <string name="settings_glass_effect_on">玻璃效果：开</string>
     <string name="settings_glass_effect_off">玻璃效果：关</string>

@@ -92,13 +92,13 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val restoreBtnFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(50); runCatching { firstFocus.requestFocus() } }
 
-    // Restore: first pick Remote (phone upload) or Local (file picker). Remote opens a full-screen
+    // Restore: first pick Remote (upload from another device) or Local (file picker). Remote opens a full-screen
     // companion panel; an uploaded file drops back into the same inspect → section-picker flow.
     var showRestoreChooser by remember { mutableStateOf(false) }
     var showRemoteRestore by remember { mutableStateOf(false) }
     val remoteState by vm.remoteState.collectAsStateWithLifecycle()
 
-    // Export: Remote (serve the file for a phone/laptop to download) or Local (save to a folder).
+    // Export: Remote (serve the file for another device to download) or Local (save to a folder).
     var showExportChooser by remember { mutableStateOf(false) }
     var exportToRemote by remember { mutableStateOf(false) }
     var showRemoteExportPassword by remember { mutableStateOf(false) }
@@ -298,7 +298,7 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         )
     }
 
-    // Export step 0: Remote (serve for a phone/laptop to download) or Local (save to a folder).
+    // Export step 0: Remote (serve for another device to download) or Local (save to a folder).
     if (showExportChooser) {
         RemoteLocalChooserDialog(
             title = stringResource(R.string.settings_backup_export_title),
@@ -334,7 +334,7 @@ fun BackupScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         }
     }
 
-    // Restore step 0: Remote (send the backup from a phone) or Local (pick a file on this device).
+    // Restore step 0: Remote (send the backup from another device) or Local (pick a file on this device).
     if (showRestoreChooser) {
         RemoteLocalChooserDialog(
             title = stringResource(R.string.settings_backup_restore_title),

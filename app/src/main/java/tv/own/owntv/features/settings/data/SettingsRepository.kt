@@ -11,11 +11,17 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import tv.own.owntv.core.i18n.LocaleStore
 import tv.own.owntv.features.home.HomeConfig
 import tv.own.owntv.player.SurroundMode
@@ -30,7 +36,32 @@ import tv.own.owntv.ui.theme.UiZoom
 /** Per-profile startup landing (Phase 3 / v4.0.0). LAST_CHANNEL also covers "auto-play my channel" since
  *  it's always the one you last watched. */
 enum class StartupMode {
-    HOME, LAST_CHANNEL, FAVORITES
+    HOME, LAST_CHANNEL, FAVORITES, SPECIFIC_CHANNEL
+}
+
+data class StartupChannelRef(
+    val sourceId: Long,
+    val remoteId: String?,
+    val name: String,
+    val itemId: Long,
+) {
+    fun toJson(): org.json.JSONObject = org.json.JSONObject()
+        .put("sourceId", sourceId)
+        .putOpt("remoteId", remoteId)
+        .put("name", name)
+        .put("itemId", itemId)
+
+    companion object {
+        fun fromJson(raw: String?): StartupChannelRef? = runCatching {
+            val o = org.json.JSONObject(raw ?: return null)
+            StartupChannelRef(
+                sourceId = o.getLong("sourceId").takeIf { it > 0L } ?: return null,
+                remoteId = o.optString("remoteId").takeIf { it.isNotBlank() },
+                name = o.getString("name").takeIf { it.isNotBlank() } ?: return null,
+                itemId = o.optLong("itemId", -1L),
+            )
+        }.getOrNull()
+    }
 }
 
 /**
@@ -94,6 +125,12 @@ object SeekSteps {
  */
 class SettingsRepository(private val context: Context, private val localeStore: LocaleStore) {
 
+    /**
+     * Scope for the warm settings snapshots below. Lives as long as this singleton — deliberately never
+     * cancelled, because the alternative is paying a DataStore read on every metadata resolve.
+     */
+    private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /** Result of importing the optional locale field without allowing bad backup data to abort the restore. */
     data class SettingsImportResult(
         val localePresent: Boolean = false,
@@ -129,6 +166,8 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val POPUP_FONT_FAMILY = stringPreferencesKey("popup_font_family")
         val ACCENT = stringPreferencesKey("accent_color")
         val ACCENT_CUSTOM = stringPreferencesKey("accent_custom")
+        val FOCUS_HIGHLIGHT = stringPreferencesKey("focus_highlight_color")
+        val FOCUS_HIGHLIGHT_WIDTH = intPreferencesKey("focus_highlight_width")
         val AVATAR_ID = intPreferencesKey("avatar_id")
         val ACTIVE_PROFILE = longPreferencesKey("active_profile_id")
         val DEFAULT_SOURCE = longPreferencesKey("default_source_id")
@@ -227,6 +266,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val RECENT_SEARCHES = stringPreferencesKey("recent_searches")
         val LAST_LIVE_CHANNEL = androidx.datastore.preferences.core.longPreferencesKey("last_live_channel")
         val VOD_VIEW_MODE = stringPreferencesKey("vod_view_mode")
+        val EPISODE_VIEW_MODE = stringPreferencesKey("episode_view_mode")
         // Global proxy (Approach 1 — one app-wide HTTP proxy). HTTP only; no per-source override yet.
         val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val PROXY_HOST = stringPreferencesKey("proxy_host")
@@ -330,6 +370,24 @@ class SettingsRepository(private val context: Context, private val localeStore: 
     }
     suspend fun setStartupMode(profileId: Long, mode: StartupMode) {
         context.dataStore.edit { it[stringPreferencesKey("startup_mode_$profileId")] = mode.name }
+    }
+
+    fun startupChannel(profileId: Long): Flow<StartupChannelRef?> = prefsFlow { prefs ->
+        StartupChannelRef.fromJson(prefs[stringPreferencesKey("startup_channel_$profileId")])
+    }
+
+    suspend fun setStartupChannel(profileId: Long, channel: StartupChannelRef?) {
+        context.dataStore.edit { prefs ->
+            val key = stringPreferencesKey("startup_channel_$profileId")
+            if (channel == null) prefs.remove(key) else prefs[key] = channel.toJson().toString()
+        }
+    }
+
+    suspend fun setSpecificStartupChannel(profileId: Long, channel: StartupChannelRef) {
+        context.dataStore.edit { prefs ->
+            prefs[stringPreferencesKey("startup_channel_$profileId")] = channel.toJson().toString()
+            prefs[stringPreferencesKey("startup_mode_$profileId")] = StartupMode.SPECIFIC_CHANNEL.name
+        }
     }
 
     // --- Customize Categories & Items: optional per-profile PIN lock on the screen (so hidden items can't
@@ -575,8 +633,31 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         )
     }
 
-    /** One-shot read of the current metadata config (used by TmdbProvider per call). */
-    suspend fun metadataConfig(): tv.own.owntv.core.metadata.MetadataConfig = metadataConfigFlow.first()
+    /**
+     * Hot snapshot of [metadataConfigFlow], kept warm by one long-lived collector.
+     *
+     * Measured on the owner's TV: a fresh `first()` on a DataStore flow costs **74–128 ms**, and the
+     * metadata layer reads this on every resolve — once per episode focus, once per season switch,
+     * once per browsed title. That dominated everything else in the path, database queries included.
+     * One collector turns each of those into an in-memory field read.
+     */
+    private val metadataConfigState: StateFlow<tv.own.owntv.core.metadata.MetadataConfig?> =
+        metadataConfigFlow.stateIn(repoScope, SharingStarted.Eagerly, null)
+
+    /** Same treatment, for the other value the metadata path reads on every resolve. */
+    private val activeProfileIdState: StateFlow<Long?> =
+        prefsFlow { it[Keys.ACTIVE_PROFILE] ?: -1L }.stateIn(repoScope, SharingStarted.Eagerly, null)
+
+    /**
+     * One-shot read of the current metadata config (used by TmdbProvider per call). Served from the
+     * warm snapshot; falls back to a direct read only before the collector's first emission.
+     */
+    suspend fun metadataConfig(): tv.own.owntv.core.metadata.MetadataConfig =
+        metadataConfigState.value ?: metadataConfigFlow.first()
+
+    /** Cheap counterpart to collecting [activeProfileId], for the same per-resolve hot path. */
+    suspend fun activeProfileIdNow(): Long = activeProfileIdState.value ?: activeProfileId.first()
+
 
     // --- Catch-up (archive) playback ---
 
@@ -721,6 +802,18 @@ class SettingsRepository(private val context: Context, private val localeStore: 
     }
     suspend fun setVodViewMode(mode: VodViewMode) {
         context.dataStore.edit { it[Keys.VOD_VIEW_MODE] = mode.name }
+    }
+
+    /**
+     * How the episode list inside a show is drawn. LIST (default) is the text rows; GRID is a wall of
+     * 16:9 episode stills. Global rather than per-series: a layout preference is about how the user
+     * likes to browse, and storing it per show would mean setting it again for every show they open.
+     */
+    val episodeViewMode: Flow<VodViewMode> = prefsFlow { prefs ->
+        prefs[Keys.EPISODE_VIEW_MODE]?.let { runCatching { VodViewMode.valueOf(it) }.getOrNull() } ?: VodViewMode.LIST
+    }
+    suspend fun setEpisodeViewMode(mode: VodViewMode) {
+        context.dataStore.edit { it[Keys.EPISODE_VIEW_MODE] = mode.name }
     }
 
     val sortGuide: Flow<GuideSort> = prefsFlow { prefs ->
@@ -1528,6 +1621,21 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         context.dataStore.edit { it[Keys.ACCENT_CUSTOM] = hex.trim() }
     }
 
+    // --- Focus highlight (#121): the ring around whatever the remote is pointing at ---
+    /** Focus ring color as a hex string; blank = follow the accent (the shipped behaviour). */
+    val focusHighlight: Flow<String> = prefsFlow { it[Keys.FOCUS_HIGHLIGHT] ?: "" }
+
+    /** Focus ring width in dp; 2 dp is the shipped default. */
+    val focusHighlightWidth: Flow<Int> = prefsFlow { it[Keys.FOCUS_HIGHLIGHT_WIDTH] ?: 2 }
+
+    suspend fun setFocusHighlight(hex: String) {
+        context.dataStore.edit { it[Keys.FOCUS_HIGHLIGHT] = hex.trim() }
+    }
+
+    suspend fun setFocusHighlightWidth(dp: Int) {
+        context.dataStore.edit { it[Keys.FOCUS_HIGHLIGHT_WIDTH] = dp }
+    }
+
     // --- Glass effect: background image + which surfaces go translucent + how translucent ---
     /** Absolute path to the user's background image (copied into app-private storage); blank = off. */
     val bgImagePath: Flow<String> = prefsFlow { it[Keys.BG_IMAGE_PATH] ?: "" }
@@ -1653,10 +1761,11 @@ class SettingsRepository(private val context: Context, private val localeStore: 
     // keys (active profile, default source, refresh-on-startup) — those ride with the sources backup.
 
     private val backupStringKeys = listOf(
-        Keys.THEME_MODE, Keys.ACCENT, Keys.ACCENT_CUSTOM, Keys.DEFAULT_ZOOM,
+        Keys.THEME_MODE, Keys.ACCENT, Keys.ACCENT_CUSTOM, Keys.FOCUS_HIGHLIGHT, Keys.DEFAULT_ZOOM,
         Keys.MAIN_FONT_FAMILY, Keys.POPUP_FONT_FAMILY,
         Keys.PREF_AUDIO_LANG, Keys.PREF_SUB_LANG, Keys.SUB_SEARCH_LANGS, Keys.SORT_LIVE, Keys.SORT_GUIDE, Keys.SORT_MOVIES,
         Keys.SORT_SERIES, Keys.RESUME_MODE, Keys.CATCHUP_TZ, Keys.CATCHUP_PLAYER, Keys.ANIMATION_LEVEL, Keys.VOD_VIEW_MODE,
+        Keys.EPISODE_VIEW_MODE,
         Keys.WEATHER_LOCATION, Keys.RECENT_SEARCHES,
         // Global proxy — non-secret fields only. The proxy password (Keys.PROXY_PASS) is NEVER part of
         // this whitelist; it is handled separately by BackupManager (encrypted or omitted).
@@ -1695,7 +1804,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         // The STATIC-mode hidden set rides with backup so a reinstall keeps the user's hidden icons.
         Keys.NAV_MENU_HIDDEN,
     )
-    private val backupIntKeys = listOf(Keys.DEFAULT_VOLUME, Keys.SEEK_STEP_SEC, Keys.LIVE_REWIND_STEP_SEC, Keys.UI_ZOOM_PCT, Keys.FONT_SIZE_PCT, Keys.AUDIO_DELAY_MS, Keys.CATCHUP_OFFSET_MIN, Keys.EPG_OFFSET_MIN, Keys.PROXY_PORT, Keys.DNS_PORT, Keys.CH_NAV_UP_SKIP, Keys.CH_NAV_DOWN_SKIP, Keys.MINI_PLAYER_SIZE_PCT, Keys.LIVE_LATENCY_CUSTOM_SECS, Keys.LIVE_PREROLL_SECS, Keys.GLASS_SCOPE, Keys.GLASS_ALPHA, Keys.GLASS_BLUR, Keys.GLASS_HIGHLIGHT, Keys.SUB_BG_OPACITY,
+    private val backupIntKeys = listOf(Keys.FOCUS_HIGHLIGHT_WIDTH, Keys.DEFAULT_VOLUME, Keys.SEEK_STEP_SEC, Keys.LIVE_REWIND_STEP_SEC, Keys.UI_ZOOM_PCT, Keys.FONT_SIZE_PCT, Keys.AUDIO_DELAY_MS, Keys.CATCHUP_OFFSET_MIN, Keys.EPG_OFFSET_MIN, Keys.PROXY_PORT, Keys.DNS_PORT, Keys.CH_NAV_UP_SKIP, Keys.CH_NAV_DOWN_SKIP, Keys.MINI_PLAYER_SIZE_PCT, Keys.LIVE_LATENCY_CUSTOM_SECS, Keys.LIVE_PREROLL_SECS, Keys.GLASS_SCOPE, Keys.GLASS_ALPHA, Keys.GLASS_BLUR, Keys.GLASS_HIGHLIGHT, Keys.SUB_BG_OPACITY,
         Keys.PANEL_W_LIVE_CAT, Keys.PANEL_W_LIVE_LIST, Keys.PANEL_W_LIVE_PREVIEW,
         Keys.PANEL_W_MOVIES_CAT, Keys.PANEL_W_MOVIES_LIST, Keys.PANEL_W_MOVIES_PREVIEW,
         Keys.PANEL_W_SERIES_CAT, Keys.PANEL_W_SERIES_LIST, Keys.PANEL_W_SERIES_PREVIEW)
@@ -1839,6 +1948,18 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         return out
     }
 
+    /** Exports stable per-profile Live channel startup targets. */
+    suspend fun exportStartupChannels(): org.json.JSONObject {
+        val prefix = "startup_channel_"
+        val out = org.json.JSONObject()
+        context.dataStore.data.first().asMap().forEach { (k, v) ->
+            if (k.name.startsWith(prefix) && v is String) {
+                StartupChannelRef.fromJson(v)?.let { out.put(k.name.removePrefix(prefix), it.toJson()) }
+            }
+        }
+        return out
+    }
+
     /** Exports all per-profile Home config blobs as { "<profileId>": { ... } }. */
     suspend fun exportHomeConfigs(): org.json.JSONObject {
         val prefix = "home_config_"
@@ -1861,6 +1982,38 @@ class SettingsRepository(private val context: Context, private val localeStore: 
                 val mode = o.optString(key).takeIf { it.isNotEmpty() } ?: return@forEach
                 if (runCatching { StartupMode.valueOf(mode) }.isSuccess) {
                     prefs[stringPreferencesKey("startup_mode_$pid")] = mode
+                }
+            }
+        }
+    }
+
+    /** Restores startup targets after profile/source ids have been remapped by backup import. */
+    suspend fun importStartupChannels(
+        o: org.json.JSONObject,
+        existingProfileIds: Set<Long>,
+        sourceIdMap: Map<Long, Long>,
+    ) {
+        context.dataStore.edit { prefs ->
+            o.keys().forEach { key ->
+                val pid = key.toLongOrNull() ?: return@forEach
+                if (pid !in existingProfileIds) return@forEach
+                val raw = o.optJSONObject(key)?.toString() ?: return@forEach
+                val ref = StartupChannelRef.fromJson(raw) ?: return@forEach
+                val mappedSourceId = sourceIdMap[ref.sourceId] ?: return@forEach
+                prefs[stringPreferencesKey("startup_channel_$pid")] =
+                    ref.copy(sourceId = mappedSourceId, itemId = -1L).toJson().toString()
+            }
+        }
+    }
+
+    /** A restored specific-channel mode must never point at an absent or unmapped source target. */
+    suspend fun repairSpecificStartupModes(profileIds: Set<Long>) {
+        context.dataStore.edit { prefs ->
+            profileIds.forEach { profileId ->
+                val modeKey = stringPreferencesKey("startup_mode_$profileId")
+                if (prefs[modeKey] == StartupMode.SPECIFIC_CHANNEL.name) {
+                    val channel = StartupChannelRef.fromJson(prefs[stringPreferencesKey("startup_channel_$profileId")])
+                    if (channel == null) prefs[modeKey] = StartupMode.HOME.name
                 }
             }
         }

@@ -266,10 +266,10 @@ fun OwnTVShell(
     // Batch 7 — the single most-recent resumable item, surfaced as a shared top-bar "Continue" chip.
     val continueTarget by homeVm.continueTarget.collectAsStateWithLifecycle()
 
-    // "Resume last channel on startup" (opt-in, default off): once when the shell first appears, if enabled
-    // and nothing is playing, jump straight back into the last live channel watched. Reads the setting once
-    // (via first()) so toggling it later in Settings never yanks the user into a channel.
+    // Per-profile startup action runs once when the authenticated shell first appears. With one unlocked
+    // profile that is immediately; profile/PIN gates keep the shell out of composition until authorized.
     val resumeSettings = koinInject<tv.own.owntv.features.settings.data.SettingsRepository>()
+    val startupChannelUnavailable = androidx.compose.ui.res.stringResource(tv.own.owntv.R.string.settings_startup_channel_unavailable)
     LaunchedEffect(Unit) {
         if (playerMode != PlayerMode.NONE) return@LaunchedEffect
         val pid = resumeSettings.activeProfileId.first()
@@ -288,6 +288,39 @@ fun OwnTVShell(
                 onSelectSection(MainSection.LIVE_TV)
                 liveVm.select(tv.own.owntv.features.live.LiveKey.Favorites)
                 restoreFocus = true
+            }
+            tv.own.owntv.features.settings.data.StartupMode.SPECIFIC_CHANNEL -> {
+                val ref = resumeSettings.startupChannel(pid).first()
+                var launch: LauncherLaunch? = null
+                if (ref != null) {
+                    if (!ref.remoteId.isNullOrBlank()) {
+                        launch = launcherIntegrationRepository.resolveLaunch(
+                            pid,
+                            LauncherDeepLink.Live(sourceId = ref.sourceId, remoteId = ref.remoteId),
+                        )
+                    }
+                    if (launch == null) {
+                        launch = launcherIntegrationRepository.resolveLaunch(
+                            pid,
+                            LauncherDeepLink.Live(sourceId = ref.sourceId, name = ref.name),
+                        )
+                    }
+                    if (launch == null && ref.itemId > 0L) {
+                        launch = launcherIntegrationRepository.resolveLaunch(
+                            pid,
+                            LauncherDeepLink.Live(sourceId = ref.sourceId, itemId = ref.itemId),
+                        )
+                    }
+                }
+                val channel = (launch as? LauncherLaunch.Live)?.channel
+                if (channel != null && liveVm.isVisibleToActiveProfile(channel) && playerMode == PlayerMode.NONE) {
+                    zapSource = MainSection.LIVE_TV
+                    liveVm.watchFullscreen(channel, listOf(channel))
+                    playerMode = PlayerMode.FULLSCREEN
+                } else {
+                    onSelectSection(MainSection.HOME)
+                    localSubToast.show(startupChannelUnavailable)
+                }
             }
             tv.own.owntv.features.settings.data.StartupMode.HOME -> Unit
         }

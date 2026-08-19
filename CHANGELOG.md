@@ -1,6 +1,89 @@
 # Changelog
 
-## v4.2.2 — unreleased
+## v4.2.2 — 2026-08-19
+
+### 🖼️ Episode grid — see a picture for every episode
+
+- **A new Grid / List button in a show's episode view.** Grid replaces the text rows with a wall of
+  16:9 episode stills, so you pick an episode by what it looks like rather than by its number. The
+  choice is remembered globally and applies to every show, and List stays the default so nothing
+  changes until you switch.
+- **Episodes TMDB doesn't have still get a usable tile.** IPTV catalogues name episodes in ways TMDB
+  often can't match, and providers supply no episode artwork at all. Those tiles fall back to the
+  show's own wide banner (or its poster), with the episode number drawn large across the middle so
+  the grid stays navigable when every tile looks alike. In **Provider only** metadata mode every tile
+  uses the show's artwork this way, and no lookups are made.
+- **Watched ticks, the "last watched" badge and the part-watched progress bar all carry over** from
+  the list, so nothing is lost by switching layout.
+
+### ⚡ A whole show's episode details now arrive in one request
+
+- **Opening a series used to cost one metadata lookup per episode you scrolled past** — roughly 120
+  for a five-season show, and a third of the daily allowance for a single title. Details for every
+  season now arrive in **one** request, folded into the show lookup that already happens. A grid of
+  episode pictures is only affordable at all because of this.
+- **Switching between seasons is instant and free** once a show has been opened; only shows longer
+  than ten seasons fetch again, and only if you actually browse that far.
+- **The shared metadata service now remembers a title for six months instead of one**, matching how
+  long the app keeps it, and requests are grouped so one viewer's lookup serves everyone else's.
+- **Duplicate entries no longer pay twice.** IPTV catalogues routinely list the same show or film in
+  several categories; the second copy now reuses the details the first one downloaded.
+
+### 🎯 Choose the colour and thickness of the focus highlight (#121)
+
+- **Settings → Appearance → Focus highlight sets the ring drawn around whatever the remote is
+  pointing at.** The old ring was a thin 2 dp accent line, which is easy to lose from sofa distance
+  on a wall of bright posters. Pick a colour from eight presets, from the full palette, or by typing
+  an exact hex code, and pick a thickness — Thin, Normal, Thick or Extra thick. A live sample inside
+  the dialog shows the result before you commit.
+- **One setting covers the whole app.** Live TV, Movies, Series, Home, the TV Guide, Downloads,
+  Search, Settings rows, the category column, the navigation rail, buttons, text fields and every
+  popup all follow it. Thicker rings also open up the surrounding glow, so *Extra thick* reads as a
+  halo rather than just a fatter line.
+- **It works with the Glass Effect on.** In glass mode the frosted rim is the focus ring, so the rim
+  now takes your colour and thickness instead of always being white.
+- **Only the highlight changes.** The accent colour still owns buttons, chips and panels, so a loud
+  focus colour does not repaint the rest of the interface. The default is unchanged, and the choice
+  is included in Backup & Restore.
+
+### 🐛 Fixes
+
+- **The advanced TMDB setting is no longer labelled "via remote".** It was called *Get advanced TMDB
+  info via remote*, but you can equally type the key in on the TV, so the label described only half
+  of what it does. Inside it, the option that hands the details over from a phone or computer had the
+  same name as the panel it sat on; it is now *Get key from another device*.
+- **Episode pictures no longer reload when you return to a season you have already opened.** The
+  cached information was being read one episode at a time, on the same thread that draws the screen —
+  so it queued behind the very grid it was filling. Seasons now appear immediately.
+- **Back from a show now returns focus to that show, instead of jumping to the category sidebar.**
+  Only the poster-grid layout was being scrolled back into view, so in the list layout the show was
+  never on screen to receive focus. The identical fault in Movies — returning from a film in list
+  view — is fixed too.
+
+### 👶 Kids profiles hide adult content
+
+- **Kids mode now hides adult provider categories and their items throughout OwnTV.** The same
+  profile rule covers Live TV, Movies, Series, Home, Search, the TV Guide, Catch-up, Downloads,
+  custom categories, Android TV recommendations and direct/deep-link playback. The Guide is hidden
+  completely for a kids profile. Normal profiles keep the provider's full catalogue.
+- **TMDB search now follows the active profile.** Adult TMDB results are excluded only while Kids
+  mode is on; a normal profile never has them silently removed.
+- **Adult folders are recognized from the names supplied by the IPTV provider**, using common
+  multilingual adult markers plus labels such as `18+` and `XXX`. `Adult Swim` is explicitly not
+  treated as adult content. IPTV formats do not provide a trustworthy universal adult flag, so
+  misleading or uncategorized provider content cannot be identified perfectly.
+
+### 🚀 Start OwnTV on a specific Live TV channel
+
+- **App startup has a new Specific channel choice for each profile.** Its D-pad-friendly picker has
+  a search bar, and the saved channel is resolved by the provider's stable ID, then its name, with
+  the local row ID as a final fallback. The choice is included in Backup & Restore.
+- **A single unlocked profile can start playing its chosen channel immediately.** Multiple profiles
+  still show “Who's watching?”, and a PIN-locked profile still waits for authentication before any
+  channel starts.
+- **Unavailable or restricted startup channels fail safely.** Hidden channels, channels blocked by
+  Kids mode and channels from a disconnected source are never auto-played. If the saved channel no
+  longer exists, OwnTV opens Home and explains what happened.
 
 ### ⏪ Catch-up without a TV guide — a Catch-up category and "Go back to…"
 
@@ -57,17 +140,29 @@
   screen; with a self-hosted server it shows the address. The daily-share rows appear only on the
   shared service, which is the only one that is metered.
 
-### 📱 Send TMDB or OpenSubtitles access from your phone
+### 📱 Send TMDB or OpenSubtitles access from another device
 
-- **The Remote companion now accepts complete service access.** From either advanced popup, scan the QR code, enter the PIN, and send an API key plus an optional Worker/server URL from the phone. The TV fills the popup but waits for **Save**, so configuration never changes behind your back.
+- **OpenSubtitles sign-in can be filled in from another device, password included.** Choose **Remote**
+  and the browser page now asks for your OpenSubtitles username and password as well as the optional
+  API key and Worker/server URL — so none of it has to be typed with the remote. The details land in
+  the sign-in panel on the TV and wait there; you still press **Sign in** yourself.
+- **Setting up OpenSubtitles is one screen instead of several.** **Sign in** first asks how you want to
+  enter your details — **Remote** or **Enter here** — and then shows a single compact panel holding your
+  username, password, "Stay signed in", and the optional API key and server URL underneath, marked
+  optional. The advanced fields are no longer a separate popup, and the duplicate "Advanced options"
+  row that appeared both on the screen and inside the form is gone.
+- **The Remote companion now accepts complete service access.** For TMDB, open Advanced options, scan
+  the QR code, enter the PIN, and send an API key plus an optional Worker/server URL from any browser
+  on the same Wi-Fi — phone, tablet or PC. The TV fills the fields but waits for **Save**, so
+  configuration never changes behind your back.
 
 - **A personal TMDB key no longer means typing 32 characters with a remote.** Under
-  **Settings → Metadata → Advanced options** there is now **Get key from your phone**: the TV shows a
-  QR code and a PIN, you scan it, sign in to TMDB on your phone where typing is easy, paste the key
+  **Settings → Metadata → Advanced options** there is now **Get key from another device**: the TV shows a
+  QR code and a PIN, you open it on a phone, tablet or computer where typing is easy, sign in to TMDB, paste the key
   and send it across. It lands in the key field on the TV; you still press Save, so nothing is
   changed behind your back. This matters because a personal key is free and has practically no daily
   limit, while the built-in shared service has to be rationed between everyone.
-- Uses the same Remote link as the existing phone features, with the same protection: the QR carries
+- Uses the same Remote link as the other remote-companion features, with the same protection: the QR carries
   only the address, never the PIN, and the listener closes as soon as the panel does.
 
 ### 🔐 Your data no longer leaves the TV without a backup password
@@ -171,6 +266,18 @@
 
 ### 🐛 Fixes
 
+- **"Couldn't reach OpenSubtitles" no longer blames your internet when the connection is fine.** Every
+  possible failure showed that one message — a refused request, a rate limit, a server error, and a
+  genuinely dead connection alike — which sent people looking in the wrong place. A server that answers
+  and declines now says so and shows its error number, and the cause of a real connection failure is
+  written to the log, so a report can actually be diagnosed instead of guessed at.
+- **OpenSubtitles sign-in now tries the server's other address.** OpenSubtitles is reached through an
+  address that resolves to both IPv4 and IPv6. On a network that advertises IPv6 but cannot route it,
+  the first attempt failed and OwnTV gave up instantly — so signing in was impossible while everything
+  else on the TV worked normally. Subtitle requests now fall back to the next address.
+- **The Remote companion is no longer described as a "phone" feature.** It works from any browser on the
+  same Wi-Fi, so the app, the guide and the setup pages now say phone, tablet or computer throughout.
+
 - **Restoring a backup no longer gives every Stalker playlist the same MAC address (#114).** Several
   Stalker playlists usually share one portal address and have no username, so a restore treated them
   all as the same playlist: they were merged onto one, each overwriting the previous one's MAC, and
@@ -225,6 +332,19 @@
   the fields while quietly leaving the saved key in force, so the screen still reported "Your TMDB
   key" with nothing on screen to explain why. It now asks for confirmation, then deletes the saved
   key and server address and returns to the built-in shared service.
+
+- **Downloaded subtitles are now told apart, and subtitle timing changes the one you selected.**
+  Every downloaded subtitle was named only by its language, so three Korean downloads appeared as
+  three identical rows — and because that name was also how OwnTV identified them internally, it
+  could only ever find the first. Selecting the second and adjusting its timing shifted the first
+  one's file and switched you to it, which made subtitle timing unusable whenever you had more than
+  one subtitle in a language. Downloads now read `OS_Korean · WEB-DL.NF`, showing the release they
+  came from, with locally imported files marked `LOCAL_` instead. Because the name is checked against
+  every subtitle already in the video, a track inside the file can no longer be mistaken for a
+  download either — previously it could be selected in place of the subtitle you just downloaded, be
+  labelled as coming from OpenSubtitles, or, on the mpv engine, stop your download from reappearing
+  at all when the film reloaded. Timing offsets you saved before this fix were stored against the
+  wrong subtitle; reset the timing once on those and it will stay correct.
 
 ## v4.2.1 — 2026-08-15
 

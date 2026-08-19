@@ -386,9 +386,12 @@ class LiveViewModel(
             if (c.profileId < 0) {
                 flowOf(emptySet())
             } else {
-                combine(categoryDao.observe(c.sourceIds, MediaType.LIVE), custom) { cats, cust ->
-                    if (cust.hiddenCategories.isEmpty()) emptySet()
-                    else cats.filter { CustomizeKeys.category(it) in cust.hiddenCategories }.map { it.id }.toSet()
+                combine(categoryDao.observe(c.sourceIds, MediaType.LIVE), custom, profileDao.observeById(c.profileId)) { cats, cust, profile ->
+                    tv.own.owntv.core.content.AdultCategoryClassifier.hiddenCategoryIds(
+                        cats,
+                        cust.hiddenCategories,
+                        profile?.isKids == true,
+                    )
                 }
             }
         }
@@ -409,11 +412,15 @@ class LiveViewModel(
                 // Catch-up sits between History and All, but ONLY when the provider actually advertises
                 // an archive — otherwise every user without catch-up gets a folder that can never fill.
                 channelDao.observeCatchupCount(c.sourceIds.ifEmpty { listOf(-1L) }).distinctUntilChanged(),
-            ) { cats, cust, sort, catchupCount ->
+                profileDao.observeById(c.profileId),
+            ) { cats, cust, sort, catchupCount, profile ->
                 // A–Z also sorts the category folders (custom categories included); manually moved
                 // categories stay pinned first. Custom categories ride the SAME customization keys,
                 // so renames/hides/reorders apply to them with no extra code (#87).
-                val folders = cats.applyCustomizationsWithCustoms(cust, cust.customCategories, alphaRest = sort == SettingsRepository.SortMode.ALPHA)
+                val kids = profile?.isKids == true
+                val visibleCats = if (kids) cats.filterNot { tv.own.owntv.core.content.AdultCategoryClassifier.isAdult(it.name) } else cats
+                val visibleCustoms = if (kids) cust.customCategories.filterNot { tv.own.owntv.core.content.AdultCategoryClassifier.isAdult(it.name) } else cust.customCategories
+                val folders = visibleCats.applyCustomizationsWithCustoms(cust, visibleCustoms, alphaRest = sort == SettingsRepository.SortMode.ALPHA)
                 railWithCatchup(catchupCount > 0) + folders.map { e ->
                     LiveRailItem(
                         key = e.categoryId?.let { LiveKey.Folder(it) } ?: LiveKey.Custom(e.customId!!),
@@ -448,7 +455,7 @@ class LiveViewModel(
                 else paging
                     .filter { ch ->
                         CustomizeKeys.channel(ch) !in cust.hiddenItems &&
-                            (key is LiveKey.Custom || ch.categoryId == null || ch.categoryId !in hiddenCats) &&
+                        (ch.categoryId == null || ch.categoryId !in hiddenCats) &&
                             // Moved-out items leave ONLY their origin folder (they stay in All/search).
                             (movedFrom[CustomizeKeys.channel(ch)]?.let { origin ->
                                 key !is LiveKey.Folder || origin != folderContextKeys.value[key.id]
@@ -641,6 +648,7 @@ class LiveViewModel(
     val previewBlockedSingleSession: StateFlow<Boolean> = _previewBlockedSingleSession.asStateFlow()
 
     fun playPreview(channel: ChannelEntity) {
+        if (channel.categoryId != null && channel.categoryId in hiddenCategoryIds.value) return
         // Don't touch the engine while it's promoted to full-screen. Clicking OK before the in-pane preview's
         // focus-delay fires would otherwise let this late preview call re-mute the now-full-screen stream
         // (preview audio is off) — so full-screen would play with no sound. ensurePlaying() sets liveOnExo
@@ -890,6 +898,17 @@ class LiveViewModel(
     suspend fun lastWatchedLiveChannel(): ChannelEntity? {
         val pid = ctx.first { it.profileId >= 0 }.profileId
         return channelDao.recentlyWatched(pid, 1).first().firstOrNull()
+    }
+
+    /** Final startup/deep-entry visibility check, including profile source and Customize policy. */
+    suspend fun isVisibleToActiveProfile(channel: ChannelEntity): Boolean {
+        val current = ctx.first { it.profileId >= 0L }
+        if (channel.sourceId !in current.sourceIds) return false
+        if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(current.profileId, channel.categoryId, profileDao, categoryDao)) return false
+        val customizations = customize.observe(current.profileId, MediaType.LIVE).first()
+        if (CustomizeKeys.channel(channel) in customizations.hiddenItems) return false
+        val category = channel.categoryId?.let { categoryDao.getById(it) }
+        return category == null || CustomizeKeys.category(category) !in customizations.hiddenCategories
     }
 
     /** Open a channel fullscreen, preserving the browse context it was launched from. The channel's
@@ -1240,6 +1259,8 @@ class LiveViewModel(
      *  cmd rather than a URL, so it's resolved first — an external app can't mint one. */
     fun playExternal(channel: ChannelEntity) {
         viewModelScope.launch {
+            val pid = currentProfileId() ?: return@launch
+            if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, channel.categoryId, profileDao, categoryDao)) return@launch
             val source = withContext(Dispatchers.IO) { sourceDao.getById(channel.sourceId) }
             val url = if (streamUrlResolver.needsResolve(source)) {
                 withContext(Dispatchers.IO) {
@@ -1299,6 +1320,8 @@ class LiveViewModel(
      *  channel. Direct-tune's background rebuild path calls this without [cancelPendingZapRebuild]
      *  so the in-flight rebuild it owns isn't killed by its own play. */
     private suspend fun playChannel(channel: ChannelEntity) {
+        val pid = currentProfileId() ?: return
+        if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, channel.categoryId, profileDao, categoryDao)) return
         // Live TV set to play externally: hand the channel over instead of tuning an in-app engine.
         // History is still recorded, so the channel shows up in History/Recently watched either way.
         // #115 — a protected channel stays in-app whatever this setting says: no standard intent extra
@@ -1938,6 +1961,8 @@ class LiveViewModel(
      *  once it leaves, but external players cope with mid-GOP archive segments some providers serve. */
     fun playCatchupExternal(ch: ChannelEntity, programme: tv.own.owntv.core.database.entity.EpgProgrammeEntity) {
         viewModelScope.launch {
+            val pid = currentProfileId() ?: return@launch
+            if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, ch.categoryId, profileDao, categoryDao)) return@launch
             val url = archiveUrls.forProgramme(ch, programme) ?: return@launch
             Log.i(ENGINE_TAG, "catch-up external '${ch.name}' prog='${programme.title}'")
             externalPlayerLauncher.launch(url, ch.name, programme.title)
@@ -1948,6 +1973,8 @@ class LiveViewModel(
     /** Replay a past programme from the channel's archive (seekable, like the Guide's "Watch from start"). */
     fun playCatchupProgramme(ch: ChannelEntity, programme: tv.own.owntv.core.database.entity.EpgProgrammeEntity) {
         viewModelScope.launch {
+            val pid = currentProfileId() ?: return@launch
+            if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, ch.categoryId, profileDao, categoryDao)) return@launch
             val url = archiveUrls.forProgramme(ch, programme) ?: return@launch
             val sourceUa = withContext(Dispatchers.IO) { sourceDao.getById(ch.sourceId)?.userAgent }
             // The archive URL shape decides whether ExoPlayer can take it at all (progressive .ts vs
@@ -2061,6 +2088,7 @@ class LiveViewModel(
      *  it live would. Without that the channel-list overlay and zapping stay dead for the session. */
     fun playCatchupAt(ch: ChannelEntity, offsetSec: Int) {
         if (!ch.catchup) return
+        if (ch.categoryId != null && ch.categoryId in hiddenCategoryIds.value) return
         val off = offsetSec.coerceIn(1, catchupWindowSec(ch))
         armZapList(ch)
         _previewChannel.value = ch

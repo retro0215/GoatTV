@@ -100,23 +100,59 @@ fun OpenSubtitlesAccountScreen(onBack: () -> Unit, modifier: Modifier = Modifier
     val storedApiKey by settingsVm.openSubtitlesApiKey.collectAsStateWithLifecycle()
     val storedServerUrl by settingsVm.openSubtitlesServerUrl.collectAsStateWithLifecycle()
 
+    // Sign-in setup: a Remote/Enter-here chooser, then one panel holding every field. Hoisted here so
+    // the Remote hand-over can pre-fill them before the panel opens.
+    var showSetupChooser by remember { mutableStateOf(false) }
     var showSignIn by remember { mutableStateOf(false) }
+    var signInUser by remember { mutableStateOf("") }
+    var signInPass by remember { mutableStateOf("") }
+    var signInStay by remember { mutableStateOf(true) }
     var showDeleteSubs by remember { mutableStateOf(false) }
     var showLangPicker by remember { mutableStateOf(false) }
     var showApiAccess by remember { mutableStateOf(false) }
     var apiWasOpen by remember { mutableStateOf(false) }
     val apiRowFocus = remember { FocusRequester() }
     var showRemoteSetup by remember { mutableStateOf(false) }
+    // Which door opened Remote: the sign-in chooser (credentials + advanced) or the standalone
+    // Advanced row (key/URL only). The companion delivers on one flow either way.
+    var remoteForSignIn by remember { mutableStateOf(false) }
     var apiKey by remember(storedApiKey) { mutableStateOf(storedApiKey) }
     var serverUrl by remember(storedServerUrl) { mutableStateOf(storedServerUrl) }
+    // What the remote browser sent, parked until the companion dialog has actually left the
+    // composition. Two stages on purpose: the collector below is keyed on the dialog's visibility,
+    // so anything it tried to do AFTER closing the dialog would be cancelled with it. Applying the
+    // payload from its own effect also guarantees only one focus-trapping popup is ever alive.
+    var pendingRemote by remember {
+        mutableStateOf<tv.own.owntv.core.companion.CompanionServiceConfig?>(null)
+    }
     LaunchedEffect(showRemoteSetup) {
         if (!showRemoteSetup) return@LaunchedEffect
         settingsVm.remoteOpenSubtitlesConfigs.collect { received ->
+            pendingRemote = received
+            showRemoteSetup = false
+        }
+    }
+    LaunchedEffect(pendingRemote) {
+        val received = pendingRemote ?: return@LaunchedEffect
+        // One frame for the companion popup to be torn down before the next one mounts.
+        kotlinx.coroutines.delay(150)
+        if (remoteForSignIn) {
+            remoteForSignIn = false
+            signInUser = received.username
+            signInPass = received.password
+            // Blank means "left empty on the remote", never "clear what's saved" — the form shows
+            // the stored values, so the user can still clear them there deliberately.
+            if (received.apiKey.isNotBlank()) apiKey = received.apiKey
+            if (received.serverUrl.isNotBlank()) serverUrl = received.serverUrl
+            showSignIn = true
+        } else {
             apiKey = received.apiKey
             serverUrl = received.serverUrl
-            showRemoteSetup = false
             showApiAccess = true
         }
+        // Consumed LAST. Clearing it first would change this effect's key and cancel the coroutine
+        // at the delay above, so the payload would silently never be applied.
+        pendingRemote = null
     }
     var langPickerWasOpen by remember { mutableStateOf(false) }
     val langRowFocus = remember { FocusRequester() }
@@ -267,23 +303,28 @@ fun OpenSubtitlesAccountScreen(onBack: () -> Unit, modifier: Modifier = Modifier
                     desc = stringResource(R.string.player_subtitles_connect_description),
                     chevron = true,
                     modifier = Modifier.focusRequester(firstFocus),
-                    onClick = { showSignIn = true },
+                    onClick = { showSetupChooser = true },
                 )
             }
         }
 
-        ServiceSettingsRow(
-            icon = OwnTVIcon.GEAR,
-            title = stringResource(R.string.settings_open_subtitles_advanced),
-            desc = stringResource(R.string.settings_open_subtitles_advanced_description),
-            chip = if (storedServerUrl.isNotBlank()) stringResource(R.string.settings_tier_self_host)
-                else if (storedApiKey.isNotBlank()) stringResource(R.string.settings_tier_key)
-                else stringResource(R.string.settings_shared),
-            primaryChip = storedApiKey.isNotBlank() || storedServerUrl.isNotBlank(),
-            chevron = true,
-            modifier = Modifier.focusRequester(apiRowFocus),
-            onClick = { showApiAccess = true },
-        )
+        // Only while signed in. Signed out, Advanced lives inside the sign-in form instead — showing
+        // both put the same row on screen twice, and there is nothing here a signed-out user needs
+        // that the form doesn't already offer.
+        if (state is OpenSubtitlesViewModel.UiState.SignedIn) {
+            ServiceSettingsRow(
+                icon = OwnTVIcon.GEAR,
+                title = stringResource(R.string.settings_open_subtitles_advanced),
+                desc = stringResource(R.string.settings_open_subtitles_advanced_description),
+                chip = if (storedServerUrl.isNotBlank()) stringResource(R.string.settings_tier_self_host)
+                    else if (storedApiKey.isNotBlank()) stringResource(R.string.settings_tier_key)
+                    else stringResource(R.string.settings_shared),
+                primaryChip = storedApiKey.isNotBlank() || storedServerUrl.isNotBlank(),
+                chevron = true,
+                modifier = Modifier.focusRequester(apiRowFocus),
+                onClick = { showApiAccess = true },
+            )
+        }
 
         // Search language filter (available regardless of sign-in state — it's a search preference).
         Spacer(Modifier.height(14.dp))
@@ -339,13 +380,31 @@ fun OpenSubtitlesAccountScreen(onBack: () -> Unit, modifier: Modifier = Modifier
         )
     }
 
+    if (showSetupChooser) {
+        OpenSubtitlesSetupChooser(
+            onRemote = { showSetupChooser = false; remoteForSignIn = true; showRemoteSetup = true },
+            onLocal = { showSetupChooser = false; showSignIn = true },
+            onDismiss = { showSetupChooser = false },
+        )
+    }
+
     if (showSignIn) {
         OpenSubtitlesSignInDialog(
-            onSubmit = { user, pass, stay ->
+            username = signInUser, onUsernameChange = { signInUser = it },
+            password = signInPass, onPasswordChange = { signInPass = it },
+            staySignedIn = signInStay, onStayChange = { signInStay = it },
+            apiKey = apiKey, onApiKeyChange = { apiKey = it },
+            serverUrl = serverUrl, onServerUrlChange = { serverUrl = it },
+            onSubmit = {
                 showSignIn = false
-                vm.signIn(user, pass, stay)
+                // The optional fields are edited in place here, so Sign in is also their Save. A
+                // blank one is a deliberate clear: the form opened showing whatever was stored.
+                settingsVm.setOpenSubtitlesApiKey(apiKey)
+                settingsVm.setOpenSubtitlesServerUrl(serverUrl)
+                vm.signIn(signInUser.trim(), signInPass, signInStay)
+                signInPass = ""
             },
-            onDismiss = { showSignIn = false },
+            onDismiss = { showSignIn = false; signInUser = ""; signInPass = "" },
         )
     }
 
@@ -353,7 +412,7 @@ fun OpenSubtitlesAccountScreen(onBack: () -> Unit, modifier: Modifier = Modifier
         OpenSubtitlesApiPopup(
             key = apiKey, url = serverUrl,
             onKeyChange = { apiKey = it }, onUrlChange = { serverUrl = it },
-            onRemote = { showApiAccess = false; showRemoteSetup = true },
+            onRemote = { showApiAccess = false; remoteForSignIn = false; showRemoteSetup = true },
             onRemove = {
                 apiKey = ""; serverUrl = ""
                 settingsVm.setOpenSubtitlesApiKey(""); settingsVm.setOpenSubtitlesServerUrl("")
@@ -378,7 +437,8 @@ fun OpenSubtitlesAccountScreen(onBack: () -> Unit, modifier: Modifier = Modifier
 
     if (showRemoteSetup) {
         CompanionKeyDialog(
-            titleRes = R.string.settings_open_subtitles_advanced,
+            titleRes = if (remoteForSignIn) R.string.settings_open_subtitles_setup_title
+                else R.string.settings_open_subtitles_advanced,
             state = settingsVm.remoteState.collectAsStateWithLifecycle().value,
             onStart = settingsVm::startRemoteOpenSubtitlesConfigListener,
             onStop = settingsVm::stopRemoteListener,
@@ -412,14 +472,16 @@ fun OpenSubtitlesAccountScreen(onBack: () -> Unit, modifier: Modifier = Modifier
         }
     }
 
-    error?.let { kind ->
-        val messageRes = when (kind) {
-            OpenSubtitlesViewModel.ErrorKind.EMPTY_CREDENTIALS -> R.string.player_subtitles_enter_credentials
-            OpenSubtitlesViewModel.ErrorKind.INVALID_CREDENTIALS -> R.string.player_subtitles_invalid_credentials
-            OpenSubtitlesViewModel.ErrorKind.NETWORK -> R.string.player_subtitles_sign_in_network_error
-            OpenSubtitlesViewModel.ErrorKind.REFRESH_NETWORK -> R.string.player_subtitles_refresh_network_error
+    error?.let { err ->
+        val message = when (err.kind) {
+            OpenSubtitlesViewModel.ErrorKind.EMPTY_CREDENTIALS -> stringResource(R.string.player_subtitles_enter_credentials)
+            OpenSubtitlesViewModel.ErrorKind.INVALID_CREDENTIALS -> stringResource(R.string.player_subtitles_invalid_credentials)
+            // The server answered and said no — showing the code is what makes a user report usable.
+            OpenSubtitlesViewModel.ErrorKind.SERVER_ERROR -> stringResource(R.string.player_subtitles_sign_in_server_error, err.httpCode)
+            OpenSubtitlesViewModel.ErrorKind.NETWORK -> stringResource(R.string.player_subtitles_sign_in_network_error)
+            OpenSubtitlesViewModel.ErrorKind.REFRESH_NETWORK -> stringResource(R.string.player_subtitles_refresh_network_error)
         }
-        ErrorDialog(message = stringResource(messageRes), onDismiss = { vm.dismissError() })
+        ErrorDialog(message = message, onDismiss = { vm.dismissError() })
     }
 }
 
@@ -450,6 +512,52 @@ private fun openSubtitlesResetLabel(raw: String?): String {
     return stringResource(R.string.settings_open_subtitles_reset_in, totalMinutes / 60, totalMinutes % 60)
 }
 
+/** Remote (a browser on the same Wi-Fi) or Enter here (type on the TV) — the one door into sign-in. */
+@Composable
+private fun OpenSubtitlesSetupChooser(onRemote: () -> Unit, onLocal: () -> Unit, onDismiss: () -> Unit) {
+    val colors = OwnTVTheme.colors
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); runCatching { firstFocus.requestFocus() } }
+    BackHandler { onDismiss() }
+    tv.own.owntv.ui.components.OwnTVPopup(onDismissRequest = onDismiss) {
+        Box(
+            Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(Modifier.dialogPanel(width = 520.dp, padding = 28.dp)) {
+                Text(stringResource(R.string.settings_open_subtitles_setup_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.settings_open_subtitles_setup_description),
+                    style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row2(
+                    icon = OwnTVIcon.SHARE,
+                    title = stringResource(R.string.settings_open_subtitles_setup_remote),
+                    desc = stringResource(R.string.settings_open_subtitles_setup_remote_description),
+                    chevron = true,
+                    modifier = Modifier.focusRequester(firstFocus),
+                    onClick = onRemote,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row2(
+                    icon = OwnTVIcon.PERSON,
+                    title = stringResource(R.string.settings_open_subtitles_setup_local),
+                    desc = stringResource(R.string.settings_open_subtitles_setup_local_description),
+                    chevron = true,
+                    onClick = onLocal,
+                )
+                Spacer(Modifier.height(18.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    OwnTVButton(stringResource(R.string.common_cancel), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY)
+                }
+            }
+        }
+    }
+}
+
+/** Advanced access for an already signed-in account. Signing in carries its own copy of these fields. */
 @Composable
 private fun OpenSubtitlesApiPopup(
     key: String,
@@ -466,6 +574,10 @@ private fun OpenSubtitlesApiPopup(
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); runCatching { firstFocus.requestFocus() } }
     BackHandler { onDismiss() }
     tv.own.owntv.ui.components.OwnTVPopup(onDismissRequest = onDismiss, fontScale = .50f) {
+        Box(
+            Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
+            contentAlignment = Alignment.Center,
+        ) {
         Column(Modifier.dialogPanel(width = 560.dp, padding = 20.dp)) {
             Text(stringResource(R.string.settings_open_subtitles_advanced), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
             Spacer(Modifier.height(4.dp))
@@ -473,7 +585,7 @@ private fun OpenSubtitlesApiPopup(
             Spacer(Modifier.height(12.dp))
             Row2(
                 icon = OwnTVIcon.SHARE,
-                title = stringResource(R.string.settings_open_subtitles_advanced),
+                title = stringResource(R.string.settings_open_subtitles_setup_remote),
                 desc = stringResource(R.string.settings_metadata_key_from_phone_desc),
                 chevron = true,
                 modifier = Modifier.focusRequester(firstFocus),
@@ -493,53 +605,106 @@ private fun OpenSubtitlesApiPopup(
                 OwnTVButton(stringResource(R.string.common_save), onSave)
             }
         }
+        }
     }
 }
 
-/** Username + password + "Stay signed in" (review R5). TV keyboard comes from OwnTVTextField. */
+/**
+ * The whole sign-in on one panel: username, password, "Stay signed in" (review R5), and the two
+ * optional API fields inline. Deliberately the same four inputs, in the same order, as the remote
+ * companion page — so filling it in on the TV and filling it in on a browser look like one feature.
+ *
+ * Scrollable and on the popup's small type scale, because five inputs plus a toggle overflow a TV
+ * panel once the keyboard claims the lower half of the screen. Fields are hoisted so the caller can
+ * pre-fill them from the Remote hand-over.
+ */
 @Composable
-internal fun OpenSubtitlesSignInDialog(onSubmit: (String, String, Boolean) -> Unit, onDismiss: () -> Unit) {
+private fun OpenSubtitlesSignInDialog(
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    staySignedIn: Boolean,
+    onStayChange: (Boolean) -> Unit,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    serverUrl: String,
+    onServerUrlChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val colors = OwnTVTheme.colors
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var staySignedIn by remember { mutableStateOf(true) }
     val fieldFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { fieldFocus.requestFocus() } }
     BackHandler { onDismiss() }
-    tv.own.owntv.ui.components.OwnTVPopup(onDismissRequest = onDismiss) {
+    tv.own.owntv.ui.components.OwnTVPopup(onDismissRequest = onDismiss, fontScale = .50f) {
         Box(
             Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
             contentAlignment = Alignment.Center,
         ) {
-            Column(Modifier.dialogPanel(width = 480.dp, padding = 28.dp)) {
+            // dialogPanel already scrolls (scroll = true by default), which is what keeps Sign in
+            // reachable once the TV keyboard covers the lower half. Adding another verticalScroll
+            // here would be an illegal same-direction nest.
+            Column(Modifier.dialogPanel(width = 520.dp, padding = 20.dp)) {
                 Text(stringResource(R.string.player_subtitles_sign_in_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.player_subtitles_sign_in_to_use),
                     style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
                 )
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
                 OwnTVTextField(
-                    value = username, onValueChange = { username = it },
+                    value = username, onValueChange = onUsernameChange,
                     label = stringResource(R.string.player_subtitles_username), modifier = Modifier.fillMaxWidth(), focusRequester = fieldFocus,
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
                 OwnTVTextField(
-                    value = password, onValueChange = { password = it },
+                    value = password, onValueChange = onPasswordChange,
                     label = stringResource(R.string.player_subtitles_password), isPassword = true, modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Row2(
                     icon = OwnTVIcon.SUBTITLE, title = stringResource(R.string.player_subtitles_stay_signed_in),
                     desc = stringResource(R.string.player_subtitles_session),
                     chip = if (staySignedIn) stringResource(R.string.common_on) else stringResource(R.string.common_off), primaryChip = staySignedIn,
-                    onClick = { staySignedIn = !staySignedIn },
+                    onClick = { onStayChange(!staySignedIn) },
                 )
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(14.dp))
+                // Optional, and labelled as such: almost nobody has their own key, and a required-looking
+                // empty field right above Sign in reads like something is missing.
+                Text(
+                    stringResource(R.string.settings_open_subtitles_advanced),
+                    style = MaterialTheme.typography.titleSmall, color = colors.onSurface,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    stringResource(R.string.settings_open_subtitles_advanced_description),
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OwnTVTextField(
+                    value = apiKey, onValueChange = onApiKeyChange,
+                    label = stringResource(R.string.settings_open_subtitles_api_key),
+                    placeholder = stringResource(R.string.settings_metadata_optional),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OwnTVTextField(
+                    value = serverUrl, onValueChange = onServerUrlChange,
+                    label = stringResource(R.string.settings_worker_server_url),
+                    placeholder = stringResource(R.string.settings_metadata_optional),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.settings_open_subtitles_access_priority),
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(14.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OwnTVButton(stringResource(R.string.common_cancel), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY)
                     Spacer(Modifier.weight(1f))
-                    OwnTVButton(stringResource(R.string.player_subtitles_sign_in), onClick = { onSubmit(username.trim(), password, staySignedIn) })
+                    OwnTVButton(stringResource(R.string.player_subtitles_sign_in), onClick = onSubmit)
                 }
             }
         }
