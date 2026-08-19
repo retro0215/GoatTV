@@ -537,8 +537,7 @@
     <!-- Translators: Version display on the About screen. 'version' is the version string. -->
     <string name="settings_about_version">Version <xliff:g id="version">%1$s</xliff:g></string>
     <!-- Translators: Full description of OwnTV on the About screen. 'OwnTV' is a brand name. -->
-    <string name="settings_about_description_full">Live TV*Sports*Movies*Shows
-    5Star Ultra delivers a fast, simple and premium entertainment experience built for Android TV. </string>
+    <string name="settings_about_description_full">5Star Ultra delivers a fast, simple and premium entertainment experience built for Android TV.</string>
     <!-- Translators: Copyright and license information. 'GPLv3' is a license name. -->
     <string name="settings_about_license">© 2026 5Star Ultra · GPLv3 License</string>
     <!-- Translators: Link label to join the Telegram community group. 'Telegram' is a brand name. -->
