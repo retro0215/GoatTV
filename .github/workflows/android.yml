@@ -46,12 +46,12 @@ jobs:
       - name: Unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew testGoatStandardDebugUnitTest --stacktrace
+          ./gradlew testStandardGoatDebugUnitTest --stacktrace
 
       # abortOnError = true in app/build.gradle.kts, so this fails the job on a lint error.
       - name: Lint
         if: always()   # report both verdicts in one run instead of one failure at a time
-        run: ./gradlew lintGoatStandardDebug --stacktrace
+        run: ./gradlew lintStandardGoatDebug --stacktrace
 
       - name: Upload test and lint reports
         if: always()   # the reports matter most when the step above failed
