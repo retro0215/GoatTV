@@ -1087,7 +1087,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val preview = p[panelPreviewKey(s)]
         if (category == null || list == null || preview == null || category <= 0 || list <= 0 || preview < 0) {
             when (s) {
-                PanelSection.LIVE -> PanelShares(30, 45, 25)
+                PanelSection.LIVE -> PanelShares(20, 35, 45)
                 PanelSection.MOVIES -> PanelShares(15, 65, 20)
                 PanelSection.SERIES -> PanelShares(15, 65, 20)
             }
