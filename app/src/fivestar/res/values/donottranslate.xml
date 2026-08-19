@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">5Star Ultra</string>
+    <string name="brand_own" translatable="false">5Star</string>
+    <string name="brand_tv" translatable="false">Ultra</string>
+    <string name="brand_full_name" translatable="false">5Star Ultra</string>
+</resources>

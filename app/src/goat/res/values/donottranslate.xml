@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">GoatTV</string>
+    <string name="brand_own" translatable="false">Goat</string>
+    <string name="brand_tv" translatable="false">TV</string>
+    <string name="brand_full_name" translatable="false">GoatTV</string>
+</resources>

@@ -43,7 +43,6 @@ android {
     }
 
     defaultConfig {
-        applicationId = "tv.fivestar.ultra"
         minSdk = 26
         targetSdk = 36
         // CI injects these from the git tag (see .github/workflows/android.yml) so releases never
@@ -92,17 +91,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // ABI split via product flavors: real Android TV / Fire TV hardware is arm (arm64-v8a covers
-    // everything modern; armeabi-v7a keeps the original 32-bit Nvidia Shield TV 2015/2017, which runs
-    // Android 9+ but is 32-bit). x86_64 is emulator-only — no real TV box uses it. Shipping them as
-    // separate flavors halves the download users get via the Downloader code (~49MB vs the old 104MB
-    // universal APK that bundled all 4 ABIs), which fixes the "parse error on install" reports caused
-    // by truncated downloads. x86 (32-bit Intel) is dropped entirely — even emulators use x86_64.
-    //
-    // Local dev: pick a flavor in Android Studio's "Build Variants" panel before Run (standard for
-    // real devices / arm emulators, x86_64 for an x86_64 emulator). `assembleRelease` builds BOTH.
-    flavorDimensions += "abi"
+    // ABI and Brand dimensions
+    flavorDimensions += listOf("abi", "brand")
     productFlavors {
+        // ABI flavors
         create("standard") {
             dimension = "abi"
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
@@ -110,6 +102,24 @@ android {
         create("x86_64") {
             dimension = "abi"
             ndk { abiFilters += listOf("x86_64") }
+        }
+
+        // Brand flavors
+        create("goat") {
+            dimension = "brand"
+            // Verified production identity for GoatTV.
+            applicationId = "tv.own.owntv"
+            buildConfigField("String", "RELEASE_TAG_PREFIX", "\"v\"")
+            buildConfigField("String", "REPO_PATH", "\"retro0215/5Star-Ultra\"")
+            buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
+        }
+        create("fivestar") {
+            dimension = "brand"
+            // Verified production identity for 5Star Ultra.
+            applicationId = "tv.fivestar.ultra"
+            buildConfigField("String", "RELEASE_TAG_PREFIX", "\"5star-v\"")
+            buildConfigField("String", "REPO_PATH", "\"retro0215/5Star-Ultra\"")
+            buildConfigField("String", "BRAND_UA", "\"5Star Ultra\"")
         }
     }
 

@@ -39,7 +39,7 @@ fun BrandLockup(
 ) {
     Image(
         painter = painterResource(id = R.drawable.owntv_wordmark),
-        contentDescription = "GoatTV",
+        contentDescription = stringResource(id = R.string.brand_full_name),
         modifier = modifier
             .width((markSize * 7).dp)
             .height((markSize * 2.5).dp),

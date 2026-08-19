@@ -2636,7 +2636,6 @@
 1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	${context.packageName}.fileprovider
 1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	.apk
 1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	Accept
-1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	OwnTV
 1	log	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	UpdateManager
 2	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	User-Agent
 1	mime	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	application/vnd.android.package-archive
@@ -2644,11 +2643,12 @@
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	assets
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	body
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	browser_download_url
-1	url	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	https://api.github.com/repos/$REPO/releases/latest
+1	url	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	https://api.github.com/repos/${BuildConfig.REPO_PATH}/releases
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	name
-1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	tag_name
+2	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	tag_name
 1	log	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	update check failed: ${error.message}
 1	log	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	update download failed: ${error.message}
+1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	update.apk
 1	file-path	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	updates
 1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	v
 2	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	x86_64
@@ -4693,4 +4693,3 @@
 1	empty	app/src/main/java/tv/own/owntv/ui/theme/OwnTVColors.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/ui/theme/OwnTVColors.kt	#
 1	empty	app/src/main/java/tv/own/owntv/ui/theme/Theme.kt	\0
-1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	5star-v

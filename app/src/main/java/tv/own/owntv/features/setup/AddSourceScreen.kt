@@ -167,7 +167,8 @@ fun AddSourceScreen(
             },
         )
     }
-    var name by remember(initial) { mutableStateOf("5Star Ultra") }
+    val defaultName = stringResource(id = R.string.brand_full_name)
+    var name by remember(initial, defaultName) { mutableStateOf(initial?.name ?: defaultName) }
     var server by remember(initial) { mutableStateOf("https://best-streams.tv") }
     var username by remember(initial) { mutableStateOf(initial?.username ?: "") }
     var password by remember(initial) { mutableStateOf(initial?.password ?: "") }

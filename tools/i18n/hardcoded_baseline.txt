@@ -211,9 +211,6 @@
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	ts
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	user_output_formats
 1	app/src/main/java/tv/own/owntv/core/sync/work/TrendingRefreshWorker.kt	Playlist
-1	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	5star Ultra
-1	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	5star-ultra-update.apk
-1	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	retro0215/5Star-Ultra
 2	app/src/main/java/tv/own/owntv/features/customize/BulkRenameDialogs.kt	\0
 1	app/src/main/java/tv/own/owntv/features/customize/BulkRenameDialogs.kt	ADD
 1	app/src/main/java/tv/own/owntv/features/customize/BulkRenameDialogs.kt	PREFIX
@@ -286,7 +283,6 @@
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_center
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_left
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_right
-1	app/src/main/java/tv/own/owntv/features/setup/AddSourceScreen.kt	5Star Ultra
 1	app/src/main/java/tv/own/owntv/features/setup/AddSourceScreen.kt	https://best-streams.tv
 1	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	\0
 3	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	\0
@@ -322,7 +318,6 @@
 1	app/src/main/java/tv/own/owntv/player/PlayerDiagnostics.kt	\0
 1	app/src/main/java/tv/own/owntv/player/PlayerDiagnostics.kt	429
 1	app/src/main/java/tv/own/owntv/player/PlayerDiagnostics.kt	458
-1	app/src/main/java/tv/own/owntv/ui/components/BrandLockup.kt	GoatTV
 1	app/src/main/java/tv/own/owntv/ui/components/ColorPicker.kt	#%06X
 1	app/src/main/java/tv/own/owntv/ui/components/TextInputDialog.kt	\0
 1	app/src/main/java/tv/own/owntv/ui/components/TvImeMetrics.kt	$trigger visible=${next.visible} source=${next.source} displayH=$displayHeight

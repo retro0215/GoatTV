@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_about_description_full">5Star Ultra delivers a fast, simple and premium entertainment experience built for Android TV.</string>
+    <string name="settings_about_license">© 2026 5Star Ultra · GPLv3 License</string>
+    <string name="content_exit_owntv">Exit 5Star Ultra?</string>
+    <string name="settings_contributions">5star-ultra.net</string>
+</resources>

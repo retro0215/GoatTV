@@ -5,9 +5,6 @@
   from translation export. Keep them here, not in strings*.xml.
 -->
 <resources>
-    <string name="app_name" translatable="false">5Star Ultra</string>
-    <string name="brand_own" translatable="false">5Star</string>
-    <string name="brand_tv" translatable="false">Ultra</string>
     <string name="settings_player_exoplayer" translatable="false">ExoPlayer</string>
     <string name="settings_player_mpv" translatable="false">mpv</string>
     <string name="settings_degree_celsius" translatable="false">°C</string>

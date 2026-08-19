@@ -73,23 +73,38 @@ class UpdateManager(
 
     val currentVersion: String = BuildConfig.VERSION_NAME
 
-    /** Queries GitHub's latest release; moves to Available / UpToDate / a semantic failure. */
+    /** Queries GitHub's latest release for THIS brand; moves to Available / UpToDate / a semantic failure. */
     fun check() {
         if (_state.value is State.Checking || _state.value is State.Downloading) return
         _state.value = State.Checking
         scope.launch {
             runCatching {
                 val request = Request.Builder()
-                    .url("https://api.github.com/repos/$REPO/releases/latest")
+                    .url("https://api.github.com/repos/${BuildConfig.REPO_PATH}/releases")
                     .header("Accept", "application/vnd.github+json")
-                    .header("User-Agent", "OwnTV")
+                    .header("User-Agent", BuildConfig.BRAND_UA)
                     .build()
                 client.newCall(request).execute().use { resp ->
                     if (!resp.isSuccessful) throw CheckHttpException(resp.code)
                     val body = resp.body.string()
                     if (body.isBlank()) throw InvalidReleaseResponseException()
-                    val o = runCatching { JSONObject(body) }.getOrElse { throw InvalidReleaseResponseException() }
-                    val version = o.optString("tag_name").removePrefix(RELEASE_TAG_PREFIX).removePrefix("v").takeIf { it.isNotBlank() }
+                    
+                    val releases = runCatching { org.json.JSONArray(body) }.getOrElse { throw InvalidReleaseResponseException() }
+                    
+                    // Find the newest release that matches this brand's tag prefix
+                    var targetRelease: JSONObject? = null
+                    for (i in 0 until releases.length()) {
+                        val rel = releases.optJSONObject(i) ?: continue
+                        val tag = rel.optString("tag_name")
+                        if (tag.startsWith(BuildConfig.RELEASE_TAG_PREFIX)) {
+                            targetRelease = rel
+                            break
+                        }
+                    }
+                    
+                    val o = targetRelease ?: throw NoCompatibleApkException()
+                    
+                    val version = o.optString("tag_name").removePrefix(BuildConfig.RELEASE_TAG_PREFIX).removePrefix("v").takeIf { it.isNotBlank() }
                         ?: throw InvalidReleaseResponseException()
                     val notes = o.optString("body").take(16_000)
                     val assets = o.optJSONArray("assets") ?: throw InvalidReleaseResponseException()
@@ -126,8 +141,8 @@ class UpdateManager(
         scope.launch {
             runCatching {
                 val dir = File(context.filesDir, "updates").apply { mkdirs() }
-                val out = File(dir, "5star-ultra-update.apk")
-                val request = Request.Builder().url(info.apkUrl).header("User-Agent", "5star Ultra").build()
+                val out = File(dir, "update.apk")
+                val request = Request.Builder().url(info.apkUrl).header("User-Agent", BuildConfig.BRAND_UA).build()
                 client.newCall(request).execute().use { resp ->
                     if (!resp.isSuccessful) throw DownloadHttpException(resp.code)
                     val body = resp.body
@@ -200,7 +215,5 @@ class UpdateManager(
 
     companion object {
         private const val TAG = "UpdateManager"
-        const val REPO = "retro0215/5Star-Ultra"
-        private const val RELEASE_TAG_PREFIX = "5star-v"
     }
 }

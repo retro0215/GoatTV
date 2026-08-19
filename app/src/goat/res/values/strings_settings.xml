@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_about_description_full">GoatTV delivers a fast, simple and premium entertainment experience built for Android TV.</string>
+    <string name="settings_about_license">© 2026 GoatTV · GPLv3 License</string>
+    <string name="content_exit_owntv">Exit GoatTV?</string>
+    <string name="settings_contributions">goattv.net</string>
+</resources>

@@ -18,7 +18,7 @@
     -->
     <style name="Theme.OwnTV.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/owntv_window_bg</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/fivestar_splash_mark</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.OwnTV</item>
     </style>
 </resources>
