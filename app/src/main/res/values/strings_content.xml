@@ -57,6 +57,8 @@
     <string name="content_genre_series">Series</string>
     <!-- Translators: Genre label for Sports content. -->
     <string name="content_genre_sport">Sport</string>
+    <!-- Translators: Dialog title for the exit-confirmation dialog. -->
+    <string name="content_exit_owntv">Exit OwnTV?</string>
     <!-- Translators: Body text in the exit-confirmation dialog. -->
     <string name="content_exit_confirmation">Are you sure you want to close the app?</string>
     <!-- Translators: Dialog title shown when a previous restore was interrupted. -->

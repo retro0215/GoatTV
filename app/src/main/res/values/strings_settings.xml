@@ -538,6 +538,12 @@
     <string name="settings_about_version">Version <xliff:g id="version">%1$s</xliff:g></string>
     <!-- Translators: Link label to join the Telegram community group. 'Telegram' is a brand name. -->
     <string name="settings_join_telegram">Join us on Telegram</string>
+    <!-- Translators: Full description of OwnTV on the About screen. 'OwnTV' is a brand name. -->
+    <string name="settings_about_description_full">OwnTV delivers a fast, simple and premium entertainment experience built for Android TV.</string>
+    <!-- Translators: Copyright and license information. 'GPLv3' is a license name. -->
+    <string name="settings_about_license">© 2026 OwnTV · GPLv3 License</string>
+    <!-- Translators: Information about contributing to the project. 'GitHub' is a brand name. -->
+    <string name="settings_contributions">owntv.net</string>
     <!-- Translators: Accessibility label for the Telegram group QR code. -->
     <string name="settings_telegram_qr">Telegram group QR code</string>
     <!-- Translators: Instructions for joining the Telegram group via QR code. -->
