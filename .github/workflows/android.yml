@@ -137,6 +137,8 @@ jobs:
         env:
           VERSION_NAME: ${{ steps.ver.outputs.name }}
           VERSION_CODE: ${{ steps.ver.outputs.code }}
+          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
+          FIVESTAR_KEYSTORE_FILE: ${{ env.FIVESTAR_KEYSTORE_FILE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -144,7 +146,7 @@ jobs:
           FIVESTAR_KEY_ALIAS: ${{ secrets.FIVESTAR_KEY_ALIAS }}
           FIVESTAR_KEY_PASSWORD: ${{ secrets.FIVESTAR_KEY_PASSWORD }}
           # Shared secret for the default metadata Worker's edge rule. Forks have no secret and
-          # resolve "" â€” the app then falls back to the unprotected workers.dev base URL.
+          # resolve "" — the app then falls back to the unprotected workers.dev base URL.
           OWNTV_EDGE_KEY: ${{ secrets.OWNTV_EDGE_KEY }}
         run: |
           chmod +x ./gradlew

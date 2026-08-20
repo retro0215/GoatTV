@@ -93,15 +93,15 @@ android {
 
     // Release signing helpers and configs. Defined here so flavors can reference them below.
     fun signingValue(env: String, property: String): String? =
-        System.getenv(env)
-            ?: providers.gradleProperty(property).orNull
-            ?: localSigningProps.getProperty(property)
+        providers.environmentVariable(env).orNull?.takeIf { it.isNotBlank() }
+            ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
+            ?: localSigningProps.getProperty(property)?.takeIf { it.isNotBlank() }
 
     signingConfigs {
         val goatFile = signingValue("KEYSTORE_FILE", "owntv.keystoreFile")
         if (goatFile != null) {
             create("goat") {
-                storeFile = file(goatFile)
+                storeFile = rootProject.file(goatFile)
                 storePassword = signingValue("KEYSTORE_PASSWORD", "owntv.keystorePassword")
                 keyAlias = signingValue("KEY_ALIAS", "owntv.keyAlias")
                 keyPassword = signingValue("KEY_PASSWORD", "owntv.keyPassword")
@@ -110,7 +110,7 @@ android {
         val fivestarFile = signingValue("FIVESTAR_KEYSTORE_FILE", "fivestar.keystoreFile")
         if (fivestarFile != null) {
             create("fivestar") {
-                storeFile = file(fivestarFile)
+                storeFile = rootProject.file(fivestarFile)
                 storePassword = signingValue("FIVESTAR_KEYSTORE_PASSWORD", "fivestar.keystorePassword")
                 keyAlias = signingValue("FIVESTAR_KEY_ALIAS", "fivestar.keyAlias")
                 keyPassword = signingValue("FIVESTAR_KEY_PASSWORD", "fivestar.keyPassword")
