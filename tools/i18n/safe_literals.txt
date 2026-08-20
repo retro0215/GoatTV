@@ -2672,8 +2672,10 @@
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	assets
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	body
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	browser_download_url
+1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	draft
 1	url	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	https://api.github.com/repos/${BuildConfig.REPO_PATH}/releases
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	name
+1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	prerelease
 2	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	tag_name
 1	log	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	update check failed: ${error.message}
 1	log	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	update download failed: ${error.message}

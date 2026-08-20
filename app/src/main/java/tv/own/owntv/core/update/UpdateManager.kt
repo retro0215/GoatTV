@@ -91,11 +91,18 @@ class UpdateManager(
                     
                     val releases = runCatching { org.json.JSONArray(body) }.getOrElse { throw InvalidReleaseResponseException() }
                     
-                    // Find the newest release that matches this brand's tag prefix
+                    // Find the newest release that matches this brand's tag prefix and is not a draft.
+                    // Production builds also ignore pre-releases.
                     var targetRelease: JSONObject? = null
                     for (i in 0 until releases.length()) {
                         val rel = releases.optJSONObject(i) ?: continue
                         val tag = rel.optString("tag_name")
+                        val isDraft = rel.optBoolean("draft")
+                        val isPre = rel.optBoolean("prerelease")
+                        
+                        if (isDraft) continue
+                        if (isPre && !BuildConfig.DEBUG && !BuildConfig.DIAGNOSTIC_BUILD) continue
+                        
                         if (tag.startsWith(BuildConfig.RELEASE_TAG_PREFIX)) {
                             targetRelease = rel
                             break
