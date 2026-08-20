@@ -158,7 +158,16 @@ jobs:
             BRAND="goat" # fallback for dev builds
           fi
           
-          if [ -n "$KEYSTORE_FILE" ]; then
+          # Determine if we have the necessary signing material for the selected brand
+          if [[ "$BRAND" == "goat" && -n "$KEYSTORE_FILE" ]]; then
+            CAN_SIGN="true"
+          elif [[ "$BRAND" == "fivestar" && -n "$FIVESTAR_KEYSTORE_FILE" ]]; then
+            CAN_SIGN="true"
+          else
+            CAN_SIGN="false"
+          fi
+
+          if [ "$CAN_SIGN" = "true" ]; then
             echo "Building signed release APKs for brand: $BRAND"
             # Build both ABIs for the selected brand
             ./gradlew "assembleStandard${BRAND^}Release" "assembleX86_64${BRAND^}Release" --stacktrace
@@ -172,7 +181,7 @@ jobs:
             echo "ARM_SRC=$ARM_SRC" >> "$GITHUB_ENV"
             echo "X86_64_SRC=$X86_SRC" >> "$GITHUB_ENV"
           else
-            echo "Building debug APK for brand: $BRAND"
+            echo "Building debug APK for brand: $BRAND (No signing secrets for this brand)"
             ./gradlew "assembleStandard${BRAND^}Debug"
             SRC=$(ls app/build/outputs/apk/standard${BRAND^}/debug/*.apk | head -n1)
             echo "Built: $SRC"
