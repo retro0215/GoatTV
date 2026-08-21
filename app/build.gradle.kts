@@ -139,6 +139,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
+            buildConfigField("String", "UPDATE_APK_PREFIX", "\"GoatTV\"")
             signingConfig = signingConfigs.findByName("goat")
         }
         create("fivestar") {
@@ -146,14 +147,15 @@ android {
             // Verified production identity for 5Star Ultra.
             applicationId = "tv.fivestar.ultra"
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"5star-v\"")
-            buildConfigField("String", "REPO_PATH", "\"retro0215/5Star-Ultra\"")
+            buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"5Star Ultra\"")
+            buildConfigField("String", "UPDATE_APK_PREFIX", "\"5Star-Ultra\"")
             signingConfig = signingConfigs.findByName("fivestar")
         }
     }
 
     // Release signing: env vars first (that is how CI injects the GitHub secrets), then Gradle
-    // properties as a local fallback. Put the local ones in the USER-WIDE file â€” never in the repo:
+    // properties as a local fallback. Put the local ones in the USER-WIDE file ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â never in the repo:
     //
     //   C:\Users\<you>\.gradle\gradle.properties
     //     owntv.keystoreFile=E:\\MEGA\\CODE\\Github_Keystore\\owntv.keystore

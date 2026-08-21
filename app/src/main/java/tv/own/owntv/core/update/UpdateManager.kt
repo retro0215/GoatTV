@@ -21,7 +21,7 @@ import java.io.IOException
 /**
  * In-app updates straight from GitHub Releases: checks the repo's latest release, compares its tag
  * with the installed version, downloads the release APK, and hands it to the system installer.
- * No server of our own — the releases CI already publishes `OwnTV-vX.Y.Z.apk` (arm) and
+ * No server of our own Ã¢â‚¬â€ the releases CI already publishes `OwnTV-vX.Y.Z.apk` (arm) and
  * `OwnTV-x86_64-vX.Y.Z.apk` per tag; the asset matching this device's ABI is chosen, so updates
  * also work on an x86_64 emulator.
  */
@@ -103,7 +103,8 @@ class UpdateManager(
                         if (isDraft) continue
                         if (isPre && !BuildConfig.DEBUG && !BuildConfig.DIAGNOSTIC_BUILD) continue
                         
-                        if (tag.startsWith(BuildConfig.RELEASE_TAG_PREFIX)) {
+                        val brandVersion = tag.removePrefix(BuildConfig.RELEASE_TAG_PREFIX)
+                        if (tag.startsWith(BuildConfig.RELEASE_TAG_PREFIX) && brandVersion.matches(Regex("""\d+\.\d+\.\d+"""))) {
                             targetRelease = rel
                             break
                         }
@@ -125,6 +126,7 @@ class UpdateManager(
                             val name = asset.optString("name")
                             val url = asset.optString("browser_download_url")
                             if (!name.endsWith(".apk") || url.isBlank()) return@mapNotNull null
+                            if (!name.startsWith(BuildConfig.UPDATE_APK_PREFIX, ignoreCase = true)) return@mapNotNull null
                             val isX86 = name.contains("x86_64", ignoreCase = true)
                             if (isX86 == wantX86) url else null
                         }
