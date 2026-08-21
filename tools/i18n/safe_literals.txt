@@ -694,6 +694,8 @@
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	episodes
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	episodesSyncedAt
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	episodes_fts
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	expiryDate
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	expiryMs
 3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	httpHeaders
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	iconUrl
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	livePrerollSecs
@@ -1146,6 +1148,7 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	SELECT profileId FROM profile_source WHERE sourceId = :sourceId
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	SELECT s.* FROM sources s
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	SELECT sourceId FROM profile_source WHERE profileId = :profileId
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	UPDATE sources SET expiryMs = :expiryMs, expiryDate = :expiryDate WHERE id = :id
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	UPDATE sources SET hlsSupported = :hlsSupported WHERE id = :id
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	UPDATE sources SET lastSyncAt = :timestamp WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	UPDATE sources SET livePrerollSecs = :secs WHERE id = :id
@@ -2027,7 +2030,8 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	.
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	.php
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	/c
-2	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	0
+3	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	0
+1	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	0000
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	127.0.0.1
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	:
 1	url	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	?type=stb&action=get_profile&hd=1&auth_second_step=
@@ -2050,6 +2054,7 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	Referer
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	StalkerClient
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	UNCHECKED_CAST
+1	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	UTC
 6	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	UTF-8
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	User-Agent
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	X-User-Agent
@@ -2064,14 +2069,21 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	cover
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	create_link inCmd=${redactForLog(cmd)} rawOut=${redactForLog(raw)} resolved=${redactForLog(resolved)}
 5	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	data
+1	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	dd-MM-yyyy
+1	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	dd-MM-yyyy HH:mm:ss
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	descr
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	description
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	end_date
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	exp_date
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	expire_billing_date
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	expire_date
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	ffmpeg
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	ffrt
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	ffrt2
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	ffrt3
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	handshake candidate failed apiBase=$apiBase message=${e.message}
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	handshake ok apiBase=$apiBase
+1	uri	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	http
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	http://
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	https://
 4	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	id
@@ -2082,8 +2094,10 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	mac=${URLEncoder.encode(mac, "UTF-8")}; stb_lang=en; timezone=${TimeZone.getDefault().id}
 3	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	max_page_items
 6	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	name
+1	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	null
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	number
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	o_name
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	phone
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	poster
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	rating
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	rating_imdb
@@ -2091,6 +2105,7 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	series
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	start_timestamp
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	stop_timestamp
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	tariff_expired_date
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	time
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	time_to
 2	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	title
@@ -2099,9 +2114,11 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	tv_archive
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	tv_archive_duration
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	tv_genre_id
+1	json	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	xmltv_api_url
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	xmltv_id
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	year
-1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	yyyy-MM-dd HH:mm:ss
+1	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	yyyy-MM-dd
+2	technical	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	yyyy-MM-dd HH:mm:ss
 2	protocol	app/src/main/java/tv/own/owntv/core/stalker/StreamUrlResolver.kt	Stalker source ${source.id} has no valid MAC
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StreamUrlResolver.kt	auto /media/${channelRemoteId}_${startS}_${durationS}.mpg
 1	protocol	app/src/main/java/tv/own/owntv/core/stalker/StreamUrlResolver.kt	itv
@@ -2806,6 +2823,7 @@
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	heroCardWidth
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	live:${channel.id}
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	movie:${movie.id}
+1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	subscription_warning
 2	url	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	w1280
 3	url	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	w500
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	|
@@ -3074,8 +3092,6 @@
 1	technical	app/src/main/java/tv/own/owntv/features/settings/PanelWidthSettingsScreen.kt	–
 32	empty	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	/
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	0
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	0000
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	://
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	FIT
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	Metadata cache wipe after language change failed: ${it.message}
@@ -3083,21 +3099,14 @@
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	OwnTVHome
 2	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	Proxy-Authorization
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	SettingsViewModel
-1	regex	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	\\d{4}|\\d{1,2}[./-]\\d{1,2}
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	add_remainder
 1	url	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	content://
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	delete sourceId=${source.id}
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	end_date
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	exp_date
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	expire_billing_date
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	expire_date
 1	url	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	file://
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	fresh_add
 1	url	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	https://www.gstatic.com/generate_204
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	manual_clean_resync
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	manual_resync
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	null
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	phone
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	portal
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	refreshActiveTvHome profile=$pid allowBrowsable=$allowBrowsableRequest
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	resync cancel sourceId=${source.id}
@@ -3106,7 +3115,6 @@
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	runImport sync success sourceId=${source.id} profile=$pid
 1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	scope_edit
 1	log	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	setAndroidTvHomeEnabled enabled=$enabled
-1	technical	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	tariff_expired_date
 1	protocol	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	timed out
 1	protocol	app/src/main/java/tv/own/owntv/features/settings/SettingsViewModel.kt	unknown host
 6	technical	app/src/main/java/tv/own/owntv/features/settings/VideoPlayerSettingsScreen.kt	\0

@@ -312,6 +312,15 @@ fun HomeScreen(
         contentPadding = PaddingValues(vertical = Dimens.ScreenPaddingV),
         verticalArrangement = Arrangement.spacedBy(Dimens.GapLarge),
     ) {
+        if (state.subscriptionWarning != null) {
+            val warning = state.subscriptionWarning!!
+            item(key = "subscription_warning") {
+                SubscriptionWarning(
+                    state = warning,
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenPaddingH),
+                )
+            }
+        }
         itemsIndexed(renderRows, key = { _, row -> row.name }) { index, row ->
             val firstItemFocusRequester = rowFocusRequester(row)
             val nextRowIndex = renderRows
@@ -1996,6 +2005,59 @@ private fun SkeletonRowPlaceholder(
                         .background(placeholder),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionWarning(
+    state: SubscriptionWarningState,
+    modifier: Modifier = Modifier,
+) {
+    val text = when (state) {
+        is SubscriptionWarningState.ExpiringInDays -> pluralStringResource(
+            R.plurals.home_subscription_expiry_days,
+            state.days,
+            state.days,
+        )
+        SubscriptionWarningState.ExpiringTomorrow -> stringResource(R.string.home_subscription_expiry_tomorrow)
+        SubscriptionWarningState.ExpiringToday -> stringResource(R.string.home_subscription_expiry_today)
+        SubscriptionWarningState.Expired -> stringResource(R.string.home_subscription_expired)
+    }
+
+    val colors = OwnTVTheme.colors
+    val warningColor = colors.favorite
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dimens.CornerMedium))
+            .background(warningColor.copy(alpha = 0.12f))
+            .border(1.dp, warningColor.copy(alpha = 0.4f), RoundedCornerShape(Dimens.CornerMedium))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(warningColor),
+                contentAlignment = Alignment.Center,
+            ) {
+                OwnTVIcon(
+                    icon = OwnTVIcon.INFO,
+                    tint = if (colors.isDark) Color.Black else Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
     }
 }

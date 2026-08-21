@@ -46,12 +46,12 @@ android {
         minSdk = 26
         targetSdk = 36
         // CI injects these from the git tag (see .github/workflows/android.yml) so releases never
-        // need a manual edit here. The fallbacks are only used for local/debug builds — pinned HIGH
+        // need a manual edit here. The fallbacks are only used for local/debug builds â€” pinned HIGH
         // (99999, mirroring versionName 99.99.99) so a local/debug APK is always "newer" than any
         // published release and installs straight over it (no INSTALL_FAILED_VERSION_DOWNGRADE).
         versionCode = (System.getenv("VERSION_CODE") ?: "99999").toInt()
         // CI injects VERSION_NAME from the git tag for releases. The fallback is only ever used by
-        // LOCAL builds (i.e. debug), so we pin it to 99.99.99 — that way a dev build is always "newer"
+        // LOCAL builds (i.e. debug), so we pin it to 99.99.99 â€” that way a dev build is always "newer"
         // than any published release and the in-app updater never offers an "update" while developing.
         versionName = System.getenv("VERSION_NAME") ?: "99.99.99"
 
@@ -66,7 +66,7 @@ android {
         // Maintainer-only tools (today: the "Rebuild Now Trending" button in Home settings, which
         // bypasses the multi-day Trending fetch timer so a reported problem can be reproduced on the
         // spot). Off unless `owntv.devTools=true` is set as a Gradle property or in the out-of-repo
-        // properties file, so CI and every published APK compile it out — R8 drops the dead branch.
+        // properties file, so CI and every published APK compile it out â€” R8 drops the dead branch.
         buildConfigField(
             "boolean",
             "DEV_TOOLS",
@@ -81,7 +81,7 @@ android {
         // Shared secret the default metadata Worker's edge rule requires (`x-owntv-key`). NEVER in the
         // repo: env var (how CI injects the GitHub secret) > Gradle property > the out-of-repo properties
         // file, exactly like the signing values below. Fork CI and fresh clones resolve "" and keep
-        // working — a blank key makes the app fall back to the unprotected workers.dev base URL.
+        // working â€” a blank key makes the app fall back to the unprotected workers.dev base URL.
         val edgeKey = System.getenv("OWNTV_EDGE_KEY")
             ?: providers.gradleProperty("owntv.edgeKey").orNull
             ?: localSigningProps.getProperty("owntv.edgeKey")
@@ -137,7 +137,7 @@ android {
             // Verified production identity for GoatTV.
             applicationId = "tv.own.owntv"
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"v\"")
-            buildConfigField("String", "REPO_PATH", "\"retro0215/5Star-Ultra\"")
+            buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
             signingConfig = signingConfigs.findByName("goat")
         }
@@ -153,7 +153,7 @@ android {
     }
 
     // Release signing: env vars first (that is how CI injects the GitHub secrets), then Gradle
-    // properties as a local fallback. Put the local ones in the USER-WIDE file — never in the repo:
+    // properties as a local fallback. Put the local ones in the USER-WIDE file â€” never in the repo:
     //
     //   C:\Users\<you>\.gradle\gradle.properties
     //     owntv.keystoreFile=E:\\MEGA\\CODE\\Github_Keystore\\owntv.keystore
@@ -164,7 +164,7 @@ android {
     // With those set, `./gradlew :app:assembleStandardRelease` produces a release-signed APK in any
     // terminal with no env-var dance, so a local dev build installs straight over a published
     // release (`adb install -r`) and upgrade/migration testing works with real data.
-    // When neither source is configured — fork CI, or a fresh clone — nothing here applies and
+    // When neither source is configured â€” fork CI, or a fresh clone â€” nothing here applies and
     // builds still succeed, just unsigned.
     // Third source: the standalone out-of-repo properties file, loaded above defaultConfig.
     testOptions {
@@ -238,7 +238,7 @@ android {
         jniLibs {
             // Every .so we package is a prebuilt from a dependency (libmpv/FFmpeg, libc++_shared,
             // androidx graphics-path and datastore) and all of them are already stripped at the
-            // source — none carries a .debug_info or .symtab section. AGP's strip step therefore has
+            // source â€” none carries a .debug_info or .symtab section. AGP's strip step therefore has
             // nothing to remove, and on a machine without an NDK it can't run at all, which is where
             // the "Unable to strip the following libraries, packaging them as they are" line on every
             // release task came from. Skipping it packages byte-identical libraries without the noise.
@@ -268,7 +268,7 @@ androidComponents {
 
 // The profile is a list of code paths, not machine code, so one recording serves every ABI flavor.
 // mergeIntoMain writes it to `src/main/generated/baselineProfiles/` instead of the recording flavor's
-// own source set — required here because it has to be recorded on an x86_64 emulator (baseline
+// own source set â€” required here because it has to be recorded on an x86_64 emulator (baseline
 // profile collection needs API 33+, and the arm TV boxes this app targets are older) yet shipped in
 // the `standard` arm APK.
 baselineProfile {
@@ -281,13 +281,13 @@ ksp {
 
 // --- hardcoded-literal gate ----------------------------------------------------------------
 //
-// The same check CI runs, moved onto the developer's own machine. CI is still the enforcing gate —
+// The same check CI runs, moved onto the developer's own machine. CI is still the enforcing gate â€”
 // this only makes the failure arrive seconds after writing the string instead of minutes after
 // pushing it, which matters most for work done here on main, where a hardcoded string used to reach
 // a release build with nothing objecting.
 //
 // Deliberately NOT offered: any flag that records the literal and turns the build green. A red build
-// means the string moves to strings_*.xml or is declared technical — those are the only two exits.
+// means the string moves to strings_*.xml or is declared technical â€” those are the only two exits.
 abstract class VerifyI18nLiterals : DefaultTask() {
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -323,7 +323,7 @@ abstract class VerifyI18nLiterals : DefaultTask() {
         val python = interpreter()
         if (python == null) {
             // Failing here would block anyone without Python from building at all. Warn loudly
-            // instead — CI still enforces it, so the worst case is a late failure, not a missed one.
+            // instead â€” CI still enforces it, so the worst case is a late failure, not a missed one.
             logger.warn(
                 "\n  WARNING: Python was not found, so the hardcoded-text check did not run." +
                     "\n  Install Python 3 to catch untranslatable text before pushing; CI will still catch it.\n",
@@ -342,7 +342,7 @@ abstract class VerifyI18nLiterals : DefaultTask() {
         }
         if (result.exitValue != 0) {
             logger.error(output.toString(Charsets.UTF_8))
-            throw GradleException("Hardcoded text check failed — see the report above.")
+            throw GradleException("Hardcoded text check failed â€” see the report above.")
         }
         stamp.get().asFile.writeText("ok\n")
     }
@@ -398,7 +398,7 @@ dependencies {
     // ART on first launch. OwnTV is sideloaded, so without this the bundled profiles never apply.
     implementation(libs.androidx.profileinstaller)
 
-    // Compat splash screen (audit ST3) — branded cold start instead of a blank window.
+    // Compat splash screen (audit ST3) â€” branded cold start instead of a blank window.
     implementation(libs.androidx.core.splashscreen)
 
     // The recorded startup journey (audit ST1). Regenerate with
@@ -418,22 +418,22 @@ dependencies {
     // Networking
     implementation(libs.okhttp)
     implementation(libs.zxing.core) // QR generation for the Remote (companion) add-source flow
-    implementation(libs.juniversalchardet) // local subtitle charset detection (subtitle plan §7.2)
+    implementation(libs.juniversalchardet) // local subtitle charset detection (subtitle plan Â§7.2)
 
-    // Media playback — libmpv (FFmpeg) engine
+    // Media playback â€” libmpv (FFmpeg) engine
     implementation(libs.libmpv)
-    // Media3 / ExoPlayer — used ONLY for the VOD + image-subtitle (PGS/VOBSUB/DVB) handoff, where it
+    // Media3 / ExoPlayer â€” used ONLY for the VOD + image-subtitle (PGS/VOBSUB/DVB) handoff, where it
     // keeps video zero-copy AND renders bitmap subs on its own layer (mpv's direct path can't). Not a
     // sidecar: mpv is stopped first, so the provider only ever sees one connection.
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls) // HLS (.m3u8) support for the Live preview engine
-    // DASH (.mpd) — the container protected channels use (#115). DefaultMediaSourceFactory only
+    // DASH (.mpd) â€” the container protected channels use (#115). DefaultMediaSourceFactory only
     // builds a DASH source when this is on the classpath; without it a .mpd fails as "unsupported".
     implementation(libs.androidx.media3.exoplayer.dash)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.datasource.okhttp)
 
-    // In-app YouTube trailer playback (plan §7.3) — WebView-backed IFrame player; the only ToS-clean
+    // In-app YouTube trailer playback (plan Â§7.3) â€” WebView-backed IFrame player; the only ToS-clean
     // way to play YouTube trailers inside the app. Falls back to an "Open in YouTube" intent.
     implementation(libs.youtube.player)
 

@@ -25,6 +25,13 @@ import java.util.TimeZone
  */
 open class StalkerClient(private val client: OkHttpClient) {
 
+    /** Account details (expiry + XMLTV) from the portal profile/account info. */
+    data class AccountDetails(
+        val expiryDate: String? = null,
+        val expiryMs: Long? = null,
+        val xmltvUrl: String? = null,
+    )
+
     /** The MAC is not authorized / the token expired / the portal answered `{"js":false}`. */
     class StalkerAuthException(message: String) : IOException(message)
 
@@ -152,6 +159,44 @@ open class StalkerClient(private val client: OkHttpClient) {
     open suspend fun getAccountInfo(apiBase: String, mac: String, token: String, userAgent: String? = null): Map<String, String> {
         val url = "$apiBase?type=account_info&action=get_main_info&JsHttpRequest=1-xml"
         return request(url, mac, token, userAgent) { readScalarFields(it) }
+    }
+
+    /**
+     * Pulls account details (expiry + XMLTV) from a Stalker `account_info` or `get_profile` map.
+     * Portals are inconsistent: proper `end_date`/`exp_date` keys, or a date-looking string stuffed
+     * into `phone` (§1.2). Values like "0000-00-00", "null" or empty are ignored.
+     */
+    fun resolveAccountDetails(fields: Map<String, String>): AccountDetails {
+        val expiry = listOf("end_date", "exp_date", "expire_date", "expire_billing_date", "tariff_expired_date")
+            .firstNotNullOfOrNull { key -> fields[key]?.trim()?.takeIf { it.looksLikeExpiryValue() } }
+            ?: fields["phone"]?.trim()?.takeIf {
+                it.looksLikeExpiryValue() && it.contains(Regex("\\d{4}|\\d{1,2}[./-]\\d{1,2}"))
+            }
+
+        val xmltv = fields["xmltv_api_url"]?.trim()?.takeIf { it.isNotBlank() && it.startsWith("http") }
+
+        return AccountDetails(
+            expiryDate = expiry,
+            expiryMs = expiry?.let { parseExpiryToMs(it) },
+            xmltvUrl = xmltv,
+        )
+    }
+
+    private fun String.looksLikeExpiryValue(): Boolean =
+        isNotEmpty() && !equals("null", true) && !startsWith("0000") && this != "0"
+
+    private fun parseExpiryToMs(raw: String): Long? {
+        val formats = listOf("yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "dd-MM-yyyy HH:mm:ss", "dd-MM-yyyy")
+        for (f in formats) {
+            try {
+                val sdf = java.text.SimpleDateFormat(f, java.util.Locale.US)
+                sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                return sdf.parse(raw)?.time
+            } catch (e: Exception) {
+                continue
+            }
+        }
+        return null
     }
 
     // --- Content lists (Phase C) ---

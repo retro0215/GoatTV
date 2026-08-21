@@ -61,6 +61,22 @@ internal class StalkerSyncer(
         // it from Settings → EPG. Best effort — a failure here must never fail the catalog sync.
         runCatching { adoptPortalXmltvUrl(s, creds) }
             .onFailure { Log.w(TAG, "portal XMLTV probe failed sourceId=${s.id}: ${it.message}") }
+
+        // Fetch account info (v34) — used for Home screen subscription warning.
+        runCatching {
+            auth.withAuthRetry(creds) { session ->
+                val info = runCatching {
+                    client.getAccountInfo(session.apiBase, creds.mac, session.token, creds.userAgent)
+                }.getOrDefault(emptyMap())
+                val details = client.resolveAccountDetails(info)
+                val profileDetails = client.resolveAccountDetails(session.profile)
+
+                val expiryMs = details.expiryMs ?: profileDetails.expiryMs
+                val expiryDate = details.expiryDate ?: profileDetails.expiryDate
+                sourceDao.updateExpiry(s.id, expiryMs, expiryDate)
+            }
+        }.onFailure { Log.w(TAG, "stalker account info fetch failed sourceId=${s.id}", it) }
+
         if (contentTypes.live) syncLive(s, progress, stats, creds)
         // Shared adaptive budget: movies and series draw from one gate, so the portal never sees
         // more than the learned limit regardless of how many phases are in flight.

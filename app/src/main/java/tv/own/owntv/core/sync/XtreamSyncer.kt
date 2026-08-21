@@ -44,6 +44,9 @@ internal class XtreamSyncer(
             // tune and reading the 458 back (F30). Stored, so it also survives a restart.
             support.sourceDao.updateMaxConnections(s.id, details.maxConnections)
             if (details.maxConnections == 1) tv.own.owntv.player.LiveStreamQuirks.rememberSessionLimit(s.url)
+
+            // Subscription expiry (v34) — used for Home screen warning.
+            support.sourceDao.updateExpiry(s.id, details.expiryMs, null)
         }
         val semaphore = Semaphore(2)
         Log.i(TAG, "Xtream sync scheduling sourceId=${s.id} contentTypes=$contentTypes concurrency=2 hlsSupported=${details?.hlsSupported} maxConnections=${details?.maxConnections}")

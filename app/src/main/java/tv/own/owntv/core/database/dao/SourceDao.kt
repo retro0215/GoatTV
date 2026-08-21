@@ -53,6 +53,10 @@ interface SourceDao {
     @Query("UPDATE sources SET maxConnections = :maxConnections WHERE id = :id")
     suspend fun updateMaxConnections(id: Long, maxConnections: Int)
 
+    /** Account expiration details from the last sync (v34). */
+    @Query("UPDATE sources SET expiryMs = :expiryMs, expiryDate = :expiryDate WHERE id = :id")
+    suspend fun updateExpiry(id: Long, expiryMs: Long?, expiryDate: String?)
+
     @Query("UPDATE sources SET preferHls = :preferHls WHERE id = :id")
     suspend fun updatePreferHls(id: Long, preferHls: Boolean)
 

@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Translators: Status message shown on the Home screen when a subscription is about to expire. "count" is the number of days remaining (2-7). -->
+    <plurals name="home_subscription_expiry_days">
+        <item quantity="one">Your subscription expires in <xliff:g id="count">%1$d</xliff:g> day</item>
+        <item quantity="other">Your subscription expires in <xliff:g id="count">%1$d</xliff:g> days</item>
+    </plurals>
+    <!-- Translators: Status message shown on the Home screen when a subscription expires tomorrow. -->
+    <string name="home_subscription_expiry_tomorrow">Your subscription expires tomorrow</string>
+    <!-- Translators: Status message shown on the Home screen when a subscription expires today. -->
+    <string name="home_subscription_expiry_today">Your subscription expires today</string>
+    <!-- Translators: Status message shown on the Home screen when a subscription has already expired. -->
+    <string name="home_subscription_expired">Your subscription has expired</string>
+
     <!-- Translators: Plural download status shown on the download progress chip. "count" is the number of items being downloaded. -->
     <plurals name="content_downloading_items">
         <item quantity="one">Downloading <xliff:g id="count">%1$d</xliff:g> item</item>

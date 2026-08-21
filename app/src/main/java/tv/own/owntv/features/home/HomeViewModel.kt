@@ -145,6 +145,14 @@ data class TrendingDetailsMetadata(
 )
 
 @Immutable
+sealed interface SubscriptionWarningState {
+    data class ExpiringInDays(val days: Int) : SubscriptionWarningState
+    data object ExpiringTomorrow : SubscriptionWarningState
+    data object ExpiringToday : SubscriptionWarningState
+    data object Expired : SubscriptionWarningState
+}
+
+@Immutable
 data class HomeUiState(
     val trendingItems: List<TrendingHomeItem> = emptyList(),
     val activeTrendingIndex: Int = 0,
@@ -161,6 +169,7 @@ data class HomeUiState(
     val config: HomeConfig = HomeConfig(),
     val recentGuide: GuideSliceState = GuideSliceState(),
     val favoriteGuide: GuideSliceState = GuideSliceState(),
+    val subscriptionWarning: SubscriptionWarningState? = null,
     /**
      * True until the first [HomeViewModel.loadHomeData] completes. Home's queries are profile-scoped and
      * already indexed, but on a cold boot their first reads come off slow eMMC (pages not yet in the OS
@@ -427,6 +436,12 @@ class HomeViewModel(
                 GuideSliceState()
             }
 
+            val defaultId = settings.defaultSourceId.first()
+            val relevant = if (defaultId > 0) sourceDao.getById(defaultId)?.let { listOf(it) }.orEmpty()
+            else sourceDao.observeForProfile(profileId).first()
+            val mostUrgent = relevant.filter { it.expiryMs != null }.minByOrNull { it.expiryMs!! }
+            val subscriptionWarning = mostUrgent?.expiryMs?.let { SubscriptionWarningCalculator.calculate(it) }
+
             HomeUiState(
                 trendingItems = trending,
                 activeTrendingIndex = previous.activeTrendingIndex.coerceIn(0, (trending.size - 1).coerceAtLeast(0)),
@@ -443,6 +458,7 @@ class HomeViewModel(
                 config = config,
                 recentGuide = recentGuide,
                 favoriteGuide = favoriteGuide,
+                subscriptionWarning = subscriptionWarning,
                 isLoading = false,
             )
         }

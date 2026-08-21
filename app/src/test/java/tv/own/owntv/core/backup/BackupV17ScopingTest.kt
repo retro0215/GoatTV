@@ -132,7 +132,7 @@ class BackupV17ScopingTest {
             "id", "name", "type", "url", "username", "password", "mac",
             "stalkerSerialNumber", "stalkerDeviceId", "stalkerDeviceId2", "stalkerSignature",
             "userAgent", "epgUrl", "syncLive", "syncMovies", "syncSeries",
-            "preferHls", "livePrerollSecs", "hlsSupported", "createdAt", "lastSyncAt",
+            "preferHls", "livePrerollSecs", "hlsSupported", "expiryMs", "expiryDate", "createdAt", "lastSyncAt",
         )
         // Intentionally re-derived rather than carried. `maxConnections` is the provider's own
         // answer, written only by the Xtream sync (XtreamClient → SourceDao.setMaxConnections), so

@@ -230,7 +230,9 @@ class SettingsViewModel(
                         val info = runCatching {
                             stalkerClient.getAccountInfo(session.apiBase, mac, session.token, creds.userAgent)
                         }.getOrDefault(emptyMap())
-                        stalkerExpiryOf(info) ?: stalkerExpiryOf(session.profile)
+                        val details = stalkerClient.resolveAccountDetails(info)
+                        val profileDetails = stalkerClient.resolveAccountDetails(session.profile)
+                        details.expiryDate ?: profileDetails.expiryDate
                     }
                 }
             else -> null
@@ -1013,7 +1015,9 @@ class SettingsViewModel(
                             session.apiBase, canonicalMac, session.token,
                             userAgent.trim().takeIf { it.isNotBlank() },
                         )
-                        stalkerExpiryOf(info) ?: stalkerExpiryOf(session.profile)
+                        val details = stalkerClient.resolveAccountDetails(info)
+                        val profileDetails = stalkerClient.resolveAccountDetails(session.profile)
+                        details.expiryDate ?: profileDetails.expiryDate
                     }.getOrNull()
                     StalkerTestState.Ok(endpoint, session.profile.size, expiry)
                 }
@@ -1083,22 +1087,6 @@ class SettingsViewModel(
             )
         }
     }
-
-    /**
-     * Pull a subscription end date out of a Stalker `account_info`/`get_profile` map. Portals are
-     * inconsistent: proper `end_date`/`exp_date` keys, or a date-looking string stuffed into `phone`
-     * (§1.2). Values like "0000-00-00", "null" or empty are ignored.
-     */
-    private fun stalkerExpiryOf(fields: Map<String, String>): String? {
-        val direct = listOf("end_date", "exp_date", "expire_date", "expire_billing_date", "tariff_expired_date")
-            .firstNotNullOfOrNull { key -> fields[key]?.trim()?.takeIf { it.looksLikeExpiryValue() } }
-        if (direct != null) return direct
-        // Some portals put the expiry text in `phone` — accept it only when it actually contains a date.
-        return fields["phone"]?.trim()?.takeIf { it.looksLikeExpiryValue() && it.contains(Regex("\\d{4}|\\d{1,2}[./-]\\d{1,2}")) }
-    }
-
-    private fun String.looksLikeExpiryValue(): Boolean =
-        isNotEmpty() && !equals("null", true) && !startsWith("0000") && this != "0"
 
     private fun stalkerFailure(e: Exception): FriendlySyncFailure = when {
         e is tv.own.owntv.core.stalker.StalkerClient.StalkerAuthException -> FriendlySyncFailure.MacNotAuthorised

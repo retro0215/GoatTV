@@ -88,6 +88,13 @@ data class SourceEntity(
      * sync time means the very first zap already behaves.
      */
     val maxConnections: Int = 0,
+    /**
+     * Account expiration timestamp in milliseconds (v34). null when the panel reports none/unlimited
+     * or payload is malformed. [expiryDate] holds the raw string from Stalker portals.
+     */
+    val expiryMs: Long? = null,
+    /** Raw expiration string from the provider (v34) — notably Stalker, which is inconsistent. */
+    val expiryDate: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val lastSyncAt: Long? = null,
 )
