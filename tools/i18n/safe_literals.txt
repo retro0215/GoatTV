@@ -2684,6 +2684,7 @@
 1	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	Accept
 1	log	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	UpdateManager
 2	technical	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	User-Agent
+1	regex	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	\\d+\\.\\d+\\.\\d+
 1	mime	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	application/vnd.android.package-archive
 1	mime	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	application/vnd.github+json
 1	json	app/src/main/java/tv/own/owntv/core/update/UpdateManager.kt	assets
