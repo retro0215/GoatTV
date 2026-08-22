@@ -12,6 +12,16 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      brand:
+        description: 'Brand to build (manual artifact only)'
+        required: true
+        default: 'goat'
+        type: choice
+        options:
+          - goat
+          - fivestar
+          - allaccess
 
 permissions:
   contents: write   # required so tag builds can create a Release
@@ -163,9 +173,11 @@ jobs:
         run: |
           chmod +x ./gradlew
           
-          # Determine brand flavor from tag
+          # Determine brand flavor from tag or manual input
           IS_TAG="false"
-          if [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            BRAND="${{ github.event.inputs.brand }}"
+          elif [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
             BRAND="allaccess"
             IS_TAG="true"
           elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
@@ -190,10 +202,15 @@ jobs:
           fi
 
           # Hardening: AllAccess production tag builds MUST be signed. No fallback allowed.
-          if [[ "$BRAND" == "allaccess" && "$IS_TAG" == "true" && "$CAN_SIGN" != "true" ]]; then
-            echo "::error::AllAccess production release (tag $GITHUB_REF_NAME) requires all ALLACCESS_* signing secrets."
-            echo "Missing one or more: ALLACCESS_KEYSTORE_BASE64, ALLACCESS_KEYSTORE_PASSWORD, ALLACCESS_KEY_ALIAS, ALLACCESS_KEY_PASSWORD."
-            exit 1
+          # For manual AllAccess builds, also require signing if it's the intended release.
+          if [[ "$BRAND" == "allaccess" && "$CAN_SIGN" != "true" ]]; then
+            if [[ "$IS_TAG" == "true" ]]; then
+              echo "::error::AllAccess production release (tag $GITHUB_REF_NAME) requires all ALLACCESS_* signing secrets."
+              exit 1
+            elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+               echo "::error::Manual AllAccess build requires all ALLACCESS_* signing secrets to produce a valid APK."
+               exit 1
+            fi
           fi
 
           if [ "$CAN_SIGN" = "true" ]; then
@@ -220,7 +237,13 @@ jobs:
       - name: Name the APK
         run: |
           mkdir -p dist
-          if [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            OUT="${BRAND^}-manual.apk"
+            cp "$ARM_SRC" "dist/${BRAND^}.apk"
+            if [ -n "$X86_64_SRC" ]; then
+              cp "$X86_64_SRC" "dist/${BRAND^}-x86_64-manual.apk"
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
             OUT="AllAccess-v${{ steps.ver.outputs.name }}.apk"
             cp "$ARM_SRC" "dist/AllAccess.apk"
             if [ -n "$X86_64_SRC" ]; then
@@ -254,7 +277,7 @@ jobs:
           if-no-files-found: error
 
       - name: Extract release notes from CHANGELOG_APP.md
-        if: startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name != 'workflow_dispatch' && (startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/allaccess-v'))
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -289,7 +312,7 @@ jobs:
           cat dist/RELEASE_NOTES.md
 
       - name: Publish GoatTV GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: GoatTV v${{ steps.ver.outputs.name }}
@@ -300,7 +323,7 @@ jobs:
           body_path: dist/RELEASE_NOTES.md
 
       - name: Publish 5Star GitHub Release
-        if: startsWith(github.ref, 'refs/tags/5star-v')
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/5star-v')
         uses: softprops/action-gh-release@v2
         with:
           name: 5Star Ultra v${{ steps.ver.outputs.name }}
@@ -311,7 +334,7 @@ jobs:
           body_path: dist/RELEASE_NOTES.md
 
       - name: Publish AllAccess GitHub Release
-        if: startsWith(github.ref, 'refs/tags/allaccess-v')
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/allaccess-v')
         uses: softprops/action-gh-release@v2
         with:
           name: AllAccess v${{ steps.ver.outputs.name }}
