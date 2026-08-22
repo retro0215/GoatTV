@@ -116,6 +116,15 @@ android {
                 keyPassword = signingValue("FIVESTAR_KEY_PASSWORD", "fivestar.keyPassword")
             }
         }
+        val allaccessFile = signingValue("ALLACCESS_KEYSTORE_FILE", "allaccess.keystoreFile")
+        if (allaccessFile != null) {
+            create("allaccess") {
+                storeFile = rootProject.file(allaccessFile)
+                storePassword = signingValue("ALLACCESS_KEYSTORE_PASSWORD", "allaccess.keystorePassword")
+                keyAlias = signingValue("ALLACCESS_KEY_ALIAS", "allaccess.keyAlias")
+                keyPassword = signingValue("ALLACCESS_KEY_PASSWORD", "allaccess.keyPassword")
+            }
+        }
     }
 
     // ABI and Brand dimensions
@@ -151,6 +160,16 @@ android {
             buildConfigField("String", "BRAND_UA", "\"5Star Ultra\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"5Star-Ultra\"")
             signingConfig = signingConfigs.findByName("fivestar")
+        }
+        create("allaccess") {
+            dimension = "brand"
+            // Verified production identity for AllAccess.
+            applicationId = "tv.allaccess.app"
+            buildConfigField("String", "RELEASE_TAG_PREFIX", "\"allaccess-v\"")
+            buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
+            buildConfigField("String", "BRAND_UA", "\"AllAccess\"")
+            buildConfigField("String", "UPDATE_APK_PREFIX", "\"AllAccess\"")
+            signingConfig = signingConfigs.findByName("allaccess")
         }
     }
 
