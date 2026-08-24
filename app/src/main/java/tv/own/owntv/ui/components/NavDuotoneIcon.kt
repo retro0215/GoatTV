@@ -138,6 +138,14 @@ fun NavDuotoneIcon(
                 drawCircle(fill, radius = 7f * s, center = o(39f, 67f), style = stroke)
                 drawPath(poly(50f,15f, 59f,21f, 69f,22f, 74f,30f), soft, style = thin)
             }
+
+            // ---- Multiscreen — 2x2 grid ------------------------------------------
+            MainSection.MULTISCREEN -> {
+                rect(15f, 15f, 32f, 32f, 6f, fill, stroke)
+                rect(53f, 15f, 32f, 32f, 6f, soft, stroke)
+                rect(15f, 53f, 32f, 32f, 6f, soft, stroke)
+                rect(53f, 53f, 32f, 32f, 6f, fill, stroke)
+            }
         }
     }
 }

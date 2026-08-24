@@ -12,6 +12,33 @@
     <!-- Translators: Status message shown on the Home screen when a subscription has already expired. -->
     <string name="home_subscription_expired">Your subscription has expired</string>
 
+    <!-- Translators: Quick action to add a channel to the multiscreen grid. -->
+    <string name="content_multiscreen_add">Add to Multiscreen</string>
+    <!-- Translators: Quick action to remove a channel from the multiscreen grid. -->
+    <string name="content_multiscreen_remove">Remove from Multiscreen</string>
+    <!-- Translators: Menu item to open the multiscreen player. -->
+    <string name="content_multiscreen_open">Open Multiscreen</string>
+    <!-- Translators: Status text shown on the Multiscreen grid when no channels are selected. -->
+    <string name="content_multiscreen_empty">No channels selected for Multiscreen</string>
+    <!-- Translators: Toast message shown when the user tries to add more than 4 channels to multiscreen. -->
+    <string name="content_multiscreen_full">Multiscreen is full (max 4 channels)</string>
+    <!-- Translators: Status text shown on a Multiscreen tile when it fails due to decoder exhaustion. -->
+    <string name="content_multiscreen_decoder_error">Decoder error (too many streams?)</string>
+    <!-- Translators: Menu item to open the full screen player for a specific tile. -->
+    <string name="content_fullscreen">Full screen</string>
+    <!-- Translators: Dialog title for the multiscreen channel picker. -->
+    <string name="content_multiscreen_picker_title">Add to Multiscreen</string>
+    <!-- Translators: Description in the multiscreen channel picker. -->
+    <string name="content_multiscreen_picker_description">Choose a channel from your favorites</string>
+    <!-- Translators: Status message shown when no favorite channels are available for the multiscreen picker. -->
+    <string name="content_multiscreen_no_favorites">No favorite channels available</string>
+    <!-- Translators: Status text in the channel picker for a channel already in the Multiscreen grid. -->
+    <string name="content_multiscreen_already_added">Already in Multiscreen</string>
+    <!-- Translators: Label for the Multiscreen feature with selected channel count. "count" is the number of channels. -->
+    <string name="content_multiscreen_with_count">Multiscreen (<xliff:g id="count">%1$d</xliff:g>)</string>
+    <!-- Translators: Label for the Multiscreen feature. -->
+    <string name="content_multiscreen">Multiscreen</string>
+
     <!-- Translators: Plural download status shown on the download progress chip. "count" is the number of items being downloaded. -->
     <plurals name="content_downloading_items">
         <item quantity="one">Downloading <xliff:g id="count">%1$d</xliff:g> item</item>

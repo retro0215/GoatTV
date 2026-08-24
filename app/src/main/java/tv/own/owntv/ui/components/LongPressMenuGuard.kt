@@ -34,24 +34,30 @@ private const val POLL_MS = 100L
 
 fun Modifier.longPressMenuGuard(): Modifier = composed {
     var armed by remember { mutableStateOf(false) }
-    // 0 = no OK repeat has reached this dialog, i.e. the opening press was already released.
-    var lastOkDownAt by remember { mutableLongStateOf(0L) }
+    // Initialize to current time so the guard doesn't arm immediately on composition.
+    var lastOkEventAt by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    
     LaunchedEffect(Unit) {
         while (!armed) {
             delay(POLL_MS)
-            if (System.currentTimeMillis() - lastOkDownAt > QUIET_MS) armed = true
+            // If no OK events (including repeats) have been seen for QUIET_MS, assume the key is up.
+            if (System.currentTimeMillis() - lastOkEventAt > QUIET_MS) armed = true
         }
     }
+    
     onPreviewKeyEvent { e ->
         if (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter) {
-            when (e.type) {
-                // Keep pushing the quiet window out while the key is still repeating.
-                KeyEventType.KeyDown -> if (!armed) lastOkDownAt = System.currentTimeMillis()
-                // A release that *does* arrive arms immediately — no need to wait out the timer.
-                KeyEventType.KeyUp -> armed = true
-                else -> Unit
+            lastOkEventAt = System.currentTimeMillis()
+            val wasArmed = armed
+            
+            if (e.type == KeyEventType.KeyUp) {
+                // The release event arrived — we are now safely armed for the next press.
+                armed = true
             }
-            !armed // consume OK while the opening press may still be held
+            
+            // Consume the event if we were not armed at the start of this call.
+            // This ensures the KeyUp that arms us is also consumed.
+            !wasArmed
         } else {
             false
         }

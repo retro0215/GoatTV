@@ -1,5 +1,6 @@
 package tv.own.owntv.features.live
 
+import tv.own.owntv.features.multiscreen.MultiscreenViewModel
 import tv.own.owntv.core.epg.displayLogoUrl
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
@@ -112,9 +113,13 @@ fun LiveScreen(
     restoreFocus: Boolean = false,
     onRestored: () -> Unit = {},
     onContentScrolled: (Boolean) -> Unit = {},
+    onOpenMultiscreen: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val vm: LiveViewModel = koinViewModel()
+    val msVm: MultiscreenViewModel = koinViewModel()
+    val toast = tv.own.owntv.ui.components.rememberInAppToast()
+    val multiscreenFullMessage = stringResource(R.string.content_multiscreen_full)
     val railItems by vm.railItems.collectAsStateWithLifecycle()
     val selectedKey by vm.selectedKey.collectAsStateWithLifecycle()
     val count by vm.count.collectAsStateWithLifecycle()
@@ -466,6 +471,17 @@ fun LiveScreen(
                 )
                 Spacer(Modifier.size(10.dp))
                 SortChip(mode = sortMode, onToggle = vm::toggleSort)
+                Spacer(Modifier.size(10.dp))
+                val msChannels by msVm.channels.collectAsStateWithLifecycle()
+                val msCount = msChannels.size
+                OwnTVButton(
+                    label = if (msCount > 0) stringResource(R.string.content_multiscreen_with_count, msCount) else stringResource(R.string.content_multiscreen),
+                    onClick = onOpenMultiscreen,
+                    icon = OwnTVIcon.ZOOM,
+                    style = OwnTVButtonStyle.SECONDARY,
+                    modifier = Modifier.height(Dimens.IconTileSize),
+                    compact = true
+                )
             }
             Spacer(Modifier.height(14.dp))
 
@@ -630,6 +646,14 @@ fun LiveScreen(
                 contextChannel = null
             },
             onRemoveFromHistory = { vm.removeFromHistory(ch.id); contextChannel = null },
+            onAddToMultiscreen = {
+                if (!msVm.addChannel(ch)) {
+                    toast.show(multiscreenFullMessage)
+                }
+                contextChannel = null
+            },
+            onRemoveFromMultiscreen = { msVm.removeChannel(ch.id); contextChannel = null },
+            isInMultiscreen = msVm.isInMultiscreen(ch.id),
             onDismiss = { contextChannel = null },
         )
     }
@@ -765,6 +789,9 @@ private fun ChannelContextMenu(
     onCatchup: () -> Unit,
     onPlayExternal: () -> Unit,
     onMove: () -> Unit,
+    onAddToMultiscreen: () -> Unit,
+    onRemoveFromMultiscreen: () -> Unit,
+    isInMultiscreen: Boolean,
     // "Move to category…" (issue #87): send this channel into a user's combined category.
     onMoveToCategory: () -> Unit,
     onRemoveFromHistory: () -> Unit,
@@ -798,6 +825,15 @@ private fun ChannelContextMenu(
             ChannelMenuAction(stringResource(R.string.content_match_epg), onMatchEpg, OwnTVIcon.EPG, Modifier.fillMaxWidth())
             ChannelMenuAction(stringResource(R.string.content_epg_time_offset), onEpgOffset, OwnTVIcon.EPG, Modifier.fillMaxWidth())
             if (hasCatchup) ChannelMenuAction(stringResource(R.string.content_catchup), onCatchup, modifier = Modifier.fillMaxWidth())
+
+            ChannelMenuDivider()
+            ChannelMenuAction(
+                label = if (isInMultiscreen) stringResource(R.string.content_multiscreen_remove) else stringResource(R.string.content_multiscreen_add),
+                onClick = if (isInMultiscreen) onRemoveFromMultiscreen else onAddToMultiscreen,
+                icon = OwnTVIcon.ADD,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             // Always offered, regardless of the Live TV external-player default — this is the per-channel
             // escape hatch for a stream neither in-app engine can open (same as Movies/Series/Downloads).
             ChannelMenuAction(stringResource(R.string.content_play_external_short), onPlayExternal, OwnTVIcon.PLAY, Modifier.fillMaxWidth())

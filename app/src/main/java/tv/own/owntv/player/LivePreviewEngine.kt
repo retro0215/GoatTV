@@ -97,6 +97,8 @@ class LivePreviewEngine(
     private var playerBudget: PlayerBudget? = null
     private var surface: Surface? = null
     private var muted: Boolean = true
+    /** True when audio is globally suspended (e.g. Multiscreen active), independent of [muted] state. */
+    private var audioSuspended: Boolean = false
     // Volume-0 is NOT a reliable mute. When the TV/AVR declares AC3/E-AC3/DTS support, MediaCodecAudioRenderer
     // picks the passthrough "decoder" and the compressed 5.1 bitstream is forwarded to HDMI untouched —
     // AudioTrack.setVolume() has no effect on an IEC61937 stream, so those channels kept playing sound in a
@@ -107,6 +109,11 @@ class LivePreviewEngine(
     private var audioTrackDisabled = false
     private var hasVideoTrack = true
     private var hasAudioTrack = false
+
+    private val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+        .build()
 
     private val _state = MutableStateFlow(State.IDLE)
     val state: StateFlow<State> = _state.asStateFlow()
@@ -1344,13 +1351,28 @@ class LivePreviewEngine(
         applyMute()
     }
 
+    /** Mutes and disables audio tracks globally (Multiscreen) without altering the persistent [muted] state. */
+    fun setAudioSuspended(suspended: Boolean) {
+        if (audioSuspended == suspended) return
+        audioSuspended = suspended
+        applyMute(force = true)
+    }
+
     /** Push [muted] onto the player: volume, plus the audio-track deselect that also silences a
      *  passthrough (AC3/E-AC3/DTS 5.1) bitstream. [force] re-sends the track parameters even when the
      *  desired state is unchanged — needed right after a (re)built player, whose parameters are fresh. */
     private fun applyMute(force: Boolean = false) {
         val p = player ?: return
-        p.volume = if (muted) 0f else 1f
-        val disable = muted && hasVideoTrack
+        val effectivelyMuted = muted || audioSuspended
+        p.volume = if (effectivelyMuted) 0f else 1f
+        
+        // Force disable audio track if suspended, OR if muted and not audio-only.
+        val disable = audioSuspended || (muted && hasVideoTrack)
+        
+        // P7: internal focus handling in ExoPlayer is disabled to avoid conflicts with the shell's
+        // manual focus management via PlaybackSession. Matches buildMultiscreenPlayer behavior.
+        p.setAudioAttributes(audioAttributes, false)
+
         if (!force && disable == audioTrackDisabled) return
         audioTrackDisabled = disable
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
@@ -2538,6 +2560,7 @@ class LivePreviewEngine(
             .setRenderersFactory(renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFor(currentUa)))
             .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, false) // Shell / PlaybackSession handles focus
             .build()
             .apply {
                 // Media3's default ONLY_IF_SEAMLESS still issues Surface.setFrameRate() requests. Some
