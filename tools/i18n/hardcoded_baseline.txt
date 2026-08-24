@@ -252,6 +252,9 @@
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	ExoPlayer error before first frame: ${info?.raw ?: previewEngine.error.value}
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	mpv handoff for '${channel.name}' abandoned — the channel changed while ExoPlayer released
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	starting mpv for '${channel.name}' — reason=$reason
+2	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	\0
+1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Applying centralized audio focus: focusedId=$focusedId
+1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MULTISCREEN_AUDIO channelId=$id ($name) enabled=$focused volume=${player.volume} handleFocus=$focused
 8	app/src/main/java/tv/own/owntv/features/settings/DnsSettingsScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/settings/DnsSettingsScreen.kt	${cfg.host}$p
 1	app/src/main/java/tv/own/owntv/features/settings/DnsSettingsScreen.kt	:${cfg.port}

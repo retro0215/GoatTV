@@ -50,10 +50,11 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
     SERIES(tv.own.owntv.R.string.common_nav_series),
     DOWNLOADS(tv.own.owntv.R.string.common_nav_downloads),
     EPG(tv.own.owntv.R.string.common_nav_guide),
+    MULTISCREEN(tv.own.owntv.R.string.content_multiscreen),
     SETTINGS(tv.own.owntv.R.string.common_nav_settings); // pinned at the bottom of the nav
 
     /** Shown as an icon in the left nav rail. Phase 4 moved Search to the top bar, so it's excluded. */
-    val isBrowse: Boolean get() = this != SETTINGS && this != SEARCH
+    val isBrowse: Boolean get() = this != SETTINGS && this != SEARCH && this != MULTISCREEN
 
     companion object {
         /** Fixed order of the browse icons in the rail (Settings is pinned separately at the bottom). */

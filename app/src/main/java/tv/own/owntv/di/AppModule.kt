@@ -12,6 +12,7 @@ import tv.own.owntv.features.downloads.DownloadsViewModel
 import tv.own.owntv.features.epg.EpgViewModel
 import tv.own.owntv.features.home.HomeViewModel
 import tv.own.owntv.features.live.LiveViewModel
+import tv.own.owntv.features.multiscreen.MultiscreenViewModel
 import tv.own.owntv.features.movies.MovieViewModel
 import tv.own.owntv.features.profiles.ProfileGateSessionViewModel
 import tv.own.owntv.features.profiles.ProfilesViewModel
@@ -51,6 +52,7 @@ val appModule = module {
     viewModelOf(::ShellViewModel)
     viewModelOf(::HomeViewModel)
     viewModelOf(::SetupViewModel)
+    viewModelOf(::MultiscreenViewModel)
     // Takes a Context first; Koin resolves it from androidContext().
     viewModelOf(::LiveViewModel)
     viewModelOf(::MovieViewModel)

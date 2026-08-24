@@ -8,10 +8,20 @@ name: Android CI
 on:
   push:
     branches: [ main ]
-    tags: [ "v*", "5star-v*" ]
+    tags: [ "v*", "5star-v*", "allaccess-v*" ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      brand:
+        description: 'Brand to build (manual artifact only)'
+        required: true
+        default: 'goat'
+        type: choice
+        options:
+          - goat
+          - fivestar
+          - allaccess
 
 permissions:
   contents: write   # required so tag builds can create a Release
@@ -93,14 +103,16 @@ jobs:
         id: ver
         shell: bash
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
+            NAME="${GITHUB_REF_NAME#allaccess-v}"
+          elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             NAME="${GITHUB_REF_NAME#5star-v}"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             NAME="${GITHUB_REF_NAME#v}"
           else
             NAME="99.99.99"
           fi
-          if [[ "$GITHUB_REF" == refs/tags/5star-v* || "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/allaccess-v* || "$GITHUB_REF" == refs/tags/5star-v* || "$GITHUB_REF" == refs/tags/v* ]]; then
             IFS='.' read -r MA MI PA <<< "$NAME"
             CODE=$(( ${MA:-0} * 10000 + ${MI:-0} * 100 + ${PA:-0} ))
             [ "$CODE" -gt 0 ] || CODE=1
@@ -115,6 +127,7 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           FIVESTAR_KEYSTORE_BASE64: ${{ secrets.FIVESTAR_KEYSTORE_BASE64 }}
+          ALLACCESS_KEYSTORE_BASE64: ${{ secrets.ALLACCESS_KEYSTORE_BASE64 }}
         run: |
           # Runs on every push (not just tags) so dev builds are also signed RELEASE builds —
           # required since R8 was enabled: only assembleRelease exercises shrinking/keep rules.
@@ -129,7 +142,12 @@ jobs:
             echo "FIVESTAR_KEYSTORE_FILE=$RUNNER_TEMP/fivestar.keystore" >> "$GITHUB_ENV"
             echo "5Star signing configured."
           fi
-          if [ -z "$KEYSTORE_BASE64" ] && [ -z "$FIVESTAR_KEYSTORE_BASE64" ]; then
+          if [ -n "$ALLACCESS_KEYSTORE_BASE64" ]; then
+            echo "$ALLACCESS_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/allaccess.keystore"
+            echo "ALLACCESS_KEYSTORE_FILE=$RUNNER_TEMP/allaccess.keystore" >> "$GITHUB_ENV"
+            echo "AllAccess signing configured."
+          fi
+          if [ -z "$KEYSTORE_BASE64" ] && [ -z "$FIVESTAR_KEYSTORE_BASE64" ] && [ -z "$ALLACCESS_KEYSTORE_BASE64" ]; then
             echo "No signing secrets set — building debug-signed APKs."
           fi
 
@@ -139,23 +157,35 @@ jobs:
           VERSION_CODE: ${{ steps.ver.outputs.code }}
           KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
           FIVESTAR_KEYSTORE_FILE: ${{ env.FIVESTAR_KEYSTORE_FILE }}
+          ALLACCESS_KEYSTORE_FILE: ${{ env.ALLACCESS_KEYSTORE_FILE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           FIVESTAR_KEYSTORE_PASSWORD: ${{ secrets.FIVESTAR_KEYSTORE_PASSWORD }}
           FIVESTAR_KEY_ALIAS: ${{ secrets.FIVESTAR_KEY_ALIAS }}
           FIVESTAR_KEY_PASSWORD: ${{ secrets.FIVESTAR_KEY_PASSWORD }}
+          ALLACCESS_KEYSTORE_PASSWORD: ${{ secrets.ALLACCESS_KEYSTORE_PASSWORD }}
+          ALLACCESS_KEY_ALIAS: ${{ secrets.ALLACCESS_KEY_ALIAS }}
+          ALLACCESS_KEY_PASSWORD: ${{ secrets.ALLACCESS_KEY_PASSWORD }}
           # Shared secret for the default metadata Worker's edge rule. Forks have no secret and
           # resolve "" — the app then falls back to the unprotected workers.dev base URL.
           OWNTV_EDGE_KEY: ${{ secrets.OWNTV_EDGE_KEY }}
         run: |
           chmod +x ./gradlew
           
-          # Determine brand flavor from tag
-          if [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
+          # Determine brand flavor from tag or manual input
+          IS_TAG="false"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            BRAND="${{ github.event.inputs.brand }}"
+          elif [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
+            BRAND="allaccess"
+            IS_TAG="true"
+          elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             BRAND="fivestar"
+            IS_TAG="true"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             BRAND="goat"
+            IS_TAG="true"
           else
             BRAND="goat" # fallback for dev builds
           fi
@@ -165,8 +195,22 @@ jobs:
             CAN_SIGN="true"
           elif [[ "$BRAND" == "fivestar" && -n "$FIVESTAR_KEYSTORE_FILE" ]]; then
             CAN_SIGN="true"
+          elif [[ "$BRAND" == "allaccess" && -n "$ALLACCESS_KEYSTORE_FILE" && -n "$ALLACCESS_KEYSTORE_PASSWORD" && -n "$ALLACCESS_KEY_ALIAS" && -n "$ALLACCESS_KEY_PASSWORD" ]]; then
+            CAN_SIGN="true"
           else
             CAN_SIGN="false"
+          fi
+
+          # Hardening: AllAccess production tag builds MUST be signed. No fallback allowed.
+          # For manual AllAccess builds, also require signing if it's the intended release.
+          if [[ "$BRAND" == "allaccess" && "$CAN_SIGN" != "true" ]]; then
+            if [[ "$IS_TAG" == "true" ]]; then
+              echo "::error::AllAccess production release (tag $GITHUB_REF_NAME) requires all ALLACCESS_* signing secrets."
+              exit 1
+            elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+               echo "::error::Manual AllAccess build requires all ALLACCESS_* signing secrets to produce a valid APK."
+               exit 1
+            fi
           fi
 
           if [ "$CAN_SIGN" = "true" ]; then
@@ -193,7 +237,19 @@ jobs:
       - name: Name the APK
         run: |
           mkdir -p dist
-          if [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            OUT="${BRAND^}-manual.apk"
+            cp "$ARM_SRC" "dist/${BRAND^}.apk"
+            if [ -n "$X86_64_SRC" ]; then
+              cp "$X86_64_SRC" "dist/${BRAND^}-x86_64-manual.apk"
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
+            OUT="AllAccess-v${{ steps.ver.outputs.name }}.apk"
+            cp "$ARM_SRC" "dist/AllAccess.apk"
+            if [ -n "$X86_64_SRC" ]; then
+              cp "$X86_64_SRC" "dist/AllAccess-x86_64-v${{ steps.ver.outputs.name }}.apk"
+            fi
+          elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             OUT="5Star-Ultra-v${{ steps.ver.outputs.name }}.apk"
             cp "$ARM_SRC" "dist/5Star-Ultra.apk"
             if [ -n "$X86_64_SRC" ]; then
@@ -221,7 +277,7 @@ jobs:
           if-no-files-found: error
 
       - name: Extract release notes from CHANGELOG_APP.md
-        if: startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name != 'workflow_dispatch' && (startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/allaccess-v'))
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -256,7 +312,7 @@ jobs:
           cat dist/RELEASE_NOTES.md
 
       - name: Publish GoatTV GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: GoatTV v${{ steps.ver.outputs.name }}
@@ -267,7 +323,7 @@ jobs:
           body_path: dist/RELEASE_NOTES.md
 
       - name: Publish 5Star GitHub Release
-        if: startsWith(github.ref, 'refs/tags/5star-v')
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/5star-v')
         uses: softprops/action-gh-release@v2
         with:
           name: 5Star Ultra v${{ steps.ver.outputs.name }}
@@ -275,4 +331,15 @@ jobs:
             dist/${{ env.APK_OUT }}
             dist/5Star-Ultra.apk
             dist/5Star-Ultra-x86_64-v${{ steps.ver.outputs.name }}.apk
+          body_path: dist/RELEASE_NOTES.md
+
+      - name: Publish AllAccess GitHub Release
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/allaccess-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: AllAccess v${{ steps.ver.outputs.name }}
+          files: |
+            dist/${{ env.APK_OUT }}
+            dist/AllAccess.apk
+            dist/AllAccess-x86_64-v${{ steps.ver.outputs.name }}.apk
           body_path: dist/RELEASE_NOTES.md
