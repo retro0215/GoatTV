@@ -429,6 +429,66 @@ class OwnTVDatabaseMigrationTest {
     }
 
     /** `CREATE INDEX IF NOT EXISTS \`name\` ON …` -> `name`. */
+    /**
+     * D3 — Regression for the 4.x upgrade failure: some version 33 databases shipped with an
+     * epg_programmes table whose contentHash column missed its DEFAULT 0 constraint. Opening
+     * that database under version 34 (Room 2.8.4) throws validation errors. MIGRATION_33_34
+     * must detect or fix this by recreating the cache table.
+     */
+    @Test
+    fun migrateVersion33ToCurrent_fixesEpgProgrammesDefaultValue() {
+        context.deleteDatabase(DB_NAME)
+        val db33 = context.openOrCreateDatabase(DB_NAME, Context.MODE_PRIVATE, null)
+        try {
+            executeSchemaQueries(db33, "tv.own.owntv.core.database.OwnTVDatabase/33.json")
+            // Manually break the schema by recreating the table without the default value.
+            // (SQLite doesn't support ALTER TABLE ... DROP DEFAULT).
+            db33.execSQL("DROP TABLE epg_programmes")
+            db33.execSQL(
+                "CREATE TABLE `epg_programmes` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`sourceId` INTEGER NOT NULL, " +
+                    "`epgChannelId` TEXT NOT NULL, " +
+                    "`startMs` INTEGER NOT NULL, " +
+                    "`stopMs` INTEGER NOT NULL, " +
+                    "`title` TEXT NOT NULL, " +
+                    "`description` TEXT, " +
+                    "`contentHash` INTEGER NOT NULL" + // MISSING DEFAULT 0
+                    ")",
+            )
+            // Re-add indices that were dropped with the table.
+            db33.execSQL("CREATE INDEX `index_epg_programmes_epgChannelId_startMs` ON `epg_programmes` (`epgChannelId`, `startMs`)")
+            db33.execSQL("CREATE UNIQUE INDEX `index_epg_programmes_natural_key` ON `epg_programmes` (`sourceId`, `epgChannelId`, `startMs`)")
+            
+            db33.execSQL("INSERT INTO profiles (id, name, avatarColor, avatarId, isKids, pinHash, createdAt) VALUES (1, 'Primary', 1122867, 7, 0, NULL, 1)")
+            db33.version = 33
+        } finally {
+            db33.close()
+        }
+
+        val db = openWithAllMigrations()
+        try {
+            val sqlite = db.openHelper.readableDatabase
+            assertColumnExists(sqlite, "epg_programmes", "contentHash")
+            // Verify default value is restored (requires PRAGMA table_info).
+            sqlite.query("PRAGMA table_info(`epg_programmes`)").use { cursor ->
+                val nameIdx = cursor.getColumnIndex("name")
+                val dfltIdx = cursor.getColumnIndex("dflt_value")
+                var found = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIdx) == "contentHash") {
+                        assertEquals("0", cursor.getString(dfltIdx))
+                        found = true
+                    }
+                }
+                assert(found) { "contentHash column missing after migration" }
+            }
+            assertCount(sqlite, "profiles", 1)
+        } finally {
+            db.close()
+        }
+    }
+
     private fun indexNameOf(createSql: String) =
         createSql.substringAfter("IF NOT EXISTS `").substringBefore('`')
 
@@ -479,6 +539,7 @@ class OwnTVDatabaseMigrationTest {
             OwnTVDatabase.MIGRATION_30_31,
             OwnTVDatabase.MIGRATION_31_32,
             OwnTVDatabase.MIGRATION_32_33,
+            OwnTVDatabase.MIGRATION_33_34,
         )
         .allowMainThreadQueries()
         .build()
@@ -704,7 +765,7 @@ class OwnTVDatabaseMigrationTest {
         private const val DB_NAME = "owntv-migration-test.db"
 
         /** Must match `@Database(version = …)` on [OwnTVDatabase]. */
-        private const val CURRENT_VERSION = 32
+        private const val CURRENT_VERSION = 34
 
         /**
          * Every version with an exported schema that a real database can be sitting at.
