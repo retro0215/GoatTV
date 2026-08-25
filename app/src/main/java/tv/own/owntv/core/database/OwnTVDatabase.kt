@@ -138,6 +138,28 @@ abstract class OwnTVDatabase : RoomDatabase() {
                 if (!hasColumn(db, "sources", "expiryDate")) {
                     db.execSQL("ALTER TABLE `sources` ADD COLUMN `expiryDate` TEXT")
                 }
+
+                // D3: Fix for "Migration didn't properly handle: epg_programmes" failure. Some 4.x
+                // builds arrived with a contentHash column that missed its DEFAULT 0 constraint
+                // (PR #40 lineage), which now fails Room's stricter validation. epg_programmes is
+                // a rebuildable cache: truncate and recreate it to guarantee the correct schema.
+                db.execSQL("DROP TABLE IF EXISTS `epg_programmes`")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `epg_programmes` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`sourceId` INTEGER NOT NULL, " +
+                        "`epgChannelId` TEXT NOT NULL, " +
+                        "`startMs` INTEGER NOT NULL, " +
+                        "`stopMs` INTEGER NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`description` TEXT, " +
+                        "`contentHash` INTEGER NOT NULL DEFAULT 0" +
+                        ")",
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_epg_programmes_natural_key` ON `epg_programmes` (`sourceId`, `epgChannelId`, `startMs`)")
+
+                // STANDING RULE: every final migration must call healSchema to restore non-unique indexes.
+                healSchema(db)
             }
         }
 
