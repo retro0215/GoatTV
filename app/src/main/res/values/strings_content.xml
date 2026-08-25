@@ -25,7 +25,10 @@
     <!-- Translators: Status text shown on a Multiscreen tile when it fails due to decoder exhaustion. -->
     <string name="content_multiscreen_decoder_error">Decoder error (too many streams?)</string>
     <!-- Translators: Status message for limited hardware. "count" is the maximum number of streams. -->
-    <string name="content_multiscreen_device_limit">This device can reliably play up to <xliff:g id="count">%1$d</xliff:g> Multiscreen channels at once.</string>
+    <plurals name="content_multiscreen_device_limit">
+        <item quantity="one">This device can reliably play up to <xliff:g id="count">%1$d</xliff:g> Multiscreen channel at once.</item>
+        <item quantity="other">This device can reliably play up to <xliff:g id="count">%1$d</xliff:g> Multiscreen channels at once.</item>
+    </plurals>
     <!-- Translators: Menu item to open the full screen player for a specific tile. -->
     <string name="content_fullscreen">Full screen</string>
     <!-- Translators: Dialog title for the multiscreen channel picker. -->
@@ -37,7 +40,10 @@
     <!-- Translators: Status text in the channel picker for a channel already in the Multiscreen grid. -->
     <string name="content_multiscreen_already_added">Already in Multiscreen</string>
     <!-- Translators: Label for the Multiscreen feature with selected channel count. "count" is the number of channels. -->
-    <string name="content_multiscreen_with_count">Multiscreen (<xliff:g id="count">%1$d</xliff:g>)</string>
+    <plurals name="content_multiscreen_with_count">
+        <item quantity="one">Multiscreen (<xliff:g id="count">%1$d</xliff:g>)</item>
+        <item quantity="other">Multiscreen (<xliff:g id="count">%1$d</xliff:g>)</item>
+    </plurals>
     <!-- Translators: Label for the Multiscreen feature. -->
     <string name="content_multiscreen">Multiscreen</string>
 

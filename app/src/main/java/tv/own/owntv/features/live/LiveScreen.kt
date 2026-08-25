@@ -475,7 +475,7 @@ fun LiveScreen(
                 val msChannels by msVm.channels.collectAsStateWithLifecycle()
                 val msCount = msChannels.size
                 OwnTVButton(
-                    label = if (msCount > 0) stringResource(R.string.content_multiscreen_with_count, msCount) else stringResource(R.string.content_multiscreen),
+                    label = if (msCount > 0) pluralStringResource(R.plurals.content_multiscreen_with_count, msCount, msCount) else stringResource(R.string.content_multiscreen),
                     onClick = onOpenMultiscreen,
                     icon = OwnTVIcon.ZOOM,
                     style = OwnTVButtonStyle.SECONDARY,

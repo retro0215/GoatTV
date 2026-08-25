@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.*
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -959,7 +960,7 @@ private fun MultiscreenChannelPicker(
             
             if (maxTiles < 4) {
                 Text(
-                    text = stringResource(R.string.content_multiscreen_device_limit, maxTiles),
+                    text = pluralStringResource(R.plurals.content_multiscreen_device_limit, maxTiles, maxTiles),
                     style = MaterialTheme.typography.bodySmall,
                     color = OwnTVTheme.colors.primary,
                     modifier = Modifier.padding(bottom = 4.dp)
