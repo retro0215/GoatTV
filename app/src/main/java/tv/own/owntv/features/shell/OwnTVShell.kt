@@ -194,6 +194,7 @@ fun OwnTVShell(
     val vodExoActive by player.exoActiveState.collectAsStateWithLifecycle()
 
     LaunchedEffect(liveOnExo, playerMode) {
+        android.util.Log.i("LIVE_HANDOFF", "OwnTVShell.LaunchedEffect: liveOnExo=$liveOnExo playerMode=$playerMode")
         playbackSession.attach(
             if (playerMode == PlayerMode.NONE) null else if (liveOnExo) liveVm.previewEngine else mpvEngine,
         )
@@ -249,6 +250,7 @@ fun OwnTVShell(
     val continueTarget by homeVm.continueTarget.collectAsStateWithLifecycle()
 
     fun openFullscreen(source: MainSection = selectedSection) {
+        android.util.Log.i("LIVE_HANDOFF", "OwnTVShell.openFullscreen: source=$source currentMode=$playerMode")
         restoreFocus = false
         zapSource = source
         homeVm.stopPreview()

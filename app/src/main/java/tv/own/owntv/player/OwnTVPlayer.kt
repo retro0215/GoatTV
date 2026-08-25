@@ -806,6 +806,8 @@ class OwnTVPlayer(
         val gen = loadGeneration
         scope.launch {
             if (gen != loadGeneration) return@launch
+            // Section 6: Settle delay for engine reloads on Shield
+            delay(348L) // CORE_RESET_SETTLE_MS
             loadUrl(url, currentMetaSnapshot(), isLiveContent, if (isLiveContent) 0L else _position.value, resetRetries = false)
         }
     }
@@ -2326,6 +2328,7 @@ class OwnTVPlayer(
         /** Expiring-URL provider for THIS item (Stalker VOD). See [reconnectUrlProvider]. */
         reconnectProvider: tv.own.owntv.core.stalker.ReconnectUrlProvider? = null,
     ) {
+        android.util.Log.i("LIVE_HANDOFF", "OwnTVPlayer.play: isLive=$isLive isArchive=$isArchive muted=$muted ua=${userAgent?.take(20)} headers=${httpHeaders != null}")
         // F12 — the provider belongs to the load. A VOD load with none clears whatever the previous
         // item left behind; live keeps the field as-is when none is passed, because LiveViewModel
         // installs the live provider on BOTH engines just before calling this.

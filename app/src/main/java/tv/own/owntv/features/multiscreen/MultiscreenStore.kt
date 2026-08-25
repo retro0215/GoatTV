@@ -1,5 +1,6 @@
 package tv.own.owntv.features.multiscreen
 
+import android.os.Build
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,9 +21,11 @@ class MultiscreenStore {
     private val _tileEngines = MutableStateFlow<Map<Long, Boolean>>(emptyMap())
     val tileEngines: StateFlow<Map<Long, Boolean>> = _tileEngines.asStateFlow()
 
+    val maxTiles: Int = if (Build.MODEL.contains("SHIELD", ignoreCase = true)) 4 else 2
+
     fun addChannel(channel: ChannelEntity): Boolean {
         val current = _channels.value
-        if (current.size >= 4) return false
+        if (current.size >= maxTiles) return false
         if (current.any { it.id == channel.id }) return true // already added
         _channels.value = current + channel
         return true
