@@ -1,6 +1,7 @@
 package tv.own.owntv.features.multiscreen
 
 import android.content.Context
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -45,6 +46,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import org.koin.androidx.compose.koinViewModel
@@ -55,6 +57,7 @@ import tv.own.owntv.features.settings.data.SettingsRepository
 import tv.own.owntv.ui.theme.OwnTVTheme
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import tv.own.owntv.player.MpvPlaybackEngine
 import tv.own.owntv.player.ownTVRenderers
 import tv.own.owntv.player.AudioOutputPolicy
 import tv.own.owntv.ui.components.OwnTVIcon
@@ -149,6 +152,27 @@ private class MultiscreenExoEngine(
 enum class MultiscreenModal { NONE, ACTION_MENU, CHANNEL_PICKER, FULLSCREEN_HUD }
 
 @UnstableApi
+private fun buildMultiscreenLoadControl(): DefaultLoadControl {
+    val isOnn = Build.MODEL.contains("onn.", ignoreCase = true)
+    val minBufferMs = if (isOnn) 2_500 else 5_000
+    val maxBufferMs = if (isOnn) 5_000 else 10_000
+    val bufferForPlaybackMs = if (isOnn) 1_000 else 1_500
+    val bufferForPlaybackAfterRebufferMs = if (isOnn) 1_500 else 2_000
+    
+    android.util.Log.d("MultiscreenDiag", "Building LoadControl: min=$minBufferMs, max=$maxBufferMs, constrained=$isOnn")
+    
+    return DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            minBufferMs,
+            maxBufferMs,
+            bufferForPlaybackMs,
+            bufferForPlaybackAfterRebufferMs
+        )
+        .setPrioritizeTimeOverSizeThresholds(true)
+        .build()
+}
+
+@UnstableApi
 private fun buildMultiscreenPlayer(
     context: Context,
     streamingHttp: StreamingHttpClient,
@@ -183,6 +207,7 @@ private fun buildMultiscreenPlayer(
     return ExoPlayer.Builder(context)
         .setRenderersFactory(renderers)
         .setMediaSourceFactory(mediaSourceFactory)
+        .setLoadControl(buildMultiscreenLoadControl())
         .setAudioAttributes(audioAttributes, false)
         .build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
@@ -291,6 +316,7 @@ fun MultiscreenScreen(
     val sources by vm.sources.collectAsStateWithLifecycle()
     val audioFocusIndex by vm.audioFocusIndex.collectAsStateWithLifecycle()
     val tileEngines by vm.tileEngines.collectAsStateWithLifecycle()
+    val maxTiles = remember { if (Build.MODEL.contains("SHIELD", ignoreCase = true)) 4 else 2 }
     val surroundMode by settings.surroundMode.collectAsStateWithLifecycle(tv.own.owntv.player.SurroundMode.AUTO)
     val hwDecoding by settings.hwDecoding.collectAsStateWithLifecycle(true)
 
@@ -471,24 +497,24 @@ fun MultiscreenScreen(
                         )
 
                         if (activeModal == MultiscreenModal.FULLSCREEN_HUD) {
-                            val engine = remember(channel.id, useExo) {
-                                if (useExo) {
-                                    MultiscreenExoEngine(msState.getOrCreatePlayer(channel, sources[channel.sourceId], surroundMode, hwDecoding), channel)
-                                } else {
-                                    tv.own.owntv.player.MpvPlaybackEngine(msState.mpvPlayer)
-                                }
-                            }
-                            val favoriteIds by vm.favoriteIds.collectAsStateWithLifecycle()
-                            
-                            tv.own.owntv.player.PlayerHud(
-                                player = engine,
-                                onBack = { activeModal = MultiscreenModal.NONE },
-                                onToggleFavorite = { vm.toggleFavorite(channel) },
-                                favorite = favoriteIds.contains(channel.id),
-                                onToggleCompatMode = { vm.toggleEngine(channel.id) },
-                                compatMode = !useExo,
-                            )
+                    val engine = remember(channel.id, useExo) {
+                        if (useExo) {
+                            MultiscreenExoEngine(msState.getOrCreatePlayer(channel, sources[channel.sourceId], surroundMode, hwDecoding), channel)
+                        } else {
+                            MpvPlaybackEngine(msState.mpvPlayer)
                         }
+                    }
+                    val favoriteIds by vm.favoriteIds.collectAsStateWithLifecycle()
+                    
+                    tv.own.owntv.player.PlayerHud(
+                        player = engine,
+                        onBack = { activeModal = MultiscreenModal.NONE },
+                        onToggleFavorite = { vm.toggleFavorite(channel) },
+                        favorite = favoriteIds.contains(channel.id),
+                        onToggleCompatMode = { vm.toggleEngine(channel.id) },
+                        compatMode = !useExo,
+                    )
+                }
                     }
                 } else {
                     MultiscreenGrid(
@@ -503,6 +529,7 @@ fun MultiscreenScreen(
                         tileRequesters = tileRequesters,
                         addRequester = addRequester,
                         tileEngines = tileEngines,
+                        maxTiles = maxTiles,
                         onTileFocused = { if (activeModal == MultiscreenModal.NONE) vm.setAudioFocus(it); onChildFocused() },
                         onTileClick = { 
                             if (activeModal == MultiscreenModal.NONE && moveModeIndex == null) {
@@ -548,7 +575,8 @@ fun MultiscreenScreen(
                 },
                 onDismiss = { activeModal = MultiscreenModal.NONE },
                 vm = vm,
-                alreadyAddedIds = channels.map { it.id }.toSet()
+                alreadyAddedIds = channels.map { it.id }.toSet(),
+                maxTiles = maxTiles
             )
         }
 
@@ -585,13 +613,14 @@ private fun MultiscreenGrid(
     tileRequesters: SnapshotStateMap<Long, FocusRequester>,
     addRequester: FocusRequester,
     tileEngines: Map<Long, Boolean>,
+    maxTiles: Int,
     onTileFocused: (Int) -> Unit,
     onTileClick: (Int) -> Unit,
     onTileLongClick: (Int) -> Unit,
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val gridCount = if (channels.size < 4) channels.size + 1 else 4
+    val gridCount = if (channels.size < maxTiles) channels.size + 1 else maxTiles
     
     @Composable
     fun TileWrapper(idx: Int, mod: Modifier = Modifier) {
@@ -619,7 +648,7 @@ private fun MultiscreenGrid(
                     }
                 }
             }
-        } else {
+        } else if (idx < maxTiles) {
             AddTile(onClick = onAddClick, focusRequester = addRequester, modifier = mod)
         }
     }
@@ -647,7 +676,7 @@ private fun MultiscreenGrid(
                     Box(Modifier.weight(1f).fillMaxHeight()) { TileWrapper(2, Modifier.fillMaxSize()) }
                     Box(Modifier.weight(1f).fillMaxHeight()) { 
                         if (channels.size == 4) TileWrapper(3, Modifier.fillMaxSize())
-                        else AddTile(onClick = onAddClick, focusRequester = addRequester, modifier = Modifier.fillMaxSize())
+                        else if (gridCount > 3) AddTile(onClick = onAddClick, focusRequester = addRequester, modifier = Modifier.fillMaxSize())
                     }
                 }
             }
@@ -678,19 +707,49 @@ private fun MultiscreenTile(
                 override fun onPlayerError(e: androidx.media3.common.PlaybackException) {
                     playbackError = when (e.errorCode) {
                         androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FAILED,
-                        androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED -> {
+                        androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+                        androidx.media3.common.PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES -> {
                             decoderErrorMessage
                         }
                         else -> e.localizedMessage ?: UNKNOWN_ERR
                     }
+                    android.util.Log.e("MultiscreenDiag", "TILE_ERROR channelId=${channel.id} name=${channel.name} errorCode=${e.errorCode} message=${e.message}")
                 }
                 override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_READY) playbackError = null
+                    if (state == Player.STATE_READY) {
+                        playbackError = null
+                        val format = player.videoFormat
+                        android.util.Log.d("MultiscreenDiag", "TILE_READY channelId=${channel.id} name=${channel.name} res=${format?.width}x${format?.height} codec=${format?.sampleMimeType}")
+                    }
                 }
             }
+            
+            val analyticsListener = object : AnalyticsListener {
+                override fun onVideoDecoderInitialized(
+                    eventTime: AnalyticsListener.EventTime,
+                    decoderName: String,
+                    initializedTimestampMs: Long,
+                    initializationDurationMs: Long
+                ) {
+                    android.util.Log.d("MultiscreenDiag", "TILE_DECODER channelId=${channel.id} name=${channel.name} decoder=$decoderName")
+                }
+
+                override fun onDroppedVideoFrames(
+                    eventTime: AnalyticsListener.EventTime,
+                    droppedFrames: Int,
+                    elapsedMs: Long
+                ) {
+                    if (droppedFrames > 5) {
+                        android.util.Log.w("MultiscreenDiag", "TILE_DROPPED channelId=${channel.id} name=${channel.name} dropped=$droppedFrames over ${elapsedMs}ms")
+                    }
+                }
+            }
+            
             player.addListener(listener)
+            player.addAnalyticsListener(analyticsListener)
             onDispose {
                 player.removeListener(listener)
+                player.removeAnalyticsListener(analyticsListener)
             }
         }
     }
@@ -863,7 +922,8 @@ private fun MultiscreenChannelPicker(
     onPick: (ChannelEntity) -> Unit,
     onDismiss: () -> Unit,
     vm: MultiscreenViewModel,
-    alreadyAddedIds: Set<Long>
+    alreadyAddedIds: Set<Long>,
+    maxTiles: Int
 ) {
     val activeProfileId by vm.activeProfileId.collectAsStateWithLifecycle()
     if (activeProfileId == null) return
@@ -897,6 +957,15 @@ private fun MultiscreenChannelPicker(
         ) {
             Text(stringResource(R.string.content_multiscreen_picker_title), style = MaterialTheme.typography.titleLarge, color = OwnTVTheme.colors.onSurface)
             
+            if (maxTiles < 4) {
+                Text(
+                    text = stringResource(R.string.content_multiscreen_device_limit, maxTiles),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OwnTVTheme.colors.primary,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
             SearchBar(
                 query = searchQuery,
                 onQueryChange = vm::setPickerSearch,

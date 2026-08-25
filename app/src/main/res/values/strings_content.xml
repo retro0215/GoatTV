@@ -24,6 +24,8 @@
     <string name="content_multiscreen_full">Multiscreen is full (max 4 channels)</string>
     <!-- Translators: Status text shown on a Multiscreen tile when it fails due to decoder exhaustion. -->
     <string name="content_multiscreen_decoder_error">Decoder error (too many streams?)</string>
+    <!-- Translators: Status message for limited hardware. "count" is the maximum number of streams. -->
+    <string name="content_multiscreen_device_limit">This device can reliably play up to <xliff:g id="count">%1$d</xliff:g> Multiscreen channels at once.</string>
     <!-- Translators: Menu item to open the full screen player for a specific tile. -->
     <string name="content_fullscreen">Full screen</string>
     <!-- Translators: Dialog title for the multiscreen channel picker. -->

@@ -222,6 +222,7 @@ class ExoSubtitleEngine(
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             callbacks.onBuffering(playbackState == Player.STATE_BUFFERING)
+            logAudioDiag("state_changed")
             if (playbackState == Player.STATE_READY) emitPositionDuration()
             if (playbackState == Player.STATE_ENDED) callbacks.onEnded()
         }
@@ -249,10 +250,12 @@ class ExoSubtitleEngine(
             rebuildAudioTracks(tracks)
             rebuildTextTracks(tracks)
             applyPendingSubtitle(tracks)
+            logAudioDiag("tracks_changed")
         }
 
         override fun onPlayerError(error: PlaybackException) {
             android.util.Log.w(TAG, "ExoPlayer error: ${error.errorCodeName}", error)
+            logAudioDiag("player_error_${error.errorCodeName}")
             // A decode-class failure gets this engine's software rung before playback leaves it. The
             // old behaviour handed EVERY Exo error straight to mpv, so a file the software decoder
             // could play was thrown at the other engine to discover that — the ladder is now
@@ -528,11 +531,18 @@ class ExoSubtitleEngine(
             forceStereo = !AudioOutputPolicy.allowsMultichannel(surroundMode),
             softwareFirst = softwarePreferred,
         )
+
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
+
         return ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSource))
             .setLoadControl(loadControl)
             .setTrackSelector(trackSelector)
+            .setAudioAttributes(audioAttributes, false) // Shell / PlaybackSession handles focus
             .build()
             .apply {
                 // Media3's default ONLY_IF_SEAMLESS still issues Surface.setFrameRate() requests, and this
@@ -542,6 +552,10 @@ class ExoSubtitleEngine(
                     if (autoFrameRateEnabled) C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS
                     else C.VIDEO_CHANGE_FRAME_RATE_STRATEGY_OFF,
                 )
+                
+                // NVIDIA SHIELD diagnosis: log VOD audio focus and track state.
+                android.util.Log.i(TAG, "build: VOD engine initialized with handleAudioFocus=false")
+
                 addListener(listener); addAnalyticsListener(analytics); addAnalyticsListener(audioWatchdog)
             }
     }
@@ -679,7 +693,7 @@ class ExoSubtitleEngine(
      *  though the very next thing tried (mpv in software) proved software decoding was the answer. */
     var onSoftwareRescue: ((url: String, fromStart: Boolean) -> Unit)? = null
 
-    private val audioWatchdog = AudioWatchdog()
+    private val audioWatchdog = AudioWatchdog(context)
 
     /** Select an audio track by the id we published in [Callbacks.onAudioTracks]. */
     fun selectAudio(id: Int) {
@@ -695,6 +709,7 @@ class ExoSubtitleEngine(
             "audio track -> id=$id lang=${f?.language} " +
                 "codec=${f?.sampleMimeType} ch=${f?.channelCount} rate=${f?.sampleRate}",
         )
+        logAudioDiag("select_audio")
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setOverrideForType(TrackSelectionOverride(sel.group, listOf(sel.trackIndex)))
             .build()
@@ -976,6 +991,33 @@ class ExoSubtitleEngine(
     }
 
     fun release() = stop()
+
+    private fun logAudioDiag(event: String) {
+        val p = player ?: return
+        val format = p.audioFormat
+        val params = p.trackSelectionParameters
+        val stateName = when (p.playbackState) {
+            Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "BUFFERING"
+            Player.STATE_READY -> "READY"; Player.STATE_ENDED -> "ENDED"; else -> "UNKNOWN"
+        }
+
+        android.util.Log.i("EXO_AUDIO_DIAG",
+            "event=$event " +
+            "engine=ExoSubtitle " +
+            "audioMimeType=${format?.sampleMimeType ?: "null"} " +
+            "codecs=${format?.codecs ?: "null"} " +
+            "channelCount=${format?.channelCount ?: -1} " +
+            "sampleRate=${format?.sampleRate ?: -1} " +
+            "language=${format?.language ?: "null"} " +
+            "decoderName=${audioWatchdog.audioFormat?.let { if (audioWatchdog.passthrough) "passthrough" else "decoded" } ?: "unknown"} " +
+            "audioTrackDisabled=${params.disabledTrackTypes.contains(C.TRACK_TYPE_AUDIO)} " +
+            "volume=${p.volume} " +
+            "forceStereo=${!AudioOutputPolicy.allowsMultichannel(surroundMode)} " +
+            "passthroughEnabled=${audioWatchdog.passthrough} " +
+            "handleAudioFocus=true " + // VOD engine always handles focus
+            "playbackState=$stateName"
+        )
+    }
 
     private companion object {
         const val TAG = "ExoSubtitleEngine"
