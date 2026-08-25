@@ -349,11 +349,6 @@ class OwnTVPlayer(
         const val EXO_POSITION_TICK_MS = 500L      // ExoPlayer position/duration emit interval while Exo is active
         const val EXO_FPS_RECHECK_MS = 1_500L      // retry the fps chip once a measurement window can have elapsed
         const val EXO_SUB_DELAY_DEBOUNCE_MS = 350L // settle time before a timing change re-prepares on Exo (§8)
-        const val SURROUND_CHECK_MS = 7_000L       // wait before verifying surround audio actually produces sound
-        // Window the audio clock is sampled over for the "sink accepted the format then played silence"
-        // check. Long enough that a single stalled packet can't fake a freeze, short enough that a user
-        // isn't sitting in silence while we make up our mind.
-        const val SURROUND_SILENCE_CHECK_MS = 4_000L
         const val DECODE_CHECK_MS = 4_000L         // wait before verifying video decode actually produces frames
         const val LIVE_FPS_PROBE_MS = 6_000L       // settle time before measuring fps on a stream with no container-fps
         /** Frame rates a broadcast can plausibly be; a measurement is only trusted when it lands on one. */
@@ -807,7 +802,7 @@ class OwnTVPlayer(
         scope.launch {
             if (gen != loadGeneration) return@launch
             // Section 6: Settle delay for engine reloads on Shield
-            delay(348L) // CORE_RESET_SETTLE_MS
+            delay(CORE_RESET_SETTLE_MS)
             loadUrl(url, currentMetaSnapshot(), isLiveContent, if (isLiveContent) 0L else _position.value, resetRetries = false)
         }
     }
@@ -1763,14 +1758,6 @@ class OwnTVPlayer(
         engine.httpHeaders = currentHeaders
         engine.drmConfig = currentDrm
         val restartGen = loadGeneration
-        engine.onAudioFallback = {
-            toast(toastRenderer.render(PlaybackFailure.Surround))
-            // Re-enter this same path: the latch is set, so `start` sees the sink mismatch and rebuilds
-            // the player on a stereo-only sink, resuming where the silence began.
-            if (restartGen == loadGeneration && exoActive) {
-                startExo(url, _position.value, surface, sub)
-            }
-        }
         // ExoPlayer's own software rung: this item failed on Exo's hardware decoder in a way a software
         // decoder can plausibly fix, so restart it HERE rather than handing it to mpv. Keeps the ladder
         // symmetric (Exo hardware → Exo software → mpv hardware → mpv copy → mpv software) instead of
@@ -2328,7 +2315,6 @@ class OwnTVPlayer(
         /** Expiring-URL provider for THIS item (Stalker VOD). See [reconnectUrlProvider]. */
         reconnectProvider: tv.own.owntv.core.stalker.ReconnectUrlProvider? = null,
     ) {
-        android.util.Log.i("LIVE_HANDOFF", "OwnTVPlayer.play: isLive=$isLive isArchive=$isArchive muted=$muted ua=${userAgent?.take(20)} headers=${httpHeaders != null}")
         // F12 — the provider belongs to the load. A VOD load with none clears whatever the previous
         // item left behind; live keeps the field as-is when none is passed, because LiveViewModel
         // installs the live provider on BOTH engines just before calling this.
@@ -3613,7 +3599,7 @@ class OwnTVPlayer(
                 kind = AudioOutputKind.PCM,
                 channelCount = m.getPropertyInt("audio-out-params/channel-count"),
                 multichannelAllowed = multichannelAllowed(),
-                fallbackReason = AudioOutputPolicy.latchReason,
+                fallbackReason = null,
             ),
         )
         // What the live buffering settings resolved to for THIS stream, read back from mpv itself — proof
@@ -4038,76 +4024,6 @@ class OwnTVPlayer(
                     pendingStartPaused = false
                     mpvAsync { setPropertyBoolean("pause", true) }
                     _isPlaying.value = false
-                }
-                // Surround-output failsafe (#25): some sinks claim multichannel PCM support but mis-play it —
-                // the audio drains ~2× fast, so mpv's audio-master clock (and the video) runs ~2× and the
-                // sound is silent. mpv sees the output as fine (audio-params == audio-out-params, avsync ≈ 0),
-                // so the only tell is the video running away: estimated-vf-fps ≈ 2× the file's container-fps.
-                // Checked in the 5–15 s window (past the start-up burst, before long drift) and skipped while
-                // seeking (a seek bursts frames to catch up and would false-trip). On a hit, latch surround off
-                // for the session and reload this item in stereo.
-                run {
-                    val sgen = loadGeneration
-                    scope.launch {
-                        delay(SURROUND_CHECK_MS)
-                        if (sgen != loadGeneration || !multichannelAllowed()) return@launch
-                        // Two independent tells, because the two ways an output fails look nothing alike:
-                        //
-                        //  1. RUNAWAY — the sink drains multichannel PCM ~2× fast, so mpv's audio-master
-                        //     clock (and with it the video) runs away while the room stays silent.
-                        //     estimated-vf-fps ≈ 2× container-fps is the only visible symptom. Skipped
-                        //     while seeking (a seek bursts frames to catch up and would false-trip), and
-                        //     skipped entirely when container-fps is unknown — common on live TS, and a
-                        //     guess there would be a false positive on a perfectly good channel.
-                        //
-                        //  2. SILENCE — the sink accepts the format and simply never plays it. The clock
-                        //     keeps time (mpv falls back to the video clock), so nothing is "wrong" except
-                        //     that audio-pts is frozen while time-pos advances. This is the live failure
-                        //     the runaway check cannot see, and the one reported as "picture, no sound".
-                        val baseline = kotlinx.coroutines.CompletableDeferred<Pair<Double?, Double?>>()
-                        mpvAsync {
-                            baseline.complete(
-                                getPropertyString("audio-pts")?.toDoubleOrNull() to
-                                    getPropertyString("time-pos")?.toDoubleOrNull(),
-                            )
-                        }
-                        val (startAudioPts, startTimePos) =
-                            kotlinx.coroutines.withTimeoutOrNull(1_000) { baseline.await() } ?: (null to null)
-                        delay(SURROUND_SILENCE_CHECK_MS)
-                        if (sgen != loadGeneration || !multichannelAllowed()) return@launch
-                        mpvAsync {
-                            if (getPropertyString("seeking") == "yes") return@mpvAsync // catching up — not a real runaway
-                            if (getPropertyString("pause") == "yes") return@mpvAsync    // paused audio is not stalled audio
-                            val cfps = getPropertyString("container-fps")?.toDoubleOrNull() ?: 0.0
-                            val vfps = getPropertyString("estimated-vf-fps")?.toDoubleOrNull() ?: 0.0
-                            val runaway = cfps > 1.0 && vfps > cfps * 1.5
-
-                            val nowAudioPts = getPropertyString("audio-pts")?.toDoubleOrNull()
-                            val nowTimePos = getPropertyString("time-pos")?.toDoubleOrNull()
-                            // Only meaningful when an audio track is actually selected and the clock moved.
-                            val hasAudio = getPropertyString("aid").let { it != null && it != "no" && it != "false" }
-                            val videoMoved = startTimePos != null && nowTimePos != null &&
-                                nowTimePos - startTimePos > SURROUND_SILENCE_CHECK_MS / 2000.0
-                            val audioFrozen = hasAudio && videoMoved && startAudioPts != null &&
-                                nowAudioPts != null && kotlin.math.abs(nowAudioPts - startAudioPts) < 0.25
-
-                            val reason = when {
-                                runaway -> "audio drained ${"%.1f".format(vfps / cfps)}× too fast"
-                                audioFrozen -> "audio output produced no sound"
-                                else -> return@mpvAsync
-                            }
-                            android.util.Log.w(TAG, "surround failsafe: $reason (est-vf-fps=$vfps container-fps=$cfps) — falling back to stereo")
-                            AudioOutputPolicy.latchStereo("mpv: $reason")
-                            PlaybackErrorLog.event(context, "mpv", isLiveContent, PlayerFailureReason.STEREO_FALLBACK, reason)
-                            setPropertyString("audio-channels", "stereo")
-                            setPropertyString("audio-format", "")
-                            setPropertyString("audio-samplerate", "0")
-                            toast(toastRenderer.render(PlaybackFailure.Surround))
-                            if (sgen == loadGeneration && currentUrl != null) {
-                                loadUrl(currentUrl!!, currentMetaSnapshot(), isLiveContent, _position.value, resetRetries = false)
-                            }
-                        }
-                    }
                 }
                 // F14: frame rate for a stream that never declares one. Live MPEG-TS usually has no
                 // `container-fps`, which is the ONLY thing that feeds [_videoFps] — so on mpv live the

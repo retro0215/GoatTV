@@ -1,7 +1,6 @@
 package tv.own.owntv.player
 
 import android.content.Context
-import android.media.AudioDeviceInfo
 import android.media.AudioTrack
 import android.media.AudioManager
 import androidx.media3.common.C
@@ -14,8 +13,6 @@ import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import tv.own.owntv.player.LiveDiagnosticsLog
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * How the user wants multichannel audio handled. Persisted as a string (see
@@ -37,23 +34,15 @@ enum class SurroundMode {
 }
 
 object AudioOutputPolicy {
-    @Volatile private var latched = false
-    @Volatile var latchReason: String? = null
-        private set
-
-    val stereoLatched: Boolean get() = latched
-
     private const val DEFAULT_NO_AUDIO_GRACE_MS = 6_000L
     private const val SHIELD_NO_AUDIO_GRACE_MS = 4_000L
 
-    const val UNDERRUN_LIMIT = 4
     const val UNDERRUN_WINDOW_MS = 10_000L
 
-    fun allowsMultichannel(mode: SurroundMode): Boolean {
-        val allowed = mode != SurroundMode.STEREO && !latched
-        android.util.Log.i("EXO_AUDIO_DIAG", "allowsMultichannel: mode=$mode latched=$latched -> $allowed")
-        return allowed
-    }
+    /**
+     * True when this mode permits anything other than plain stereo PCM.
+     */
+    fun allowsMultichannel(mode: SurroundMode): Boolean = mode != SurroundMode.STEREO
 
     fun getNoAudioGraceMs(): Long {
         return if (android.os.Build.MODEL.contains("SHIELD", ignoreCase = true)) {
@@ -63,17 +52,8 @@ object AudioOutputPolicy {
         }
     }
 
-    fun latchStereo(reason: String) {
-        if (latched) return
-        latched = true
-        latchReason = reason
-        android.util.Log.w("AudioOutputPolicy", "forcing stereo for this session: $reason")
-    }
-
-    fun clearLatch() {
-        latched = false
-        latchReason = null
-    }
+    /** No-op in stabilized build; auto-latching removed. */
+    fun clearLatch() {}
 }
 
 /**
@@ -81,7 +61,7 @@ object AudioOutputPolicy {
  */
 @UnstableApi
 class OwnTVRenderersFactory(
-    context: Context,
+    private val context: Context,
     private val forceStereo: Boolean,
 ) : DefaultRenderersFactory(context) {
 
@@ -92,25 +72,13 @@ class OwnTVRenderersFactory(
     ): AudioSink? {
         val rawCaps = AudioCapabilities.getCapabilities(context)
         
-        // Section 5: Log raw capabilities to detect if return-to-AUTO receives correct HDMI data
-        val ac3 = rawCaps.supportsEncoding(C.ENCODING_AC3)
-        val eac3 = rawCaps.supportsEncoding(C.ENCODING_E_AC3)
-        android.util.Log.i("EXO_AUDIO_DIAG", "buildAudioSink: forceStereo=$forceStereo " +
-            "maxCh=${rawCaps.maxChannelCount} AC3=$ac3 EAC3=$eac3")
-
         val caps = if (forceStereo) AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
                    else filterAudioCapabilities(rawCaps)
-
-        val processors = arrayOf<androidx.media3.common.audio.AudioProcessor>(
-            PcmDiagnosticProcessor("FRONT"),
-            PcmDiagnosticProcessor("SINK")
-        )
 
         return runCatching<AudioSink?> {
             @Suppress("DEPRECATION")
             DefaultAudioSink.Builder()
                 .setAudioCapabilities(caps)
-                .setAudioProcessors(processors)
                 .setAudioTrackProvider(DiagnosticAudioTrackProvider())
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
@@ -165,18 +133,20 @@ class OwnTVRenderersFactory(
     }
     
     companion object {
+        /** Reference to the most recently created AudioTrack for routing diagnostics. */
         @Volatile var currentTrack: AudioTrack? = null
     }
 }
 
+/**
+ * Watches an ExoPlayer's audio output and reports failures to the log.
+ */
 @UnstableApi
 class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
 
-    @Volatile private var pendingReason: String? = null
-    @Volatile private var fired = false
-
     @Volatile private var armed = false
     @Volatile private var advancing = false
+    /** Accumulated *playing* milliseconds since the audio format was accepted. */
     @Volatile private var playingSinceArmMs = 0L
     @Volatile private var lastTickMs = 0L
 
@@ -189,7 +159,6 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
     @Volatile private var decoderInitialized = false
 
     fun reset() {
-        pendingReason = null; fired = false
         armed = false; advancing = false
         playingSinceArmMs = 0L; lastTickMs = 0L
         synchronized(underrunTimes) { underrunTimes.clear() }
@@ -241,15 +210,6 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
                 LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $devMsg")
             }
         }
-    }
-
-    override fun onAudioAttributesChanged(
-        eventTime: AnalyticsListener.EventTime,
-        audioAttributes: androidx.media3.common.AudioAttributes
-    ) {
-        val msg = "AUDIO_ATTRIBUTES usage=${audioAttributes.usage} content=${audioAttributes.contentType} flags=${audioAttributes.flags}"
-        android.util.Log.i("EXO_AUDIO_DIAG", msg)
-        LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
     }
 
     override fun onAudioDecoderInitialized(
@@ -305,42 +265,31 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
     ) {
         val now = android.os.SystemClock.elapsedRealtime()
         android.util.Log.w("AudioOutputPolicy", "audio underrun: buffer=${bufferSize}B/${bufferSizeMs}ms")
-        val hit = synchronized(underrunTimes) {
+        synchronized(underrunTimes) {
             underrunTimes.addLast(now)
             while (underrunTimes.isNotEmpty() && now - underrunTimes.first() > AudioOutputPolicy.UNDERRUN_WINDOW_MS) {
                 underrunTimes.removeFirst()
             }
-            underrunTimes.size >= AudioOutputPolicy.UNDERRUN_LIMIT
         }
-        if (hit) raise("audio output underran ${AudioOutputPolicy.UNDERRUN_LIMIT}ÃƒÆ’Ã¢â‚¬â€ in ${AudioOutputPolicy.UNDERRUN_WINDOW_MS / 1000}s")
     }
 
     override fun onAudioSinkError(eventTime: AnalyticsListener.EventTime, audioSinkError: Exception) {
         android.util.Log.e("EXO_AUDIO_DIAG", "onAudioSinkError: ${audioSinkError.message}")
-        if (audioSinkError is AudioSink.UnexpectedDiscontinuityException) return
-        raise("audio sink error: ${audioSinkError.javaClass.simpleName}")
     }
 
-    private fun raise(reason: String) {
-        if (fired) return
-        fired = true
-        pendingReason = reason
-        android.util.Log.i("EXO_AUDIO_DIAG", "raise: $reason")
-    }
-
-    fun poll(isPlaying: Boolean): String? {
-        pendingReason?.let { pendingReason = null; return it }
-        if (!armed || advancing) { lastTickMs = 0L; return null }
+    fun poll(isPlaying: Boolean) {
+        if (!armed || advancing) { lastTickMs = 0L; return }
         val now = android.os.SystemClock.elapsedRealtime()
-        if (!isPlaying) { lastTickMs = 0L; return null }
+        if (!isPlaying) { lastTickMs = 0L; return }
         if (lastTickMs != 0L) playingSinceArmMs += (now - lastTickMs).coerceAtMost(2_000L)
         lastTickMs = now
         
         val graceMs = AudioOutputPolicy.getNoAudioGraceMs()
-        if (playingSinceArmMs < graceMs) return null
-        if (fired) return null
-        fired = true
-        return "no sound from the audio output after ${graceMs / 1000}s"
+        if (playingSinceArmMs >= graceMs) {
+            val what = audioFormat?.let { MimeTypes.normalizeMimeType(it.sampleMimeType ?: "") } ?: "audio"
+            android.util.Log.w("EXO_AUDIO_DIAG", "no sound detected after ${graceMs / 1000}s ($what)")
+            armed = false
+        }
     }
 
     fun describe(): String? {
@@ -356,84 +305,3 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
 /** Media3 channel-count cap that matches [mode]. */
 fun maxAudioChannelsFor(mode: SurroundMode): Int =
     if (AudioOutputPolicy.allowsMultichannel(mode)) Int.MAX_VALUE else 2
-
-@UnstableApi
-private class PcmDiagnosticProcessor(private val label: String) : androidx.media3.common.audio.AudioProcessor {
-    private var inputFormat = androidx.media3.common.audio.AudioProcessor.AudioFormat.NOT_SET
-    private var isActive = false
-    private var outputBuffer = androidx.media3.common.audio.AudioProcessor.EMPTY_BUFFER
-
-    private var sampleCount = 0L
-    private var peak = 0f
-    private var sumSquares = 0.0
-
-    override fun configure(inputAudioFormat: androidx.media3.common.audio.AudioProcessor.AudioFormat): androidx.media3.common.audio.AudioProcessor.AudioFormat {
-        inputFormat = inputAudioFormat
-        isActive = true
-        resetStats()
-        return inputAudioFormat
-    }
-
-    override fun isActive(): Boolean = isActive
-
-    override fun queueInput(inputBuffer: ByteBuffer) {
-        val remaining = inputBuffer.remaining()
-        if (remaining == 0) return
-
-        val startPos = inputBuffer.position()
-        if (inputFormat.encoding == C.ENCODING_PCM_16BIT) {
-            val shortBuffer = inputBuffer.asShortBuffer()
-            while (shortBuffer.hasRemaining()) {
-                val sample = shortBuffer.get().toFloat() / 32768f
-                val abs = Math.abs(sample)
-                if (abs > peak) peak = abs
-                sumSquares += (sample * sample).toDouble()
-                sampleCount++
-            }
-        } else if (inputFormat.encoding == C.ENCODING_PCM_FLOAT) {
-             val floatBuffer = inputBuffer.asFloatBuffer()
-             while (floatBuffer.hasRemaining()) {
-                 val sample = floatBuffer.get()
-                 val abs = Math.abs(sample)
-                 if (abs > peak) peak = abs
-                 sumSquares += (sample * sample).toDouble()
-                 sampleCount++
-             }
-        }
-        inputBuffer.position(startPos)
-
-        if (outputBuffer.capacity() < remaining) {
-            outputBuffer = ByteBuffer.allocateDirect(remaining).order(ByteOrder.nativeOrder())
-        } else {
-            outputBuffer.clear()
-        }
-        outputBuffer.put(inputBuffer)
-        outputBuffer.flip()
-
-        if (sampleCount >= (inputFormat.sampleRate.toLong() * inputFormat.channelCount * 2)) {
-            val rms = Math.sqrt(sumSquares / sampleCount.toDouble())
-            val msg = "PCM_${label}_DIAG encoding=${inputFormat.encoding} peak=$peak rms=$rms allZero=${peak == 0f}"
-            android.util.Log.i("EXO_AUDIO_DIAG", msg)
-            LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
-            resetStats()
-        }
-    }
-
-    private fun resetStats() {
-        sampleCount = 0
-        peak = 0f
-        sumSquares = 0.0
-    }
-
-    override fun getOutput(): ByteBuffer {
-        val buffer = outputBuffer
-        outputBuffer = androidx.media3.common.audio.AudioProcessor.EMPTY_BUFFER
-        return buffer
-    }
-
-    override fun queueEndOfStream() {}
-    override fun isEnded(): Boolean = false
-    @Deprecated("Deprecated in Java")
-    override fun flush() { outputBuffer = androidx.media3.common.audio.AudioProcessor.EMPTY_BUFFER; resetStats() }
-    override fun reset() { isActive = false; outputBuffer = androidx.media3.common.audio.AudioProcessor.EMPTY_BUFFER; resetStats() }
-}

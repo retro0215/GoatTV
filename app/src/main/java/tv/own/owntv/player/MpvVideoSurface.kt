@@ -7,7 +7,6 @@ import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -150,13 +149,6 @@ fun ExoPreviewSurface(
     keepAwake: Boolean = false,
     autoFrameRate: Boolean = false,
 ) {
-    android.util.Log.i("LIVE_HANDOFF", "ExoPreviewSurface: composed autoFrameRate=$autoFrameRate")
-    DisposableEffect(engine, autoFrameRate) {
-        android.util.Log.i("LIVE_HANDOFF", "ExoPreviewSurface: ON engine=$engine autoFrameRate=$autoFrameRate")
-        onDispose {
-            android.util.Log.i("LIVE_HANDOFF", "ExoPreviewSurface: OFF engine=$engine autoFrameRate=$autoFrameRate")
-        }
-    }
     // Only the full-screen live player passes autoFrameRate = true — the in-pane preview must never
     // reconfigure the display while the user is just scrolling the channel list.
     val fps by engine.videoFps.collectAsStateWithLifecycle()
@@ -179,23 +171,9 @@ fun ExoPreviewSurface(
                 factory = { ctx ->
                     SurfaceView(ctx).apply {
                         holder.addCallback(object : SurfaceHolder.Callback {
-                            override fun surfaceCreated(holder: SurfaceHolder) {
-                                val msg = "PROMOTION_DIAG surfaceCreated: surface=${holder.surface != null} engine=$engine"
-                                android.util.Log.i("PROMOTION_DIAG", msg)
-                                LiveDiagnosticsLog.event(msg)
-                                engine.setSurface(holder.surface)
-                            }
-                            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-                                val msg = "PROMOTION_DIAG surfaceChanged: ${width}x$height"
-                                android.util.Log.i("PROMOTION_DIAG", msg)
-                                LiveDiagnosticsLog.event(msg)
-                            }
-                            override fun surfaceDestroyed(holder: SurfaceHolder) {
-                                val msg = "PROMOTION_DIAG surfaceDestroyed: engine=$engine"
-                                android.util.Log.i("PROMOTION_DIAG", msg)
-                                LiveDiagnosticsLog.event(msg)
-                                engine.detachSurface(holder.surface)
-                            }
+                            override fun surfaceCreated(holder: SurfaceHolder) = engine.setSurface(holder.surface)
+                            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+                            override fun surfaceDestroyed(holder: SurfaceHolder) = engine.detachSurface(holder.surface)
                         })
                     }
                 },

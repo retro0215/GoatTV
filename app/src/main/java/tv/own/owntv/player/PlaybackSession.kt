@@ -59,9 +59,6 @@ class PlaybackSession(private val context: Context) {
      * player closed). Safe to call repeatedly with the same engine.
      */
     fun attach(engine: PlaybackEngine?) {
-        val msg = "PlaybackSession.attach: engine=${engine?.javaClass?.simpleName ?: "null"}"
-        android.util.Log.i("LIVE_HANDOFF", msg)
-        LiveDiagnosticsLog.event("LIVE_HANDOFF $msg")
         if (this.engine === engine) return
         collectJob?.cancel()
         // A different engine (or none) starts a fresh session as far as controllers are concerned, so the
@@ -205,9 +202,6 @@ class PlaybackSession(private val context: Context) {
         if (hasFocus) return
         val granted = runCatching { audioManager.requestAudioFocus(focusRequest) }
             .getOrDefault(AudioManager.AUDIOFOCUS_REQUEST_FAILED) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        val msg = "PlaybackSession.requestFocus: granted=$granted"
-        android.util.Log.i("LIVE_HANDOFF", msg)
-        LiveDiagnosticsLog.event("LIVE_HANDOFF $msg")
         // A refusal is not a reason to refuse to play: some TV builds deny focus to background-capable
         // apps and playing silently-unmanaged is still better than not playing.
         hasFocus = granted
@@ -215,9 +209,6 @@ class PlaybackSession(private val context: Context) {
 
     private fun abandonFocus() {
         if (!hasFocus) return
-        val msg = "PlaybackSession.abandonFocus"
-        android.util.Log.i("LIVE_HANDOFF", msg)
-        LiveDiagnosticsLog.event("LIVE_HANDOFF $msg")
         hasFocus = false
         runCatching { audioManager.abandonAudioFocusRequest(focusRequest) }
     }
