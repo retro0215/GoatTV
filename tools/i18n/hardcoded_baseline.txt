@@ -261,25 +261,7 @@
 2	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	CUSTOM:
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	CUSTOM:$id
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	ExoPlayer error before first frame: ${info?.raw ?: previewEngine.error.value}
-10	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LIVE_HANDOFF
-2	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LIVE_HANDOFF $msg
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LIVE_HANDOFF $msg3
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LIVE_START_DIAG playPreview: channel='${channel.name}' id=${channel.id}
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.fallbackToMpv: channel='${channel.name}' reason=$reason
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.playPreview: channel='${channel.name}'
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.startOnExo: channel='${channel.name}'
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.startOnExo: different URL, calling play()
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.startOnExo: promoting existing preview
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.switchToExo: channel='${channel.name}'
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.watchExoOutcome: ERROR - $reason
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.watchExoOutcome: TIMEOUT - $reason
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.watchFromGuide: channel='${channel.name}'
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.watchFullscreen: channel='${channel.name}'
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	LiveViewModel.watchMpvOutcome: FAILURE - $reason
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	PROMOTION_DIAG
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	PROMOTION_DIAG $msg2
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	mpv handoff for '${channel.name}' abandoned — the channel changed while ExoPlayer released
-1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	playPreview: channel='${channel.name}' id=${channel.id}
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	starting mpv for '${channel.name}' — reason=$reason
 2	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Applying centralized audio focus: focusedId=$focusedId
@@ -340,49 +322,38 @@
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_left
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_right
 1	app/src/main/java/tv/own/owntv/features/setup/AddSourceScreen.kt	https://best-streams.tv
-2	app/src/main/java/tv/own/owntv/features/shell/OwnTVShell.kt	LIVE_HANDOFF
-1	app/src/main/java/tv/own/owntv/features/shell/OwnTVShell.kt	OwnTVShell.LaunchedEffect: liveOnExo=$liveOnExo playerMode=$playerMode
-1	app/src/main/java/tv/own/owntv/features/shell/OwnTVShell.kt	OwnTVShell.openFullscreen: source=$source currentMode=$playerMode
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	\0
 1	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/shell/components/SettingsScreen.kt	\0
 6	app/src/main/java/tv/own/owntv/features/shell/components/SettingsScreen.kt	#
+1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	\0
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AC3
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_ATTRIBUTES usage=${audioAttributes.usage} content=${audioAttributes.contentType} flags=${audioAttributes.flags}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_TRACK_CONFIG encoding=$encodingName rate=${audioTrackConfig.sampleRate}Hz
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_TRACK_INIT encoding=${config.encoding} rate=${config.sampleRate}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AVAILABLE_DEVICE id=${dev.id} type=${dev.type} product='${dev.productName}'
 2	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DEPRECATION
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS_HD
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	Deprecated in Java
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ENCODING_${audioTrackConfig.encoding}
-10	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG
+6	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $devMsg
-6	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $msg
+4	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $msg
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $routeMsg
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG onAudioDecoderInitialized: $decoderName passthrough=$passthrough
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	E_AC3
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	E_AC3_JOC
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	FRONT
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	PCM_${label}_DIAG encoding=${inputFormat.encoding} peak=$peak rms=$rms allZero=${peak == 0f}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	PCM_16BIT
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	PCM_FLOAT
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	PCM_ROUTE_DIAG session=${track.audioSessionId}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	SHIELD
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	SINK
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	allowsMultichannel: mode=$mode latched=$latched -> $allowed
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	audio output underran ${AudioOutputPolicy.UNDERRUN_LIMIT}ÃƒÆ’Ã¢â‚¬â€ in ${AudioOutputPolicy.UNDERRUN_WINDOW_MS / 1000}s
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	audio sink error: ${audioSinkError.javaClass.simpleName}
+1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	audio
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	audio underrun: buffer=${bufferSize}B/${bufferSizeMs}ms
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	audio.passthrough
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	buildAudioSink: forceStereo=$forceStereo
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ch=${audioTrackConfig.channelConfig} bufferSize=${audioTrackConfig.bufferSize}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ch=${config.channelConfig} session=$audioSessionId state=${track.state}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ch=${format.channelCount} rate=${format.sampleRate}Hz lang=${format.language}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	decoded (PCM)
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	maxCh=${rawCaps.maxChannelCount} AC3=$ac3 EAC3=$eac3
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	no sound from the audio output after ${graceMs / 1000}s
+1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	no sound detected after ${graceMs / 1000}s ($what)
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioDecoderInitialized: $decoderName passthrough=$passthrough
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioInputFormatChanged: mime=${format.sampleMimeType} codecs=${format.codecs}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioPositionAdvancing: audio head advancing path=$path
@@ -424,33 +395,11 @@
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	volume=${p.volume}
 4	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	\0
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_OUTPUT_POLICY mime=$mime codec=${format.codecs} ch=${format.channelCount}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	BUFFERING
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	Content-Type
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	ENDED
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	EXO_AUDIO_DIAG
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	EXO_AUDIO_DIAG $msg
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	HLS
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	IDLE
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LIVE_START_DIAG onPlaybackStateChanged: state=$stateName
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LIVE_START_DIAG onPlayerError: $errLog
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LIVE_START_DIAG onTracksChanged: hasVideo=$videoTrack hasAudio=$audioTrack
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LIVE_START_DIAG onVideoDecoderInitialized: $decoderName
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LIVE_START_DIAG play: $startMsg
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LIVE_START_DIAG reprepare: mediaSourceCreated=true calling prepare()
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LivePreviewEngine.play() called (no-args)
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	LivePreviewEngine.play: muted=$muted ua=${userAgent?.take(20)} headers=${httpHeaders != null} drm=${drmConfig != null}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	MPEG-TS
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PAUSE
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PLAY
-8	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG detachSurface: detaching old surface
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG detachSurface: surface is newer, skipping detach (current=${surface != null})
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG health: pos=${p.currentPosition} buf=${p.bufferedPosition}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG onIsPlayingChanged: isPlaying=$isPlaying
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG setSurface: surface=${s != null} (was=${surface != null})
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	PROMOTION_DIAG togglePlayPause: currentlyPlaying=${p.isPlaying} -> ${if (willPause) "PAUSE" else "PLAY"}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	READY
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	UNKNOWN
+1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	applyMute: effectivelyMuted=$effectivelyMuted (muted=$muted suspended=$audioSuspended)
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	apply_mute
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	audioMimeType=${format?.sampleMimeType ?: "null"}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	audio_codec_error
@@ -458,46 +407,29 @@
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	audio_sink_error
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	body="$failureText"
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	channelId=${_currentMeta.value.contentKey ?: "null"}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	channelId=${meta.contentKey ?: "null"} channelName='${meta.title}' muted=$muted
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	codecs=${format?.codecs ?: "null"}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoder failed before first frame (${error.errorCodeName}) — rebuilding the decoder and retrying once
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoder rebuild failed: ${it.message}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoderName=${audioWatchdog.audioFormat?.let { if (audioWatchdog.passthrough) "passthrough" else "decoded" } ?: "unknown"}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	default User-Agent refused — retrying once as ${HttpClient.FALLBACK_USER_AGENT}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	errorCode=${error.errorCode} name=${error.errorCodeName} message=${error.message} cause=${error.cause?.javaClass?.simpleName}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	hasVideo=$hasVideoTrack disableTrack=$disable vol=${p.volume} handleFocus=false
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	html
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	language=${format?.language ?: "null"}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	null
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	onPlaybackStateChanged: state=$stateName
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	onPlayerError: $errLog
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	onTracksChanged: hasVideo=$videoTrack hasAudio=$audioTrack
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	onVideoDecoderInitialized: $decoderName
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	play: $startMsg
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	player_error_${error.errorCodeName}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	provider refused the default User-Agent — retrying as ${HttpClient.FALLBACK_USER_AGENT}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	rate=${format.sampleRate} deviceSupportsEncoded=$deviceSupportsEncoded
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	state=${p.playbackState} pwr=${p.playWhenReady} playing=${p.isPlaying}
-2	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	state=${p?.playbackState} isPlaying=${p?.isPlaying} pos=${p?.currentPosition}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	state_changed
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	stream didn't open — trying the ${alt.substringBefore('?').substringAfterLast('.')} form of this channel
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	suppression=$suppression surface=${surface != null} url=${HttpClient.redactUrl(url)}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	tracks_changed
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	trying alternate format: ${HttpClient.redactUrl(alt)}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	userAllowsPassthrough=$userAllowsPassthrough
 4	app/src/main/java/tv/own/owntv/player/LiveStreamQuirks.kt	.m3u8
 3	app/src/main/java/tv/own/owntv/player/LiveStreamQuirks.kt	.ts
 1	app/src/main/java/tv/own/owntv/player/MpvVideoSurface.kt	DEPRECATION
-3	app/src/main/java/tv/own/owntv/player/MpvVideoSurface.kt	PROMOTION_DIAG
-1	app/src/main/java/tv/own/owntv/player/MpvVideoSurface.kt	PROMOTION_DIAG surfaceChanged: ${width}x$height
-1	app/src/main/java/tv/own/owntv/player/MpvVideoSurface.kt	PROMOTION_DIAG surfaceCreated: surface=${holder.surface != null} engine=$engine
-1	app/src/main/java/tv/own/owntv/player/MpvVideoSurface.kt	PROMOTION_DIAG surfaceDestroyed: engine=$engine
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	#00000000
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	#FFFFFFFF
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	HLS
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	LIVE_HANDOFF
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	MPEG-TS
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	OwnTVPlayer.play: isLive=$isLive isArchive=$isArchive muted=$muted ua=${userAgent?.take(20)} headers=${httpHeaders != null}
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	demuxer
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	file-format
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	force
@@ -509,12 +441,6 @@
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	sub-back-color
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	sub-color
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	sub-pos
-3	app/src/main/java/tv/own/owntv/player/PlaybackSession.kt	LIVE_HANDOFF
-3	app/src/main/java/tv/own/owntv/player/PlaybackSession.kt	LIVE_HANDOFF $msg
-1	app/src/main/java/tv/own/owntv/player/PlaybackSession.kt	PlaybackSession.abandonFocus
-1	app/src/main/java/tv/own/owntv/player/PlaybackSession.kt	PlaybackSession.attach: engine=${engine?.javaClass?.simpleName ?: "null"}
-1	app/src/main/java/tv/own/owntv/player/PlaybackSession.kt	PlaybackSession.requestFocus: granted=$granted
-1	app/src/main/java/tv/own/owntv/player/PlaybackSession.kt	null
 1	app/src/main/java/tv/own/owntv/player/PlayerDiagnostics.kt	\0
 1	app/src/main/java/tv/own/owntv/player/PlayerDiagnostics.kt	429
 1	app/src/main/java/tv/own/owntv/player/PlayerDiagnostics.kt	458

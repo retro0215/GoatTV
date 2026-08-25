@@ -323,8 +323,6 @@ class LivePreviewEngine(
             logAudioDiag("audio_sink_error")
         }
         override fun onVideoDecoderInitialized(eventTime: androidx.media3.exoplayer.analytics.AnalyticsListener.EventTime, decoderName: String, initializedTimestampMs: Long, initializationDurationMs: Long) {
-            android.util.Log.i("LIVE_START_DIAG", "onVideoDecoderInitialized: $decoderName")
-            LiveDiagnosticsLog.event("LIVE_START_DIAG onVideoDecoderInitialized: $decoderName")
             lastVideoDecoder = decoderName
             val hardware = DecoderNames.isHardware(decoderName)
             lastVideoDecoderHardware = hardware
@@ -370,7 +368,6 @@ class LivePreviewEngine(
             val msg = "AUDIO_OUTPUT_POLICY mime=$mime codec=${format.codecs} ch=${format.channelCount} " +
                 "rate=${format.sampleRate} deviceSupportsEncoded=$deviceSupportsEncoded " +
                 "userAllowsPassthrough=$userAllowsPassthrough"
-            android.util.Log.i("EXO_AUDIO_DIAG", msg)
             LiveDiagnosticsLog.event(msg)
         }
 
@@ -547,7 +544,7 @@ class LivePreviewEngine(
             StreamInfoValue.AudioOutput(
                 kind = if (audioWatchdog.passthrough) AudioOutputKind.PASSTHROUGH else AudioOutputKind.DECODED_IN_APP,
                 multichannelAllowed = AudioOutputPolicy.allowsMultichannel(surroundMode),
-                fallbackReason = AudioOutputPolicy.latchReason,
+                fallbackReason = null,
             ),
         )
         bufferRow(p, dropsBaseline)?.let { out += it }
@@ -769,17 +766,9 @@ class LivePreviewEngine(
                             "frames=$frames dropped=$dropped isPlaying=${p.isPlaying}",
                     )
                 }
-                // Audio output health. Runs in EVERY surround mode including "Surround" — a user who asked
-                // for 5.1 did not ask for silence — and cannot be turned off. On a hit the session latches
-                // to stereo (which every engine reads) and this channel is rebuilt on a stereo-only sink.
-                audioWatchdog.poll(p.isPlaying)?.let { reason ->
-                    LiveDiagnosticsLog.event("audioWatchdog: $reason — forcing stereo for this session")
-                    AudioOutputPolicy.latchStereo("exo/live: $reason")
-                    PlaybackErrorLog.event(context, "ExoPlayer", live = true, reason = PlayerFailureReason.STEREO_FALLBACK, detail = reason)
-                    onAudioFallback?.invoke()
-                    rebuildForSettingChange()
-                    return
-                }
+                // Audio output health. Logs a warning when sound is missing but takes no automatic action.
+                audioWatchdog.poll(p.isPlaying)
+
                 // Audio-plays-no-video: a video track exists but has never rendered a single frame, even
                 // though we're not in the total-freeze case above (position/audio clock IS advancing). Only
                 // fires once per load so the VM's one-shot mpv fallback isn't retriggered after it acts.
@@ -924,10 +913,7 @@ class LivePreviewEngine(
      * retry is a channel error, a failed reconnect is a lost connection).
      */
     private fun reprepare(p: ExoPlayer, url: String) {
-        val ms = mediaSourceFor(url)
-        android.util.Log.i("LIVE_START_DIAG", "reprepare: mediaSourceCreated=true calling prepare()")
-        LiveDiagnosticsLog.event("LIVE_START_DIAG reprepare: mediaSourceCreated=true calling prepare()")
-        p.setMediaSource(ms)
+        p.setMediaSource(mediaSourceFor(url))
         p.prepare()
         p.playWhenReady = true
         armOpenWatchdog()
@@ -1016,12 +1002,6 @@ class LivePreviewEngine(
         override fun onPlaybackStateChanged(playbackState: Int) {
             logStateChange(playbackState)
             logAudioDiag("state_changed")
-            val stateName = when (playbackState) {
-                Player.STATE_IDLE -> "IDLE"; Player.STATE_BUFFERING -> "BUFFERING"
-                Player.STATE_READY -> "READY"; Player.STATE_ENDED -> "ENDED"; else -> "UNKNOWN"
-            }
-            android.util.Log.i("LIVE_START_DIAG", "onPlaybackStateChanged: state=$stateName")
-            LiveDiagnosticsLog.event("LIVE_START_DIAG onPlaybackStateChanged: state=$stateName")
             when (playbackState) {
                 Player.STATE_BUFFERING -> {
                     _state.value = State.LOADING; _buffering.value = true
@@ -1104,9 +1084,6 @@ class LivePreviewEngine(
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            val msg = "PROMOTION_DIAG onIsPlayingChanged: isPlaying=$isPlaying"
-            android.util.Log.i("PROMOTION_DIAG", msg)
-            LiveDiagnosticsLog.event(msg)
             _isPlaying.value = isPlaying
         }
 
@@ -1129,20 +1106,11 @@ class LivePreviewEngine(
         override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
             rebuildTracks(tracks); updateStreamChips(); ensureFpsMeasurement()
             logAudioDiag("tracks_changed")
-            val videoTrack = tracks.groups.any { it.type == C.TRACK_TYPE_VIDEO }
-            val audioTrack = tracks.groups.any { it.type == C.TRACK_TYPE_AUDIO }
-            android.util.Log.i("LIVE_START_DIAG", "onTracksChanged: hasVideo=$videoTrack hasAudio=$audioTrack")
-            LiveDiagnosticsLog.event("LIVE_START_DIAG onTracksChanged: hasVideo=$videoTrack hasAudio=$audioTrack")
         }
         override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) { _cues.value = cueGroup.cues }
 
         override fun onPlayerError(error: PlaybackException) {
-            val errLog = "errorCode=${error.errorCode} name=${error.errorCodeName} message=${error.message} cause=${error.cause?.javaClass?.simpleName}"
-            android.util.Log.e("LIVE_START_DIAG", "onPlayerError: $errLog")
-            LiveDiagnosticsLog.event("LIVE_START_DIAG onPlayerError: $errLog")
-            
             android.util.Log.w(LiveDiagnosticsLog.TAG, "ExoPlayer error: ${error.errorCodeName}", error)
-            android.util.Log.e("LIVE_HANDOFF", "LivePreviewEngine.onPlayerError: code=${error.errorCodeName} message=${error.message}")
             LiveDiagnosticsLog.event("player_error code=${error.errorCodeName} hasPlayed=$hasPlayed")
             logAudioDiag("player_error_${error.errorCodeName}")
             // mid-stream drop → reconnect, unless a reconnect from the SAME failed prepare is already
@@ -1200,14 +1168,8 @@ class LivePreviewEngine(
 
     /** Attach the preview SurfaceView's surface, or null when it's destroyed. */
     fun setSurface(s: Surface?) {
-        val p = player
-        val msg = "PROMOTION_DIAG setSurface: surface=${s != null} (was=${surface != null}) " +
-            "state=${p?.playbackState} isPlaying=${p?.isPlaying} pos=${p?.currentPosition}"
-        android.util.Log.i("PROMOTION_DIAG", msg)
-        LiveDiagnosticsLog.event(msg)
-        
         surface = s
-        if (s != null) p?.setVideoSurface(s) else p?.clearVideoSurface()
+        if (s != null) player?.setVideoSurface(s) else player?.clearVideoSurface()
     }
 
     /** Enable/disable Media3's own Surface.setFrameRate mechanism. This is separate from the window-level
@@ -1228,38 +1190,8 @@ class LivePreviewEngine(
      *  for another, and the outgoing view's `surfaceDestroyed` can land after the incoming view's
      *  `surfaceCreated` — a plain `setSurface(null)` would then throw away the good new surface. */
     fun detachSurface(s: Surface) {
-        val p = player
-        if (surface !== s) {
-            val msg = "PROMOTION_DIAG detachSurface: surface is newer, skipping detach (current=${surface != null})"
-            android.util.Log.i("PROMOTION_DIAG", msg)
-            LiveDiagnosticsLog.event(msg)
-            return
-        }
-        val msg2 = "PROMOTION_DIAG detachSurface: detaching old surface " +
-            "state=${p?.playbackState} isPlaying=${p?.isPlaying} pos=${p?.currentPosition}"
-        android.util.Log.i("PROMOTION_DIAG", msg2)
-        LiveDiagnosticsLog.event(msg2)
+        if (surface !== s) return
         setSurface(null)
-    }
-
-    /**
-     * Log health metrics for 5 seconds after promotion to diagnose visual freezes.
-     */
-    fun logPromotionHealth() {
-        val p = player ?: return
-        val url = currentUrl ?: return
-        scope.launch {
-            val startMs = android.os.SystemClock.elapsedRealtime()
-            while (android.os.SystemClock.elapsedRealtime() - startMs < 5000) {
-                val suppression = if (android.os.Build.VERSION.SDK_INT >= 28) p.playbackSuppressionReason else -1
-                val msg = "PROMOTION_DIAG health: pos=${p.currentPosition} buf=${p.bufferedPosition} " +
-                    "state=${p.playbackState} pwr=${p.playWhenReady} playing=${p.isPlaying} " +
-                    "suppression=$suppression surface=${surface != null} url=${HttpClient.redactUrl(url)}"
-                android.util.Log.i("PROMOTION_DIAG", msg)
-                LiveDiagnosticsLog.event(msg)
-                delay(500)
-            }
-        }
     }
 
     /** Start (or switch to) [url] as a muted/unmuted preview. Never throws — a stream ExoPlayer can't set
@@ -1302,7 +1234,6 @@ class LivePreviewEngine(
     }
 
     fun play() {
-        android.util.Log.i("PROMOTION_DIAG", "LivePreviewEngine.play() called (no-args)")
         player?.play()
     }
 
@@ -1319,11 +1250,6 @@ class LivePreviewEngine(
         /** Widevine/ClearKey licence details for this channel (#115); null for an unprotected stream. */
         drmConfig: String? = null,
     ) {
-        val startMsg = "channelId=${meta.contentKey ?: "null"} channelName='${meta.title}' muted=$muted"
-        android.util.Log.i("LIVE_START_DIAG", "play: $startMsg")
-        LiveDiagnosticsLog.event("LIVE_START_DIAG play: $startMsg")
-        
-        android.util.Log.i("LIVE_HANDOFF", "LivePreviewEngine.play: muted=$muted ua=${userAgent?.take(20)} headers=${httpHeaders != null} drm=${drmConfig != null}")
         LiveDiagnosticsLog.event("play() url=${HttpClient.redactUrl(url)} muted=$muted")
         // Read BEFORE the player is (re)built below — the load control is fixed at construction.
         prerollOverrideSecs = prerollSecsOverride
@@ -1421,13 +1347,6 @@ class LivePreviewEngine(
     }
 
     /**
-     * Notified when the audio watchdog has forced this session to stereo, with a message to show the
-     * user. Set by whoever owns the UI; a null callback means the fallback still happens silently
-     * (getting sound back matters more than announcing it).
-     */
-    var onAudioFallback: (() -> Unit)? = null
-
-    /**
      * Rebuild the player so a changed audio configuration takes effect on the channel that is playing.
      *
      * A rebuild, not a reload: an ExoPlayer's audio sink capabilities are fixed when the renderers are
@@ -1452,7 +1371,7 @@ class LivePreviewEngine(
         // Section 6: Settle delay to ensure the previous player is fully released 
         // before the next one starts. Crucial for NVIDIA Shield audio HAL stability.
         scope.launch {
-            delay(348L) // CORE_RESET_SETTLE_MS
+            delay(OwnTVPlayer.CORE_RESET_SETTLE_MS)
             play(url, wasMuted, meta, ua, preroll, headers, tunedDrmConfig)
         }
     }
@@ -1483,8 +1402,8 @@ class LivePreviewEngine(
         
         // NVIDIA SHIELD diagnosis: log the exact audio state on every mute change.
         android.util.Log.i(
-            "PROMOTION_DIAG",
-            "LivePreviewEngine.applyMute: effectivelyMuted=$effectivelyMuted (muted=$muted suspended=$audioSuspended) " +
+            LiveDiagnosticsLog.TAG,
+            "applyMute: effectivelyMuted=$effectivelyMuted (muted=$muted suspended=$audioSuspended) " +
                 "hasVideo=$hasVideoTrack disableTrack=$disable vol=${p.volume} handleFocus=false"
         )
         logAudioDiag("apply_mute")
@@ -1547,7 +1466,6 @@ class LivePreviewEngine(
     /** Stop playback and free the decoder/connection (e.g. before mpv takes over for fullscreen). Keeps the
      *  ExoPlayer instance alive for the next preview. */
     fun stop() {
-        android.util.Log.i("LIVE_HANDOFF", "LivePreviewEngine.stop() — intentional")
         LiveDiagnosticsLog.event("stop() — intentional")
         stoppingIntentionally = true
         currentUrl = null
@@ -2119,11 +2037,7 @@ class LivePreviewEngine(
     // --- PlaybackEngine controls (full-screen HUD) ---
     override fun togglePlayPause() {
         val p = player ?: return
-        val willPause = p.isPlaying
-        val msg = "PROMOTION_DIAG togglePlayPause: currentlyPlaying=${p.isPlaying} -> ${if (willPause) "PAUSE" else "PLAY"}"
-        android.util.Log.i("PROMOTION_DIAG", msg)
-        LiveDiagnosticsLog.event(msg)
-        if (willPause) p.pause() else p.play()
+        if (p.isPlaying) p.pause() else p.play()
     }
 
     override fun setZoomMode(mode: ZoomMode) { _zoomMode.value = mode } // ExoPreviewSurface observes this + videoAspect/Size and sizes the surface (see Modifier.videoZoom)
@@ -2743,7 +2657,6 @@ class LivePreviewEngine(
             "handleAudioFocus=$handleFocus " +
             "playbackState=$stateName"
 
-        android.util.Log.i("EXO_AUDIO_DIAG", msg)
         LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
     }
 

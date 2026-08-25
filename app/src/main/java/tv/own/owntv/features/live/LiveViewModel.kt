@@ -649,9 +649,6 @@ class LiveViewModel(
     val previewBlockedSingleSession: StateFlow<Boolean> = _previewBlockedSingleSession.asStateFlow()
 
     fun playPreview(channel: ChannelEntity) {
-        android.util.Log.i("LIVE_START_DIAG", "playPreview: channel='${channel.name}' id=${channel.id}")
-        LiveDiagnosticsLog.event("LIVE_START_DIAG playPreview: channel='${channel.name}' id=${channel.id}")
-        android.util.Log.i("LIVE_HANDOFF", "LiveViewModel.playPreview: channel='${channel.name}'")
         if (channel.categoryId != null && channel.categoryId in hiddenCategoryIds.value) return
         // Don't touch the engine while it's promoted to full-screen. Clicking OK before the in-pane preview's
         // focus-delay fires would otherwise let this late preview call re-mute the now-full-screen stream
@@ -919,9 +916,6 @@ class LiveViewModel(
      *  provider category is metadata (used by [previewCategoryName]); it must not replace Favorites,
      *  History, All, a custom category, or the provider folder the user is actually browsing. */
     fun watchFullscreen(channel: ChannelEntity, list: List<ChannelEntity>) {
-        val msg = "LiveViewModel.watchFullscreen: channel='${channel.name}'"
-        android.util.Log.i("LIVE_HANDOFF", msg)
-        LiveDiagnosticsLog.event("LIVE_HANDOFF $msg")
         // Opened with no browse list behind it — the catch-up programme dialog does exactly this. Without
         // a zap list, CH+/CH− and the channel-list button are dead for the rest of the session, so rebuild
         // the channel's own category the way the Guide/Search path does.
@@ -954,7 +948,6 @@ class LiveViewModel(
      *  ExoPlayer→mpv ladder, compatibility-mode pins, learned stream quirks, the per-playlist
      *  pre-buffer and the external-player toggle apply however the channel was found. */
     fun watchFromGuide(channel: ChannelEntity) {
-        android.util.Log.i("LIVE_HANDOFF", "LiveViewModel.watchFromGuide: channel='${channel.name}'")
         armZapList(channel)
         ensurePlaying(channel)
         recordLiveHistory(channel, immediate = true)
@@ -1457,9 +1450,6 @@ class LiveViewModel(
     }
 
     private suspend fun startOnExo(channel: ChannelEntity) {
-        val msg = "LiveViewModel.startOnExo: channel='${channel.name}'"
-        android.util.Log.i("LIVE_HANDOFF", msg)
-        LiveDiagnosticsLog.event("LIVE_HANDOFF $msg")
         mpvOutcomeJob?.cancel() // ExoPlayer owns the channel now
         _liveOnExo.value = true
         player.stop() // free mpv (decoder/connection) if a previous full-screen used it
@@ -1467,16 +1457,9 @@ class LiveViewModel(
         if (streamUrlResolver.needsResolve(source)) { startOnExoStalker(channel, source!!); return }
         val targetUrl = tuneUrl(channel, source)
         if (previewEngine.currentUrl == targetUrl) {
-            val msg2 = "LiveViewModel.startOnExo: promoting existing preview"
-            android.util.Log.i("PROMOTION_DIAG", msg2)
-            LiveDiagnosticsLog.event("PROMOTION_DIAG $msg2")
-            previewEngine.logPromotionHealth()
             previewEngine.setMuted(false) // promote — instant if already PLAYING, otherwise keeps loading
             previewEngine.play() // P7: ensure the player is "kicked" after surface swap/focus change
         } else {
-            val msg3 = "LiveViewModel.startOnExo: different URL, calling play()"
-            android.util.Log.i("LIVE_HANDOFF", msg3)
-            LiveDiagnosticsLog.event("LIVE_HANDOFF $msg3")
             // In-player zap to a DIFFERENT channel (CH+/-, D-pad, channel-list overlay): if we're leaving a
             // UHD channel, fully release its 4K decoder before the reuse/rebuild (no-op for SD/HD). Matches
             // the Back/exit path — so the Hisense 4K-decoder leak is avoided however you leave the channel.
@@ -1660,7 +1643,6 @@ class LiveViewModel(
             if (!isStill(channel)) return@launch
             if (terminal == null) {
                 val reason = "ExoPlayer never opened it (${openBudgetMs / 1000}s, no frame and no error)"
-                android.util.Log.e("LIVE_HANDOFF", "LiveViewModel.watchExoOutcome: TIMEOUT - $reason")
                 advanceLadder(channel, reason)
                 return@launch
             }
@@ -1670,7 +1652,6 @@ class LiveViewModel(
                 kotlinx.coroutines.yield()
                 val info = previewEngine.errorInfo.value
                 val reason = "ExoPlayer error before first frame: ${info?.raw ?: previewEngine.error.value}"
-                android.util.Log.e("LIVE_HANDOFF", "LiveViewModel.watchExoOutcome: ERROR - $reason")
                 advanceLadder(channel, reason)
                 return@launch
             }
@@ -1811,7 +1792,6 @@ class LiveViewModel(
     /** Put [channel] on ExoPlayer, releasing mpv first when it currently holds the stream. mpv's stop is
      *  asynchronous, so on a one-session panel handing over too early makes us our own competitor. */
     private suspend fun switchToExo(channel: ChannelEntity) {
-        android.util.Log.i("LIVE_HANDOFF", "LiveViewModel.switchToExo: channel='${channel.name}'")
         clearTimeshift() // this restarts the channel at the live edge — the rewind is over
         if (!_liveOnExo.value) {
             player.stopAndAwaitRelease()
@@ -1826,7 +1806,6 @@ class LiveViewModel(
     private var mpvHandoffJob: Job? = null
 
     private suspend fun fallbackToMpv(channel: ChannelEntity, reason: String, forceTs: Boolean = false) {
-        android.util.Log.i("LIVE_HANDOFF", "LiveViewModel.fallbackToMpv: channel='${channel.name}' reason=$reason")
         engineLog("starting mpv for '${channel.name}' — reason=$reason")
         clearTimeshift() // the live channel is being re-opened at the edge — the rewind is over
         // Preserve the format Exo actually discovered. Some panels redirect their advertised `.ts`
@@ -1922,7 +1901,6 @@ class LiveViewModel(
                 failure.first -> { engineLog("'${channel.name}' opened on mpv"); return@launch }
                 else -> "mpv couldn't play it: ${failure.second}"
             }
-            android.util.Log.e("LIVE_HANDOFF", "LiveViewModel.watchMpvOutcome: FAILURE - $reason")
             advanceLadder(channel, reason)
         }
     }

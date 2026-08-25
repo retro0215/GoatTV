@@ -647,15 +647,9 @@ class ExoSubtitleEngine(
         val p = player ?: return
         val dur = p.duration.let { if (it == C.TIME_UNSET) 0L else it }
         callbacks.onPositionDuration(p.currentPosition.coerceAtLeast(0), dur.coerceAtLeast(0))
-        // The audio-output safety net rides the tick that is already running. On a hit the whole session
-        // latches to stereo and the owner restarts this item — the sink's capabilities are decided at
-        // construction, so nothing short of a rebuild can undo a bad choice.
-        audioWatchdog.poll(p.isPlaying)?.let { reason ->
-            android.util.Log.w("ExoSubtitleEngine", "audio watchdog: $reason — forcing stereo for this session")
-            AudioOutputPolicy.latchStereo("exo/vod: $reason")
-            PlaybackErrorLog.event(context, "ExoPlayer", live = false, reason = PlayerFailureReason.STEREO_FALLBACK, detail = reason)
-            onAudioFallback?.invoke()
-        }
+        // The audio-output safety net rides the tick that is already running. Logs a warning when
+        // sound is missing but takes no automatic action.
+        audioWatchdog.poll(p.isPlaying)
     }
 
     /** The user's Auto / Stereo only / Surround choice, pushed in by [OwnTVPlayer]; read at build time. */
@@ -680,9 +674,6 @@ class ExoSubtitleEngine(
                 .build()
         }
     }
-
-    /** Fired once when the audio watchdog forces stereo; the owner shows the message and restarts. */
-    var onAudioFallback: (() -> Unit)? = null
 
     /** Fired when this item failed on the hardware decoder and the software rung is still available;
      *  the owner restarts it here with `preferSoftware`. [fromStart] when the item must restart at 0
@@ -939,7 +930,7 @@ class ExoSubtitleEngine(
             StreamInfoValue.AudioOutput(
                 kind = if (audioWatchdog.passthrough) AudioOutputKind.PASSTHROUGH else AudioOutputKind.DECODED_IN_APP,
                 multichannelAllowed = AudioOutputPolicy.allowsMultichannel(surroundMode),
-                fallbackReason = AudioOutputPolicy.latchReason,
+                fallbackReason = null,
             ),
         )
         return out
