@@ -648,6 +648,26 @@ fun OwnTVShell(
                     else if (zapChannels.isNotEmpty()) tv.own.owntv.features.shell.components.ChannelListOverlay(channels = zapChannels, currentId = previewChannel?.id, nowPlaying = overlayNowPlaying, title = zapOverlayTitle, showNumbers = directTuneEnabled, onSelect = { liveVm.ensurePlaying(it); showChannelList = false }, onDismiss = { showChannelList = false }, onOpenCategories = { liveVm.showCategories() }, modifier = Modifier.fillMaxSize())
                 }
                 if (showHistoryList && zapSource == MainSection.LIVE_TV && historyChannels.isNotEmpty()) tv.own.owntv.features.shell.components.ChannelListOverlay(channels = historyChannels, currentId = previewChannel?.id, nowPlaying = historyNowPlaying, title = stringResource(R.string.content_history), showNumbers = directTuneEnabled, alignEnd = true, onSelect = { liveVm.ensurePlaying(it); showHistoryList = false }, onDismiss = { showHistoryList = false }, modifier = Modifier.fillMaxSize())
+            } else {
+                MiniPlayer(
+                    player = if (liveOnExo) liveVm.previewEngine else mpvEngine,
+                    onExpand = expandPlayer,
+                    onClose = exitPlayer,
+                    onCycleSize = {
+                        scope.launch {
+                            settingsRepo.setMiniPlayerSizePct(
+                                tv.own.owntv.player.MiniPlayerSize.next(miniSizePct)
+                            )
+                        }
+                    },
+                    onCyclePosition = {
+                        scope.launch {
+                            settingsRepo.setMiniPlayerPosition(miniPos.next().name)
+                        }
+                    },
+                    onAudioMode = toAudioMode,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
       }
