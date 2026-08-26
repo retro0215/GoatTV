@@ -103,8 +103,13 @@ class UpdateManager(
                         if (isDraft) continue
                         if (isPre && !BuildConfig.DEBUG && !BuildConfig.DIAGNOSTIC_BUILD) continue
                         
-                        val brandVersion = tag.removePrefix(BuildConfig.RELEASE_TAG_PREFIX)
-                        if (tag.startsWith(BuildConfig.RELEASE_TAG_PREFIX) && brandVersion.matches(Regex("""\d+\.\d+\.\d+"""))) {
+                        val tagPrefix = BuildConfig.RELEASE_TAG_PREFIX
+                        val brandVersion = tag.removePrefix(tagPrefix)
+                        // Strict brand isolation: tag must start with our prefix AND the very next
+                        // character must be a digit (prevents 'v' from matching '5star-v').
+                        if (tag.startsWith(tagPrefix) && brandVersion.firstOrNull()?.isDigit() == true &&
+                            brandVersion.matches(Regex("""\d+\.\d+\.\d+"""))
+                        ) {
                             targetRelease = rel
                             break
                         }

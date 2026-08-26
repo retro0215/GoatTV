@@ -34,11 +34,11 @@ jobs:
             exit 0
           fi
 
-          # Pull lines from "## <TAG>" up to (but not including) the next "## v" header. The header
+          # Pull lines from "## <TAG>" up to (but not including) the next H2 header. The header
           # may carry a date tail or none at all, so match the version as a whole word.
           awk -v ver="$TAG" '
             $0 ~ ("^## " ver "([ \t]|$)") { flag=1; next }
-            /^## v/ && flag { flag=0 }
+            /^## / && flag { flag=0 }
             flag { print }
           ' CHANGELOG_APP.md > section.md || true
 

@@ -294,7 +294,7 @@ jobs:
           if [ -f CHANGELOG_APP.md ]; then
             awk -v ver="$TAG" '
               $0 ~ ("^## " ver "([ \t]|$)") { flag=1; next }
-              /^## v/ && flag { flag=0 }
+              /^## / && flag { flag=0 }
               flag { print }
             ' CHANGELOG_APP.md > dist/RELEASE_NOTES.md || true
             # Trim leading/trailing blank lines.

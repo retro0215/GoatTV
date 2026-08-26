@@ -30,13 +30,19 @@ class UpdateDiscoveryIsolationTest {
 
         fun matches(brand: Brand, tag: String): Boolean {
             val brandVersion = tag.removePrefix(brand.tagPrefix)
-            return tag.startsWith(brand.tagPrefix) && brandVersion.matches(versionRegex)
+            // Strict brand isolation: tag must start with the prefix AND the very next
+            // character must be a digit.
+            return tag.startsWith(brand.tagPrefix) &&
+                brandVersion.firstOrNull()?.isDigit() == true &&
+                brandVersion.matches(versionRegex)
         }
 
         // --- GoatTV ---
         assertTrue("GoatTV accepts its own tag", matches(goat, "v4.2.13"))
         assertFalse("GoatTV rejects 5Star tag", matches(goat, "5star-v4.2.18"))
         assertFalse("GoatTV rejects AllAccess tag", matches(goat, "allaccess-v1.0.0"))
+        assertFalse("GoatTV rejects malformed tag", matches(goat, "v-4.2.13"))
+        assertFalse("GoatTV rejects 5Star tag even if it contains 'v'", matches(goat, "5star-v4.2.18"))
 
         // --- 5Star ---
         assertTrue("5Star accepts its own tag", matches(fivestar, "5star-v4.2.18"))
