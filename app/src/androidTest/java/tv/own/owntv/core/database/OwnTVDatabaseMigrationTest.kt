@@ -187,6 +187,7 @@ class OwnTVDatabaseMigrationTest {
                         candidateFetchedAt = 1_900,
                         generationId = "source-a-2",
                         itemCount = 0,
+                        lastAttemptStatus = tv.own.owntv.core.database.entity.TrendingAttemptStatus.BELOW_THRESHOLD,
                     ),
                 )
 
@@ -540,6 +541,8 @@ class OwnTVDatabaseMigrationTest {
             OwnTVDatabase.MIGRATION_31_32,
             OwnTVDatabase.MIGRATION_32_33,
             OwnTVDatabase.MIGRATION_33_34,
+            OwnTVDatabase.MIGRATION_34_35,
+            OwnTVDatabase.MIGRATION_35_36,
         )
         .allowMainThreadQueries()
         .build()
@@ -594,6 +597,7 @@ class OwnTVDatabaseMigrationTest {
         candidateFetchedAt = 900,
         generationId = generationId,
         itemCount = 5,
+        lastAttemptStatus = tv.own.owntv.core.database.entity.TrendingAttemptStatus.SUCCESS,
     )
 
     private fun trendingItems(sourceId: Long, generationId: String, titlePrefix: String) =
@@ -765,7 +769,7 @@ class OwnTVDatabaseMigrationTest {
         private const val DB_NAME = "owntv-migration-test.db"
 
         /** Must match `@Database(version = …)` on [OwnTVDatabase]. */
-        private const val CURRENT_VERSION = 34
+        private const val CURRENT_VERSION = 36
 
         /**
          * Every version with an exported schema that a real database can be sitting at.

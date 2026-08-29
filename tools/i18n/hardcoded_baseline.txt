@@ -84,7 +84,6 @@
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `sources` ADD COLUMN `preferHls` INTEGER NOT NULL DEFAULT 0
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_custom_category_members_profileId_mediaType_contextKey` ON `custom_category_members` (`profileId`, `mediaType`, `contextKey`)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_custom_category_members_profileId` ON `custom_category_members` (`profileId`)
-1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_provider_metadata_cache_sourceId` ON `provider_metadata_cache` (`sourceId`)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `custom_category_members` (
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `epg_programmes` (
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `provider_metadata_cache` (

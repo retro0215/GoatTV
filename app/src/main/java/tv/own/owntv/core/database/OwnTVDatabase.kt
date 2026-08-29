@@ -141,7 +141,6 @@ abstract class OwnTVDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE `episodes` ADD COLUMN `rating` REAL")
                 db.execSQL("ALTER TABLE `episodes` ADD COLUMN `releaseDate` TEXT")
                 db.execSQL("ALTER TABLE `episodes` ADD COLUMN `stillUrl` TEXT")
-                healSchema(db)
             }
         }
 
@@ -170,8 +169,6 @@ abstract class OwnTVDatabase : RoomDatabase() {
                         "PRIMARY KEY(`key`)" +
                         ")",
                 )
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_provider_metadata_cache_sourceId` ON `provider_metadata_cache` (`sourceId`)")
-                healSchema(db)
             }
         }
 
