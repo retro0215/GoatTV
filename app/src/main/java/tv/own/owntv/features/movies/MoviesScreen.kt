@@ -891,7 +891,7 @@ private fun MovieListRow(movie: MovieEntity, isFavorite: Boolean, completed: Boo
             }
             if (completed) {
                 Box(modifier = Modifier.size(20.dp).clip(RoundedCornerShape(50)).background(colors.primary), contentAlignment = Alignment.Center) {
-                    OwnTVIcon(OwnTVIcon.CHECK, tint = colors.onPrimary, modifier = Modifier.size(14.dp))
+                    OwnTVIcon(OwnTVIcon.WATCHED_CHECK, tint = colors.onPrimary, modifier = Modifier.size(14.dp))
                 }
             }
             if (isFavorite) OwnTVIcon(OwnTVIcon.FAVORITE, tint = colors.primary, modifier = Modifier.size(18.dp))

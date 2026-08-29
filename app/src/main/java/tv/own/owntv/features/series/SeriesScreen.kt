@@ -790,7 +790,7 @@ private fun EpisodeCard(
                         modifier = Modifier.align(Alignment.Center).size(32.dp).clip(RoundedCornerShape(50)).background(colors.primary),
                         contentAlignment = Alignment.Center
                     ) {
-                        OwnTVIcon(OwnTVIcon.CHECK, tint = colors.onPrimary, modifier = Modifier.size(20.dp))
+                        OwnTVIcon(OwnTVIcon.WATCHED_CHECK, tint = colors.onPrimary, modifier = Modifier.size(20.dp))
                     }
                 }
             }

@@ -108,7 +108,7 @@ fun PosterCard(
                             .background(colors.primary),
                         contentAlignment = Alignment.Center,
                     ) {
-                        OwnTVIcon(OwnTVIcon.CHECK, tint = colors.onPrimary, modifier = Modifier.size(16.dp))
+                        OwnTVIcon(OwnTVIcon.WATCHED_CHECK, tint = colors.onPrimary, modifier = Modifier.size(16.dp))
                     }
                 }
 
