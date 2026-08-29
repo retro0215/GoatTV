@@ -74,10 +74,9 @@ fun defaultPanelShares(
 ): PanelShares {
     return when (section) {
         PanelSection.LIVE -> PanelShares(20, 35, 45)
-        PanelSection.MOVIES -> PanelShares(15, 65, 20)
-        PanelSection.SERIES -> PanelShares(15, 65, 20)
+        PanelSection.MOVIES -> PanelShares(20, 80, 0)
+        PanelSection.SERIES -> PanelShares(20, 80, 0)
     }
-
 }
 
 /**

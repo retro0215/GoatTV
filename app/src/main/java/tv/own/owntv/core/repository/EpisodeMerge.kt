@@ -8,7 +8,7 @@ import tv.own.owntv.core.database.entity.EpisodeEntity
  */
 
 /** How long a fetched episode list is trusted before the provider is asked again. */
-const val EPISODE_CACHE_TTL_MS: Long = 6 * 60 * 60 * 1000 // 6 hours
+const val EPISODE_CACHE_TTL_MS: Long = 1 * 60 * 60 * 1000 // 1 hour (was 6)
 
 /**
  * Whether a show's episodes should be fetched from the provider.

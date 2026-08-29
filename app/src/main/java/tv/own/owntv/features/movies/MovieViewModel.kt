@@ -86,6 +86,7 @@ class MovieViewModel(
     private val contentOrderDao: ContentOrderDao,
     private val customCategoryDao: CustomCategoryDao,
     private val metadata: tv.own.owntv.core.metadata.MetadataRepository,
+    private val movieRepository: tv.own.owntv.core.repository.MovieRepository,
     private val externalPlayerLauncher: tv.own.owntv.core.player.ExternalPlayerLauncher,
     private val streamUrlResolver: tv.own.owntv.core.stalker.StreamUrlResolver,
     private val subtitleController: tv.own.owntv.core.subtitles.SubtitleController,
@@ -254,6 +255,21 @@ class MovieViewModel(
     private val _selectedMovie = MutableStateFlow<MovieEntity?>(null)
     val selectedMovie: StateFlow<MovieEntity?> = _selectedMovie.asStateFlow()
 
+    private val _detailedMovie = MutableStateFlow<MovieEntity?>(null)
+    val detailedMovie: StateFlow<MovieEntity?> = _detailedMovie.asStateFlow()
+
+    /**
+     * On-demand rich metadata from the provider (Xtream get_vod_info). Triggered ONLY when a movie
+     * is explicitly opened for full details, to protect the provider from browsing traffic.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val providerMeta: StateFlow<tv.own.owntv.core.database.entity.ProviderMetadataEntity?> = _detailedMovie
+        .mapLatest { movie ->
+            if (movie == null) null
+            else movieRepository.getProviderMetadata(movie)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     /**
      * On-demand TMDB enrichment for the focused movie (plan §7.2: detail screens resolve lazily). Debounced
      * so scrolling fast doesn't fire a lookup per card; cached in Room so a second focus is instant. Null
@@ -271,7 +287,7 @@ class MovieViewModel(
         .debounce(tv.own.owntv.core.metadata.MetadataRepository.FOCUS_DEBOUNCE_MS)
         .mapLatest { (m, _) ->
             if (m == null) null
-            else MovieMeta(m.id, runCatching { metadata.resolveMovie(m) }.getOrNull())
+            else MovieMeta(m.id, runCatching { metadata.resolveMovie(m, allowNetwork = false) }.getOrNull())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -404,6 +420,8 @@ class MovieViewModel(
     fun select(key: LiveKey) { _selected.value = key }
     fun setSearchQuery(query: String) { _search.value = query }
     fun onMovieFocused(movie: MovieEntity) { _selectedMovie.value = movie }
+    fun openMovieDetails(movie: MovieEntity) { _detailedMovie.value = movie }
+    fun closeMovieDetails() { _detailedMovie.value = null }
 
     /**
      * Manual "Refetch TMDB details" (plan §11.2 U5a): clear this movie's cached match/details (incl. a 7-day

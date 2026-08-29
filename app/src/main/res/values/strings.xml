@@ -29,6 +29,8 @@
     <string name="common_off">Off</string>
     <!-- Translators: Generic exit action or button label. -->
     <string name="common_exit">Exit</string>
+    <!-- Translators: Generic open button or action label. -->
+    <string name="common_open">Open</string>
     <!-- Translators: Imperative button label to resume playback or resume a paused download. -->
     <string name="common_resume">Resume</string>
     <!-- Translators: Button to restart content from the beginning. -->

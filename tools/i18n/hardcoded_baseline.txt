@@ -77,30 +77,49 @@
 1	app/src/main/java/tv/own/owntv/core/customize/RenameRules.kt	^$wrapped(?![\\p{L}\\p{N}])
 1	app/src/main/java/tv/own/owntv/core/customize/RenameRules.kt	^(?:\\|?[A-Za-z]{2,4}\\s*\\||\\[[A-Za-z]{2,4}]|\\([A-Za-z]{2,4}\\))
 1	app/src/main/java/tv/own/owntv/core/customize/RenameRules.kt	{2,}
-1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	)
+2	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `sources` ADD COLUMN `expiryDate` TEXT
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `sources` ADD COLUMN `expiryMs` INTEGER
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `sources` ADD COLUMN `hlsSupported` INTEGER NOT NULL DEFAULT 0
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `sources` ADD COLUMN `preferHls` INTEGER NOT NULL DEFAULT 0
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_custom_category_members_profileId_mediaType_contextKey` ON `custom_category_members` (`profileId`, `mediaType`, `contextKey`)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_custom_category_members_profileId` ON `custom_category_members` (`profileId`)
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_provider_metadata_cache_sourceId` ON `provider_metadata_cache` (`sourceId`)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `custom_category_members` (
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `epg_programmes` (
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `provider_metadata_cache` (
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_custom_category_members_profileId_mediaType_contextKey_itemId` ON `custom_category_members` (`profileId`, `mediaType`, `contextKey`, `itemId`)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_epg_programmes_natural_key` ON `epg_programmes` (`sourceId`, `epgChannelId`, `startMs`)
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	DROP TABLE IF EXISTS `epg_programmes`
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	PRIMARY KEY(`key`)
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`actors` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`backdropUrl` TEXT,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`contentHash` INTEGER NOT NULL DEFAULT 0
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`contextKey` TEXT NOT NULL,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`description` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`director` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`durationSecs` INTEGER,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`epgChannelId` TEXT NOT NULL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`genre` TEXT,
 2	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`itemId` INTEGER NOT NULL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`key` TEXT NOT NULL,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`mediaType` TEXT NOT NULL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`plot` TEXT,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`position` INTEGER NOT NULL,
-1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`sourceId` INTEGER NOT NULL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`posterUrl` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`rating` REAL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`releaseDate` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`remoteId` TEXT NOT NULL,
+2	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`sourceId` INTEGER NOT NULL,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`startMs` INTEGER NOT NULL,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`stopMs` INTEGER NOT NULL,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`title` TEXT NOT NULL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`title` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`tmdbId` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`trailer` TEXT,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`updatedAt` INTEGER NOT NULL,
+1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`year` INTEGER,
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	hlsSupported
 1	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	preferHls
 4	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	sources
@@ -171,9 +190,13 @@
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	WHERE profileId = :profileId AND mediaType = :type AND contextKey IN (:contextKeys) AND (
 2	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	WHERE s.sourceId IN (:sourceIds)
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	WHERE s.sourceId IN (:sourceIds) AND s.name LIKE '%' || :query || '%'
+1	app/src/main/java/tv/own/owntv/core/database/dao/ProviderMetadataDao.kt	DELETE FROM provider_metadata_cache
+1	app/src/main/java/tv/own/owntv/core/database/dao/ProviderMetadataDao.kt	DELETE FROM provider_metadata_cache WHERE sourceId = :sourceId
+1	app/src/main/java/tv/own/owntv/core/database/dao/ProviderMetadataDao.kt	SELECT * FROM provider_metadata_cache WHERE key = :key LIMIT 1
 1	app/src/main/java/tv/own/owntv/core/database/dao/SourceDao.kt	UPDATE sources SET preferHls = :preferHls WHERE id = :id
 1	app/src/main/java/tv/own/owntv/core/database/entity/ContentEntities.kt	.m3u8
 1	app/src/main/java/tv/own/owntv/core/database/entity/ContentEntities.kt	.ts
+1	app/src/main/java/tv/own/owntv/core/database/entity/ProviderMetadataEntity.kt	provider_metadata_cache
 2	app/src/main/java/tv/own/owntv/core/database/entity/UserDataEntities.kt	contextKey
 1	app/src/main/java/tv/own/owntv/core/database/entity/UserDataEntities.kt	custom_category_members
 1	app/src/main/java/tv/own/owntv/core/database/entity/UserDataEntities.kt	itemId
@@ -226,11 +249,27 @@
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	https://dns.quad9.net/dns-query
 1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/timeshift/${s.username}/${s.password}/$durationMinutes/${fmt.format(java.util.Date(startMs))}/$streamId.$ext
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	&vod_id=$streamId
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	actors
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	allowed_output_formats
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	backdrop_path
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	director
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	fetchAccountDetails failed for source ${s.id}
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	genre
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	get_vod_info
 2	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	m3u8
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	movie_data
+2	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	name
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	releasedate
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	stream_icon
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	tmdb_id
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	ts
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	user_output_formats
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	year
+1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	youtube_trailer
+1	app/src/main/java/tv/own/owntv/core/repository/MovieRepository.kt	Failed to fetch rich VOD info for movieId=${movie.id} remoteId=${movie.remoteId}
+1	app/src/main/java/tv/own/owntv/core/repository/MovieRepository.kt	MovieRepository
+1	app/src/main/java/tv/own/owntv/core/repository/MovieRepository.kt	movie:${movie.sourceId}:${movie.remoteId ?: movie.name}
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	\\d{4}|\\d{1,2}[./-]\\d{1,2}
 1	app/src/main/java/tv/own/owntv/core/subtitles/OpenSubtitlesClient.kt	$method ${pathAndQuery.substringBefore('?')} via $base -> ${e.javaClass.simpleName}: ${e.message}
 1	app/src/main/java/tv/own/owntv/core/subtitles/OpenSubtitlesClient.kt	$method ${pathAndQuery.substringBefore('?')} via $base -> HTTP ${resp.code}
@@ -263,6 +302,11 @@
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	ExoPlayer error before first frame: ${info?.raw ?: previewEngine.error.value}
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	mpv handoff for '${channel.name}' abandoned — the channel changed while ExoPlayer released
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	starting mpv for '${channel.name}' — reason=$reason
+2	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	,
+3	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	/
+1	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	v
+1	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	youtu.be
+1	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	youtube.com
 2	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Applying centralized audio focus: focusedId=$focusedId
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Building LoadControl: min=$minBufferMs, max=$maxBufferMs, constrained=$isOnn
@@ -271,6 +315,13 @@
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_DROPPED channelId=${channel.id} name=${channel.name} dropped=$droppedFrames over ${elapsedMs}ms
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_ERROR channelId=${channel.id} name=${channel.name} errorCode=${e.errorCode} message=${e.message}
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_READY channelId=${channel.id} name=${channel.name} res=${format?.width}x${format?.height} codec=${format?.sampleMimeType}
+6	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	\0
+1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	$episodeNumber
+1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	(?i)^(Episode|Ep)\\s*\\d+\\s*[-·•:_]\\s*
+1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	(?i)s\\d+e\\d+| \\d+x\\d+|\\d+x\\d+
+1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	Ep $episodeNumber
+1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	Episode $episodeNumber
+1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	\\(\\d{4}\\)
 8	app/src/main/java/tv/own/owntv/features/settings/DnsSettingsScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/settings/DnsSettingsScreen.kt	${cfg.host}$p
 1	app/src/main/java/tv/own/owntv/features/settings/DnsSettingsScreen.kt	:${cfg.port}

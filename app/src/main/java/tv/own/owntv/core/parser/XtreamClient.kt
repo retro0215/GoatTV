@@ -31,8 +31,25 @@ data class XtSeries(
 )
 data class XtEpisode(
     val id: String, val seasonNumber: Int, val episodeNumber: Int, val title: String, val containerExt: String?,
+    val plot: String? = null, val stillUrl: String? = null, val durationSecs: Int? = null,
+    val rating: Double? = null, val releaseDate: String? = null,
 )
-data class XtSeriesInfo(val episodes: List<XtEpisode>)
+data class XtSeriesInfo(val episodes: List<XtEpisode>, val info: XtProviderMetadata? = null)
+data class XtProviderMetadata(
+    val title: String?,
+    val plot: String?,
+    val rating: Double?,
+    val releaseDate: String?,
+    val year: Int?,
+    val genre: String?,
+    val durationSecs: Int?,
+    val director: String?,
+    val actors: String?,
+    val trailer: String?,
+    val backdropUrls: List<String>,
+    val posterUrl: String?,
+    val tmdbId: String?,
+)
 
 /** What a real request for an `.m3u8` live URL got back — see [XtreamClient.probeHls]. */
 sealed interface HlsProbe {
@@ -210,18 +227,23 @@ class XtreamClient(private val http: HttpClient) {
      */
     suspend fun getSeriesInfo(s: SourceEntity, seriesId: String): XtSeriesInfo {
         val episodes = ArrayList<XtEpisode>()
+        var info: XtProviderMetadata? = null
+
         http.get(api(s, "get_series_info", "&series_id=$seriesId"), s.userAgent) { input ->
             JsonReader(input.reader(Charsets.UTF_8)).use { reader ->
                 reader.isLenient = true
                 if (reader.peek() != JsonToken.BEGIN_OBJECT) { reader.skipValue(); return@use }
                 reader.beginObject()
                 while (reader.hasNext()) {
-                    if (reader.nextName() == "episodes") {
+                    val name = reader.nextName()
+                    if (name == "episodes") {
                         when (reader.peek()) {
                             JsonToken.BEGIN_OBJECT -> readEpisodesObject(reader, episodes) // { "1": [ep,…], … }
                             JsonToken.BEGIN_ARRAY -> readEpisodesArray(reader, episodes)    // [ ep, ep, … ]
                             else -> reader.skipValue()
                         }
+                    } else if (name == "info" && reader.peek() == JsonToken.BEGIN_OBJECT) {
+                        info = readProviderMetadata(reader)
                     } else {
                         reader.skipValue()
                     }
@@ -229,7 +251,114 @@ class XtreamClient(private val http: HttpClient) {
                 reader.endObject()
             }
         }
-        return XtSeriesInfo(episodes)
+        return XtSeriesInfo(episodes, info)
+    }
+
+    /**
+     * Common parser for the `info` block in `get_vod_info` and `get_series_info`.
+     */
+    private fun readProviderMetadata(reader: JsonReader): XtProviderMetadata {
+        var title: String? = null
+        var plot: String? = null
+        var rating: Double? = null
+        var releaseDate: String? = null
+        var year: Int? = null
+        var genre: String? = null
+        var durationSecs: Int? = null
+        var director: String? = null
+        var actors: String? = null
+        var trailer: String? = null
+        val backdropUrls = ArrayList<String>()
+        var posterUrl: String? = null
+        var tmdbId: String? = null
+
+        reader.beginObject()
+        while (reader.hasNext()) {
+            when (reader.nextName()) {
+                "name" -> title = reader.nextScalarStringOrNull()
+                "plot", "description", "overview", "summary", "synopsis" -> {
+                    val value = reader.nextScalarStringOrNull()
+                    if (plot.isNullOrBlank()) plot = value
+                }
+                "rating" -> rating = reader.nextDoubleOrNull()
+                "releasedate" -> releaseDate = reader.nextScalarStringOrNull()
+                "year" -> year = reader.nextIntOrNull()
+                "genre" -> genre = reader.nextScalarStringOrNull()
+                "duration_secs" -> durationSecs = reader.nextIntOrNull()
+                "director" -> director = reader.nextScalarStringOrNull()
+                "actors", "cast" -> actors = reader.nextScalarStringOrNull()
+                "youtube_trailer" -> trailer = reader.nextScalarStringOrNull()
+                "movie_image", "cover" -> posterUrl = reader.nextScalarStringOrNull()
+                "tmdb_id" -> tmdbId = reader.nextScalarStringOrNull()
+                "backdrop_path" -> {
+                    when (reader.peek()) {
+                        JsonToken.BEGIN_ARRAY -> {
+                            reader.beginArray()
+                            while (reader.hasNext()) {
+                                reader.nextScalarStringOrNull()?.let { backdropUrls.add(it) }
+                            }
+                            reader.endArray()
+                        }
+                        JsonToken.STRING -> {
+                            reader.nextString().takeIf { it.isNotBlank() }?.let { backdropUrls.add(it) }
+                        }
+                        else -> reader.skipValue()
+                    }
+                }
+                else -> reader.skipValue()
+            }
+        }
+        reader.endObject()
+        return XtProviderMetadata(
+            title = title, plot = plot, rating = rating, releaseDate = releaseDate,
+            year = year, genre = genre, durationSecs = durationSecs,
+            director = director, actors = actors, trailer = trailer,
+            backdropUrls = backdropUrls, posterUrl = posterUrl, tmdbId = tmdbId
+        )
+    }
+
+    suspend fun getVodInfo(s: SourceEntity, streamId: String): XtProviderMetadata? {
+        return http.get(api(s, "get_vod_info", "&vod_id=$streamId"), s.userAgent) { input ->
+            var info: XtProviderMetadata? = null
+            var nameFallback: String? = null
+            var iconFallback: String? = null
+
+            JsonReader(input.reader(Charsets.UTF_8)).use { reader ->
+                reader.isLenient = true
+                if (reader.peek() != JsonToken.BEGIN_OBJECT) { reader.skipValue(); return@use null }
+                reader.beginObject()
+                while (reader.hasNext()) {
+                    val name = reader.nextName()
+                    if (name == "info" && reader.peek() == JsonToken.BEGIN_OBJECT) {
+                        info = readProviderMetadata(reader)
+                    } else if (name == "movie_data" && reader.peek() == JsonToken.BEGIN_OBJECT) {
+                        // Fallback/secondary source for some fields if info is thin.
+                        reader.beginObject()
+                        while (reader.hasNext()) {
+                            when (reader.nextName()) {
+                                "name" -> nameFallback = reader.nextScalarStringOrNull()
+                                "stream_icon" -> iconFallback = reader.nextScalarStringOrNull()
+                                else -> reader.skipValue()
+                            }
+                        }
+                        reader.endObject()
+                    } else {
+                        reader.skipValue()
+                    }
+                }
+                reader.endObject()
+            }
+            info?.let {
+                if (it.title == null) it.copy(title = nameFallback) else it
+            }?.let {
+                if (it.posterUrl == null) it.copy(posterUrl = iconFallback) else it
+            } ?: XtProviderMetadata(
+                title = nameFallback, plot = null, rating = null, releaseDate = null,
+                year = null, genre = null, durationSecs = null,
+                director = null, actors = null, trailer = null,
+                backdropUrls = emptyList(), posterUrl = iconFallback, tmdbId = null
+            )
+        }
     }
 
     /** `episodes` as `{ season → [episodes] }`. */
@@ -260,21 +389,68 @@ class XtreamClient(private val http: HttpClient) {
         var title = ""
         var ext: String? = null
         var season = seasonFallback
+        var plot: String? = null
+        var stillUrl: String? = null
+        var durationSecs: Int? = null
+        var rating: Double? = null
+        var releaseDate: String? = null
+
         reader.beginObject()
         while (reader.hasNext()) {
-            when (reader.nextName()) {
+            val name = reader.nextName()
+            when (name) {
                 "id" -> id = reader.nextStringOrNull()
                 "episode_num" -> epNum = reader.nextIntOrNull() ?: epNum
                 "title" -> title = reader.nextStringOrNull() ?: title
                 "container_extension" -> ext = reader.nextStringOrNull()
                 "season" -> reader.nextIntOrNull()?.let { if (it > 0) season = it }
+                "info" -> {
+                    if (reader.peek() == JsonToken.BEGIN_OBJECT) {
+                        reader.beginObject()
+                        while (reader.hasNext()) {
+                            val infoName = reader.nextName()
+                            when (infoName) {
+                                "plot", "description", "overview", "summary", "synopsis", "storyline", "notes" -> {
+                                    val value = reader.nextScalarStringOrNull()
+                                    if (plot.isNullOrBlank()) plot = value
+                                }
+                                "movie_image", "still_path", "screenshot", "image", "thumb", "thumbnail" -> {
+                                    val value = reader.nextScalarStringOrNull()
+                                    if (stillUrl.isNullOrBlank()) stillUrl = value
+                                }
+                                "duration_secs", "duration", "runtime" -> {
+                                    val value = reader.nextIntOrNull()
+                                    if (durationSecs == null) durationSecs = value
+                                }
+                                "rating", "score" -> {
+                                    val value = reader.nextDoubleOrNull()
+                                    if (rating == null) rating = value
+                                }
+                                "release_date", "air_date", "date" -> {
+                                    val value = reader.nextScalarStringOrNull()
+                                    if (releaseDate.isNullOrBlank()) releaseDate = value
+                                }
+                                else -> reader.skipValue()
+                            }
+                        }
+                        reader.endObject()
+                    } else reader.skipValue()
+                }
+                "plot", "description", "overview", "summary", "synopsis", "storyline", "notes" -> {
+                    val value = reader.nextScalarStringOrNull()
+                    if (plot.isNullOrBlank()) plot = value
+                }
+                "duration_secs", "duration", "runtime" -> {
+                    val value = reader.nextIntOrNull()
+                    if (durationSecs == null) durationSecs = value
+                }
                 else -> reader.skipValue()
             }
         }
         reader.endObject()
         // Keep a missing provider title empty. The Compose episode renderer supplies a localized
         // episode-number fallback; storing English here would freeze the device language in the DB.
-        id?.let { out.add(XtEpisode(it, season, epNum, title.trim(), ext)) }
+        id?.let { out.add(XtEpisode(it, season, epNum, title.trim(), ext, plot, stillUrl, durationSecs, rating, releaseDate)) }
     }
 
     /** Reads a string, coercing numbers and tolerating JSON null. */

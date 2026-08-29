@@ -282,6 +282,9 @@ data class EpisodeEntity(
     val httpHeaders: String? = null,
     /** Widevine/ClearKey licence details — see [ChannelEntity.drmConfig] (v33). */
     val drmConfig: String? = null,
+    val rating: Double? = null,
+    val releaseDate: String? = null,
+    val stillUrl: String? = null,
 )
 
 /**

@@ -68,7 +68,7 @@ class MetadataRepository(
      * Resolve TMDB metadata for a movie. Returns the cached row (fresh or freshly fetched), or null when
      * enrichment is off, no confident match exists, or the network failed. Cheap on repeat calls.
      */
-    suspend fun resolveMovie(movie: MovieEntity): MetadataCacheEntity? {
+    suspend fun resolveMovie(movie: MovieEntity, allowNetwork: Boolean = true): MetadataCacheEntity? {
         if (!settings.metadataConfig().enabled) return null
         healNegativeMatchesOnce()
 
@@ -93,6 +93,8 @@ class MetadataRepository(
         val q = resolveQuery(localKey, movie.name, movie.year)
         if (q.query.isBlank()) return null
 
+        if (!allowNetwork) return null
+
         // null = transport failure (offline / rate-limited / proxy down): bail WITHOUT negative-caching,
         // so the title retries next time instead of showing no metadata for 7 days.
         val hits = runCatching { provider.searchMovie(q.query, q.year, includeAdult) }
@@ -116,7 +118,7 @@ class MetadataRepository(
      * Resolve TMDB metadata for a series (show-level). Same lazy resolve + cache + negative-cache as
      * [resolveMovie], but against TMDB's TV endpoints. Cache/match keyed with the "tv" type.
      */
-    suspend fun resolveSeries(series: tv.own.owntv.core.database.entity.SeriesEntity): MetadataCacheEntity? {
+    suspend fun resolveSeries(series: tv.own.owntv.core.database.entity.SeriesEntity, allowNetwork: Boolean = true): MetadataCacheEntity? {
         if (!settings.metadataConfig().enabled) return null
         healNegativeMatchesOnce()
 
@@ -137,6 +139,8 @@ class MetadataRepository(
 
         val q = resolveQuery(localKey, series.name, series.year)
         if (q.query.isBlank()) return null
+
+        if (!allowNetwork) return null
 
         // Same as resolveMovie: null = transport failure → no negative-cache, retry next open.
         val hits = runCatching { provider.searchTv(q.query, q.year, includeAdult) }

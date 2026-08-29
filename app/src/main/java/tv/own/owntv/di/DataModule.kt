@@ -177,6 +177,7 @@ val dataModule = module {
     }
     // seriesDao, sourceDao, xtreamClient, userDataResolver, stalkerClient, stalkerAuthManager
     single { SeriesRepository(get(), get(), get(), get(), get(), get()) }
+    single { tv.own.owntv.core.repository.MovieRepository(get(), get(), get(), get()) }
     // sourceDao, movieDao, seriesDao, progressDao
     single { LauncherRecommendationPlanner(get(), get(), get(), get(), get(), get()) }
     // sourceDao, channelDao, movieDao, seriesDao, progressDao
