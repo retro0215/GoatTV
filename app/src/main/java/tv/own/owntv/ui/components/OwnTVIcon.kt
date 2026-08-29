@@ -25,7 +25,7 @@ enum class OwnTVIcon {
     BACK, VOLUME_HIGH, VOLUME_LOW, VOLUME_MUTE, ASPECT, FULLSCREEN, FULLSCREEN_EXIT, PIP, CLOSE,
     SORT, SWAP, HEADPHONES, EXPAND,
     IMAGE, INFO, LANGUAGE, GEAR, SPARKLE,
-    CATCHUP,
+    CATCHUP, WATCHED_CHECK,
 }
 
 @Composable
@@ -389,42 +389,46 @@ fun OwnTVIcon(
                 drawLineStroke(p(6f, 15f), p(9f, 12.5f), tint, stroke)
                 drawLineStroke(p(6f, 15f), p(9f, 17.5f), tint, stroke)
             }
-        OwnTVIcon.LANGUAGE -> {
+            OwnTVIcon.LANGUAGE -> {
                 // Material Translate — Latin "A" + character bars (not a globe; globe reads as network).
                 drawLineStroke(p(4f, 15f), p(8.5f, 4f), tint, stroke)
                 drawLineStroke(p(8.5f, 4f), p(13f, 15f), tint, stroke)
                 drawLineStroke(p(5.8f, 11f), p(11.2f, 11f), tint, stroke)
                 drawLineStroke(p(15f, 6f), p(21f, 6f), tint, stroke)
                 drawLineStroke(p(15f, 10.5f), p(19.5f, 10.5f), tint, stroke)
-            drawLineStroke(p(15f, 15f), p(21f, 15f), tint, stroke)
-        }
-        OwnTVIcon.GEAR -> {
-            drawCircleStroke(p(12f, 12f), 6.5f * s, tint, stroke)
-            drawCircleStroke(p(12f, 12f), 2.7f * s, tint, stroke)
-            drawLineStroke(p(12f, 2.5f), p(12f, 5.5f), tint, stroke)
-            drawLineStroke(p(12f, 18.5f), p(12f, 21.5f), tint, stroke)
-            drawLineStroke(p(2.5f, 12f), p(5.5f, 12f), tint, stroke)
-            drawLineStroke(p(18.5f, 12f), p(21.5f, 12f), tint, stroke)
-            drawLineStroke(p(5.3f, 5.3f), p(7.3f, 7.3f), tint, stroke)
-            drawLineStroke(p(16.7f, 16.7f), p(18.7f, 18.7f), tint, stroke)
-            drawLineStroke(p(18.7f, 5.3f), p(16.7f, 7.3f), tint, stroke)
-            drawLineStroke(p(7.3f, 16.7f), p(5.3f, 18.7f), tint, stroke)
-        }
-        OwnTVIcon.SPARKLE -> {
-            val sparkle = Path().apply {
-                moveTo(p(12f, 2.5f).x, p(12f, 2.5f).y)
-                lineTo(p(14.2f, 9.8f).x, p(14.2f, 9.8f).y)
-                lineTo(p(21.5f, 12f).x, p(21.5f, 12f).y)
-                lineTo(p(14.2f, 14.2f).x, p(14.2f, 14.2f).y)
-                lineTo(p(12f, 21.5f).x, p(12f, 21.5f).y)
-                lineTo(p(9.8f, 14.2f).x, p(9.8f, 14.2f).y)
-                lineTo(p(2.5f, 12f).x, p(2.5f, 12f).y)
-                lineTo(p(9.8f, 9.8f).x, p(9.8f, 9.8f).y)
-                close()
+                drawLineStroke(p(15f, 15f), p(21f, 15f), tint, stroke)
             }
-            drawPath(sparkle, tint, style = Fill)
+            OwnTVIcon.GEAR -> {
+                drawCircleStroke(p(12f, 12f), 6.5f * s, tint, stroke)
+                drawCircleStroke(p(12f, 12f), 2.7f * s, tint, stroke)
+                drawLineStroke(p(12f, 2.5f), p(12f, 5.5f), tint, stroke)
+                drawLineStroke(p(12f, 18.5f), p(12f, 21.5f), tint, stroke)
+                drawLineStroke(p(2.5f, 12f), p(5.5f, 12f), tint, stroke)
+                drawLineStroke(p(18.5f, 12f), p(21.5f, 12f), tint, stroke)
+                drawLineStroke(p(5.3f, 5.3f), p(7.3f, 7.3f), tint, stroke)
+                drawLineStroke(p(16.7f, 16.7f), p(18.7f, 18.7f), tint, stroke)
+                drawLineStroke(p(18.7f, 5.3f), p(16.7f, 7.3f), tint, stroke)
+                drawLineStroke(p(7.3f, 16.7f), p(5.3f, 18.7f), tint, stroke)
+            }
+            OwnTVIcon.SPARKLE -> {
+                val sparkle = Path().apply {
+                    moveTo(p(12f, 2.5f).x, p(12f, 2.5f).y)
+                    lineTo(p(14.2f, 9.8f).x, p(14.2f, 9.8f).y)
+                    lineTo(p(21.5f, 12f).x, p(21.5f, 12f).y)
+                    lineTo(p(14.2f, 14.2f).x, p(14.2f, 14.2f).y)
+                    lineTo(p(12f, 21.5f).x, p(12f, 21.5f).y)
+                    lineTo(p(9.8f, 14.2f).x, p(9.8f, 14.2f).y)
+                    lineTo(p(2.5f, 12f).x, p(2.5f, 12f).y)
+                    lineTo(p(9.8f, 9.8f).x, p(9.8f, 9.8f).y)
+                    close()
+                }
+                drawPath(sparkle, tint, style = Fill)
+            }
+            OwnTVIcon.WATCHED_CHECK -> {
+                drawLineStroke(p(4.8f, 12.1f), p(10.1f, 17.2f), tint, stroke)
+                drawLineStroke(p(10.1f, 17.2f), p(19.2f, 7.3f), tint, stroke)
+            }
         }
-    }
     }
 }
 
