@@ -108,7 +108,7 @@ fun PosterCard(
                             .background(colors.primary),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("✓", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = colors.onPrimary)
+                        OwnTVIcon(OwnTVIcon.CHECK, tint = colors.onPrimary, modifier = Modifier.size(16.dp))
                     }
                 }
 

@@ -476,6 +476,9 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `epg_channels` ADD COLUMN `iconUrl` TEXT
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `epg_programmes` ADD COLUMN `contentHash` INTEGER NOT NULL DEFAULT 0
 1	sql	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `episodes` ADD COLUMN `httpHeaders` TEXT
+1	sql	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `episodes` ADD COLUMN `rating` REAL
+1	sql	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `episodes` ADD COLUMN `releaseDate` TEXT
+1	sql	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `episodes` ADD COLUMN `stillUrl` TEXT
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `metadata_cache` ADD COLUMN `logoPath` TEXT
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `metadata_cache` ADD COLUMN `trailerKey` TEXT
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `movies` ADD COLUMN `contentHash` INTEGER NOT NULL DEFAULT 0
@@ -1846,11 +1849,16 @@
 6	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	UTF-8
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	XtreamClient
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	added
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	air_date
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	cast
 4	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	category_id
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	category_name
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	container_extension
-1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	cover
-2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	description
+2	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	cover
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	date
+5	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	description
+2	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	duration
+3	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	duration_secs
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	epg_channel_id
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	epg_listings
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	episode_num
@@ -1866,28 +1874,43 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	get_vod_categories
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	get_vod_streams
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	id
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	image
+3	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	info
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	last_modified
 1	technical	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	max_connections
+2	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	movie_image
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	mp4
 3	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	name
+2	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	notes
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	num
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	objects
+3	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	overview
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	parseOrReadMs=$parseOrReadDelta callbackMs=$callbackDelta
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	parseOrReadMs=${metrics.parseOrReadMs} callbackMs=${metrics.callbackMs}
-2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	plot
+5	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	plot
 1	log	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	probeHls failed for source ${s.id}
 1	log	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	probeTsPlayable failed for source ${s.id}
-2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	rating
+4	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	rating
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	release_date
+2	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	runtime
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	score
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	screenshot
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	season
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	series_id
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	start_timestamp
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	still_path
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	stop_timestamp
+2	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	storyline
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	streamArray end count=$count label=$label totalMs=${SystemClock.elapsedRealtime() - startedAt}
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	streamArray non-array label=$label totalMs=${SystemClock.elapsedRealtime() - startedAt}
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	streamArray parsed count=$count label=$label deltaMs=${now - lastLogAt}
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	streamArray start label=$label
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	stream_icon
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	stream_id
+3	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	summary
+3	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	synopsis
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	thumb
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	thumbnail
 2	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	title
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	totalMs=${SystemClock.elapsedRealtime() - startedAt}
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	totalMs=${now - startedAt}
@@ -1971,10 +1994,7 @@
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	${season.id}:$epNo
 1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	SeriesRepository
-1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	episodes seriesId=$seriesId fetched=${fetched.size} new=${plan.inserts.size}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	stalker episode load failed seriesId=${series.id}
-1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	stalker episodes seriesId=${series.id} remoteId=$remoteId seasons=${seasons.size} episodes=${episodes.size}
-1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	updated=${plan.updates.size} removed=${plan.deleteIds.size}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	xtream episode load failed seriesId=${series.id}
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	Cancelled
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	Failed
@@ -2934,7 +2954,6 @@
 2	log	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	stalker resolve failed movieId=${movie.id}
 1	technical	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	,
 2	technical	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	movie
-1	technical	app/src/main/java/tv/own/owntv/features/movies/MoviesScreen.kt	✓
 2	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Multiscreen
 5	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	technical	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	SHIELD
@@ -2958,10 +2977,12 @@
 1	regex	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	\\s+
 1	log	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	record history failed profile=$pid type=$type itemId=$itemId
 1	log	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	stalker resolve failed movieId=${movie.id}
-1	technical	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	,
+2	technical	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	,
+3	url	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	/
 2	technical	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	series
-1	technical	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	w300
-2	technical	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	✓
+1	url	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	v
+1	url	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	youtu.be
+1	url	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	youtube.com
 2	empty	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	${StorageAccess.sanitize(ep.name.ifBlank { "episode-${ep.episodeNumber}" })}.$ext
 1	technical	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	${StorageAccess.sanitize(episode.name.ifBlank { "episode-${episode.episodeNumber}" })}.$ext
@@ -4719,7 +4740,6 @@
 1	performance	app/src/main/java/tv/own/owntv/ui/components/NavLadder.kt	navLadderIcon
 1	empty	app/src/main/java/tv/own/owntv/ui/components/NumberInputDialog.kt	\0
 1	empty	app/src/main/java/tv/own/owntv/ui/components/OwnTVTextField.kt	\0
-1	technical	app/src/main/java/tv/own/owntv/ui/components/PosterCard.kt	✓
 1	empty	app/src/main/java/tv/own/owntv/ui/components/SetTmdbNameDialog.kt	\0
 1	performance	app/src/main/java/tv/own/owntv/ui/components/StateViews.kt	spinner
 1	performance	app/src/main/java/tv/own/owntv/ui/components/StateViews.kt	spinnerAngle

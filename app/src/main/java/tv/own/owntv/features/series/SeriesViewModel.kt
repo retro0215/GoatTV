@@ -272,7 +272,7 @@ class SeriesViewModel(
         .debounce(tv.own.owntv.core.metadata.MetadataRepository.FOCUS_DEBOUNCE_MS)
         .mapLatest { (s, _) ->
             if (s == null) null
-            else SeriesMeta(s.id, runCatching { metadata.resolveSeries(s) }.getOrNull())
+            else SeriesMeta(s.id, runCatching { metadata.resolveSeries(s, allowNetwork = false) }.getOrNull())
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -284,6 +284,12 @@ class SeriesViewModel(
 
     private val _openedSeries = MutableStateFlow<SeriesEntity?>(null)
     val openedSeries: StateFlow<SeriesEntity?> = _openedSeries.asStateFlow()
+
+    /**
+     * Rich metadata for the currently opened series (Xtream info block).
+     */
+    private val _openedSeriesMeta = MutableStateFlow<tv.own.owntv.core.parser.XtProviderMetadata?>(null)
+    val openedSeriesMeta: StateFlow<tv.own.owntv.core.parser.XtProviderMetadata?> = _openedSeriesMeta.asStateFlow()
 
     // The series whose episode queue is currently playing — drives the player HUD's favorite toggle
     // (distinct from _openedSeries, which tracks the browse/detail selection).
@@ -702,8 +708,8 @@ class SeriesViewModel(
      */
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val seasonEpisodeMeta: StateFlow<Map<Long, tv.own.owntv.core.database.entity.MetadataCacheEntity>> =
-        combine(_openedSeries, _selectedSeason, episodes, episodeViewMode, _episodeMetaTick) { show, season, eps, mode, _ ->
-            if (show == null || mode != SettingsRepository.VodViewMode.GRID) {
+        combine(_openedSeries, _selectedSeason, episodes, _episodeMetaTick) { show, season, eps, _ ->
+            if (show == null) {
                 null
             } else {
                 // Mirror the screen's own fallback: a show whose seasons start at 0 or 2 displays its
@@ -745,10 +751,12 @@ class SeriesViewModel(
         _openedSeries.value = s
         _selectedSeason.value = 1 // reset season when opening a different show
         _lastPlayedEpisodeId.value = null
+        _openedSeriesMeta.value = null
         Log.d(TAG, "openSeries seriesId=${s.id} profile=${ctx.value.profileId}")
         viewModelScope.launch {
             _episodesLoading.value = true
-            seriesRepository.loadEpisodes(s)
+            val info = seriesRepository.loadEpisodesWithInfo(s)
+            _openedSeriesMeta.value = info
             // Jump to where you left off: seed the last-watched episode (and its season) from saved progress
             // BEFORE clearing loading, so the screen's focus effect lands on it instead of episode 1 (#22).
             val eps = seriesDao.episodesBySeries(s.id).first()

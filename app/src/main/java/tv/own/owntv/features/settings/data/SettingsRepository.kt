@@ -1181,8 +1181,8 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         if (category == null || list == null || preview == null || category <= 0 || list <= 0 || preview < 0) {
             when (s) {
                 PanelSection.LIVE -> PanelShares(20, 35, 45)
-                PanelSection.MOVIES -> PanelShares(15, 65, 20)
-                PanelSection.SERIES -> PanelShares(15, 65, 20)
+                PanelSection.MOVIES -> PanelShares(20, 80, 0)
+                PanelSection.SERIES -> PanelShares(20, 80, 0)
             }
         } else {
             balanceToTotal(

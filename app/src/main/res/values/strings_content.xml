@@ -98,6 +98,12 @@
     <string name="content_genre_religious">Religious</string>
     <!-- Translators: Genre label for Romance content. -->
     <string name="content_genre_romance">Romance</string>
+    <!-- Translators: Label for the director of a movie or series. -->
+    <string name="content_media_director">Director</string>
+    <!-- Translators: Instruction text in a details pane describing available long-press actions. -->
+    <string name="content_long_press_options">Long-press for more options</string>
+    <!-- Translators: Status message shown while fetching detailed movie/series metadata from the provider. -->
+    <string name="content_loading_details">Loading details\u2026</string>
     <!-- Translators: Genre label for Science Fiction content. -->
     <string name="content_genre_scifi">Sci-Fi</string>
     <!-- Translators: Genre label for Series content. -->
@@ -158,6 +164,14 @@
     <string name="content_download_all_episodes">Download all episodes</string>
     <!-- Translators: Button or context-menu option to play content. -->
     <string name="content_play">Play</string>
+    <!-- Translators: Imperative button label to play the next logical episode (e.g. S1 E1). -->
+    <string name="content_action_play_next">Play S<xliff:g id="season">%1$d</xliff:g> \u00b7 E<xliff:g id="episode">%2$d</xliff:g></string>
+    <!-- Translators: Label for a season in a list. -->
+    <string name="content_season_n">Season <xliff:g id="season">%1$d</xliff:g></string>
+    <!-- Translators: Label for an episode in a list. -->
+    <string name="content_episode_n">Episode <xliff:g id="episode">%1$d</xliff:g></string>
+    <!-- Translators: A fraction showing completed items vs total items (e.g. 5/10). -->
+    <string name="content_count_fraction"><xliff:g id="done">%1$d</xliff:g>/<xliff:g id="total">%2$d</xliff:g></string>
     <!-- Translators: Label inside a next-episode card. -->
     <string name="content_next_up">Next up</string>
     <!-- Translators: Status chip indicating content has been favorited. This is a state, not a command. -->

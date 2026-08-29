@@ -55,6 +55,9 @@ import tv.own.owntv.core.database.entity.TrendingSnapshotEntity
 import tv.own.owntv.core.database.dao.CustomCategoryDao
 import tv.own.owntv.core.database.dao.SubtitleDao
 
+import tv.own.owntv.core.database.entity.ProviderMetadataEntity
+import tv.own.owntv.core.database.dao.ProviderMetadataDao
+
 @Database(
     entities = [
         // Profiles & sources
@@ -85,6 +88,8 @@ import tv.own.owntv.core.database.dao.SubtitleDao
         // TMDB metadata enrichment cache (plan §7)
         MetadataCacheEntity::class,
         MetadataMatchEntity::class,
+        // On-demand provider metadata cache (v35)
+        ProviderMetadataEntity::class,
         // Source-scoped, locally matched TMDB Trending showcase cache (v30).
         TrendingSnapshotEntity::class,
         TrendingItemEntity::class,
@@ -99,7 +104,7 @@ import tv.own.owntv.core.database.dao.SubtitleDao
         SeriesFtsEntity::class,
         EpisodeFtsEntity::class,
     ],
-    version = 34, // v7: content_order (Move). v8: contentHash + browse/unique indexes. v9: EPG contentHash + natural key. v10: TMDB metadata cache. v11: movies/series rating-sort indexes. v12: metadata_cache trailerKey. v13: metadata_cache logoPath. v14: sources.mac (Stalker portal). v15: external-subtitle cache/selection/timing tables. v16: subtitle_link (downloaded-sub ↔ content). v17: sources.syncLive/Movies/Series (skip-sync enabledScope). v18: series.episodesSyncedAt (episode-cache freshness, S8). v19: epg_channels.iconUrl (XMLTV channel logos). v20: channels (sourceId, number) index for direct tune. v21: series.addedAt + date-added sort indexes. v22: series_sort_order (per-series season/episode order). v23: sources.hlsSupported and sources.preferHls. v24: custom_category_members (user custom categories, #87). v25: sources.livePrerollSecs (per-playlist "Pre-buffer"). v26: channels.catchupType + channels.httpHeaders (M3U catch-up styles + per-channel HTTP headers). v27: sources.maxConnections (Xtream session limit read at sync). v28: movies.httpHeaders + episodes.httpHeaders (per-item M3U HTTP headers). v29: optional Stalker serial/device IDs/signature. v30: source-scoped Now Trending snapshots. v31: indexed provider-title metadata and persistent Trending attempt state. v32: playback_prefs (per-item zoom + volume, keyed by the P6 stable content key). v33: channels/movies/episodes drmConfig (M3U Widevine/ClearKey licence details, #115). v34: sources.expiryMs/expiryDate (subscription expiration warning).
+    version = 36, // v7: content_order (Move). v8: contentHash + browse/unique indexes. v9: EPG contentHash + natural key. v10: TMDB metadata cache. v11: movies/series rating-sort indexes. v12: metadata_cache trailerKey. v13: metadata_cache logoPath. v14: sources.mac (Stalker portal). v15: external-subtitle cache/selection/timing tables. v16: subtitle_link (downloaded-sub ↔ content). v17: sources.syncLive/Movies/Series (skip-sync enabledScope). v18: series.episodesSyncedAt (episode-cache freshness, S8). v19: epg_channels.iconUrl (XMLTV channel logos). v20: channels (sourceId, number) index for direct tune. v21: series.addedAt + date-added sort indexes. v22: series_sort_order (per-series season/episode order). v23: sources.hlsSupported and sources.preferHls. v24: custom_category_members (user custom categories, #87). v25: sources.livePrerollSecs (per-playlist "Pre-buffer"). v26: channels.catchupType + channels.httpHeaders (M3U catch-up styles + per-channel HTTP headers). v27: sources.maxConnections (Xtream session limit read at sync). v28: movies.httpHeaders + episodes.httpHeaders (per-item M3U HTTP headers). v29: optional Stalker serial/device IDs/signature. v30: source-scoped Now Trending snapshots. v31: indexed provider-title metadata and persistent Trending attempt state. v32: playback_prefs (per-item zoom + volume, keyed by the P6 stable content key). v33: channels/movies/episodes drmConfig (M3U Widevine/ClearKey licence details, #115). v34: sources.expiryMs/expiryDate (subscription expiration warning). v35: provider_metadata_cache (on-demand rich provider metadata). v36: episodes rating/releaseDate/stillUrl columns.
 
     exportSchema = true,
 )
@@ -125,9 +130,50 @@ abstract class OwnTVDatabase : RoomDatabase() {
     abstract fun metadataDao(): tv.own.owntv.core.database.dao.MetadataDao
     abstract fun trendingDao(): TrendingDao
     abstract fun subtitleDao(): SubtitleDao
+    abstract fun providerMetadataDao(): ProviderMetadataDao
 
     companion object {
         const val NAME = "owntv.db"
+
+        /** v35 → v36: add rating/releaseDate/stillUrl to episodes table. */
+        val MIGRATION_35_36 = object : androidx.room.migration.Migration(35, 36) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `episodes` ADD COLUMN `rating` REAL")
+                db.execSQL("ALTER TABLE `episodes` ADD COLUMN `releaseDate` TEXT")
+                db.execSQL("ALTER TABLE `episodes` ADD COLUMN `stillUrl` TEXT")
+                healSchema(db)
+            }
+        }
+
+        /** v34 → v35: add provider_metadata_cache table for on-demand rich metadata. */
+        val MIGRATION_34_35 = object : androidx.room.migration.Migration(34, 35) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `provider_metadata_cache` (" +
+                        "`key` TEXT NOT NULL, " +
+                        "`sourceId` INTEGER NOT NULL, " +
+                        "`remoteId` TEXT NOT NULL, " +
+                        "`title` TEXT, " +
+                        "`plot` TEXT, " +
+                        "`rating` REAL, " +
+                        "`releaseDate` TEXT, " +
+                        "`year` INTEGER, " +
+                        "`genre` TEXT, " +
+                        "`durationSecs` INTEGER, " +
+                        "`director` TEXT, " +
+                        "`actors` TEXT, " +
+                        "`trailer` TEXT, " +
+                        "`backdropUrl` TEXT, " +
+                        "`posterUrl` TEXT, " +
+                        "`tmdbId` TEXT, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`key`)" +
+                        ")",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_provider_metadata_cache_sourceId` ON `provider_metadata_cache` (`sourceId`)")
+                healSchema(db)
+            }
+        }
 
         /** v33 → v34: add expiryMs/expiryDate to the sources table for Home screen warning. */
         val MIGRATION_33_34 = object : androidx.room.migration.Migration(33, 34) {
