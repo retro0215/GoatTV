@@ -47,10 +47,14 @@ import tv.own.owntv.core.model.MediaType
 import tv.own.owntv.core.epg.EpgSourceStore
 import tv.own.owntv.core.metadata.MetadataImages
 import tv.own.owntv.core.metadata.MetadataRepository
+import tv.own.owntv.core.repository.MovieRepository
+import tv.own.owntv.core.repository.SeriesRepository
 import tv.own.owntv.core.repository.activeSourceIds
 import tv.own.owntv.features.settings.data.SettingsRepository
 import tv.own.owntv.player.HeroPreviewEngine
 import tv.own.owntv.core.trending.TrendingMatcher
+import tv.own.owntv.BuildConfig
+import android.util.Log
 
 sealed interface HeroItem {
     val streamUrl: String
@@ -113,6 +117,28 @@ sealed interface HeroItem {
         override val watchNextType: LauncherWatchNextType = LauncherWatchNextType.CONTINUE
         override val lastEngagementAt: Long = watchedAt
     }
+
+    data class TrailerHero(
+        val itemId: Long,
+        val type: tv.own.owntv.core.model.MediaType,
+        val title: String,
+        val youtubeVideoId: String? = null,
+        val posterUrl: String? = null,
+        val backdropUrl: String? = null,
+        val plot: String? = null,
+        val rating: Double? = null,
+        val year: Int? = null,
+        val durationSecs: Int? = null,
+        override val sourceId: Long,
+        override val streamUrl: String, // will be empty if youtubeVideoId is set
+        override val httpHeaders: String? = null,
+    ) : HeroItem {
+        override val seekToMs: Long = 0L
+        override val positionMs: Long = 0L
+        override val durationMs: Long = 0L
+        override val watchNextType: LauncherWatchNextType = LauncherWatchNextType.CONTINUE
+        override val lastEngagementAt: Long = 0L
+    }
 }
 
 @Immutable
@@ -160,6 +186,10 @@ data class HomeUiState(
     val trendingSeasonCounts: Map<Long, Int> = emptyMap(),
     val heroItems: List<HeroItem> = emptyList(),
     val activeHeroIndex: Int = 0,
+    val topRatedMovies: List<MovieEntity> = emptyList(),
+    val topRatedSeries: List<SeriesEntity> = emptyList(),
+    val recentMovies: List<MovieEntity> = emptyList(),
+    val recentSeries: List<SeriesEntity> = emptyList(),
     val continueMovies: List<LauncherContinuationItem> = emptyList(),
     val continueSeries: List<LauncherContinuationItem> = emptyList(),
     val heroMetadata: Map<String, HomeHeroMetadata> = emptyMap(),
@@ -231,6 +261,9 @@ class HomeViewModel(
     private val progressDao: tv.own.owntv.core.database.dao.ProgressDao,
     private val metadata: MetadataRepository,
     private val trendingDao: TrendingDao,
+    private val providerMetadataDao: tv.own.owntv.core.database.dao.ProviderMetadataDao,
+    private val movieRepository: MovieRepository,
+    private val seriesRepository: SeriesRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -365,10 +398,129 @@ class HomeViewModel(
      * a Referer had a home screen that 403'd on every preview while the item itself played fine.
      */
     suspend fun startPreview(hero: HeroItem) {
+        if (hero is HeroItem.TrailerHero) {
+            if (!hero.youtubeVideoId.isNullOrBlank() || hero.streamUrl.isBlank()) return
+        }
         val ua = withContext(Dispatchers.IO) {
             runCatching { sourceDao.getById(hero.sourceId)?.userAgent }.getOrNull()
         }
+        if (BuildConfig.DEBUG) {
+            Log.d("HomePreview", "player prepare: title=${(hero as? HeroItem.TrailerHero)?.title} url=${tv.own.owntv.core.network.HttpClient.redactUrl(hero.streamUrl)}")
+        }
         heroPreviewEngine.play(hero.streamUrl, hero.seekToMs, ua, hero.httpHeaders)
+    }
+
+    suspend fun resolveTrailerHero(item: Any): HeroItem? = withContext(Dispatchers.IO) {
+        val type: MediaType
+        val id: Long
+        val name: String
+        val poster: String?
+        val backdrop: String?
+        val plot: String?
+        val rating: Double?
+        val year: Int?
+        val sourceId: Long
+        val remoteId: String?
+
+        when (item) {
+            is MovieEntity -> {
+                type = MediaType.MOVIE
+                id = item.id
+                name = item.name
+                poster = item.posterUrl
+                backdrop = item.backdropUrl
+                plot = item.plot
+                rating = item.rating
+                year = item.year
+                sourceId = item.sourceId
+                remoteId = item.remoteId
+            }
+            is SeriesEntity -> {
+                type = MediaType.SERIES
+                id = item.id
+                name = item.name
+                poster = item.posterUrl
+                backdrop = item.backdropUrl
+                plot = item.plot
+                rating = item.rating
+                year = item.year
+                sourceId = item.sourceId
+                remoteId = item.remoteId
+            }
+            else -> return@withContext null
+        }
+
+        val typeKey = if (type == MediaType.MOVIE) "movie" else "series"
+        val lookupKey = if (!remoteId.isNullOrBlank()) "$typeKey:$sourceId:$remoteId" else "$typeKey:$sourceId:$id"
+
+        var providerMeta = providerMetadataDao.getMetadata(lookupKey)
+        val initialCacheHit = providerMeta != null
+        
+        // Safe sustained focus fetch: if missing or stale, fetch from provider.
+        if (providerMeta?.trailer.isNullOrBlank()) {
+            if (BuildConfig.DEBUG) Log.d("HomePreview", "cache miss or no trailer for $name ($lookupKey), fetching...")
+            providerMeta = when (item) {
+                is MovieEntity -> movieRepository.getProviderMetadata(item)
+                is SeriesEntity -> {
+                    seriesRepository.loadEpisodesWithInfo(item)
+                    providerMetadataDao.getMetadata(lookupKey)
+                }
+                else -> null
+            }
+        }
+
+        var trailerUrl = providerMeta?.trailer?.takeIf { it.isNotBlank() }
+        
+        // Fallback to TMDB cache if provider trailer is missing.
+        if (trailerUrl.isNullOrBlank()) {
+            val tmdbCache = when (item) {
+                is MovieEntity -> runCatching { metadata.resolveMovie(item, allowNetwork = false) }.getOrNull()
+                is SeriesEntity -> runCatching { metadata.resolveSeries(item, allowNetwork = false) }.getOrNull()
+                else -> null
+            }
+            trailerUrl = tmdbCache?.trailerKey?.takeIf { it.isNotBlank() }
+            if (trailerUrl != null && BuildConfig.DEBUG) Log.d("HomePreview", "using TMDB fallback trailer for $name")
+        }
+
+        val youtubeId = trailerUrl?.let { extractYoutubeId(it) }
+
+        if (BuildConfig.DEBUG) {
+            Log.d("HomePreview", "trace: title=$name initialCacheHit=$initialCacheHit trailerPresent=${!trailerUrl.isNullOrBlank()} source=${youtubeId ?: tv.own.owntv.core.network.HttpClient.redactUrl(trailerUrl ?: "")}")
+        }
+
+        // Always return a TrailerHero so the card can expand and show artwork even without a trailer.
+        return@withContext HeroItem.TrailerHero(
+            itemId = id,
+            type = type,
+            title = name,
+            youtubeVideoId = youtubeId,
+            posterUrl = poster,
+            backdropUrl = backdrop,
+            plot = plot,
+            rating = rating,
+            year = year,
+            durationSecs = providerMeta?.durationSecs,
+            sourceId = sourceId,
+            streamUrl = if (youtubeId == null) (trailerUrl ?: "") else "",
+        )
+    }
+
+    private fun extractYoutubeId(url: String): String? {
+        if (url.length == 11 && !url.contains("/") && !url.contains(".")) return url
+        val uri = runCatching { android.net.Uri.parse(url) }.getOrNull() ?: return null
+        
+        // Handle common formats including embed and shorts.
+        val path = uri.path.orEmpty()
+        return when {
+            uri.host?.contains("youtube.com") == true -> {
+                uri.getQueryParameter("v") 
+                    ?: if (path.startsWith("/embed/")) path.substringAfter("/embed/")
+                    else if (path.startsWith("/shorts/")) path.substringAfter("/shorts/")
+                    else uri.pathSegments.lastOrNull()
+            }
+            uri.host?.contains("youtu.be") == true -> uri.pathSegments.firstOrNull()
+            else -> url.takeIf { it.length == 11 && !it.contains("/") }
+        }
     }
 
     fun refresh() {
@@ -404,6 +556,11 @@ class HomeViewModel(
             val trendingSeasonCounts = if (trendingSeriesIds.isEmpty()) emptyMap() else {
                 seriesDao.storedSeasonCounts(trendingSeriesIds).associate { it.seriesId to it.seasonCount }
             }
+
+            val topMovies = if (movieIds.isNotEmpty()) movieDao.topRated(movieIds.toList(), 10) else emptyList()
+            val topSeries = if (seriesIds.isNotEmpty()) seriesDao.topRated(seriesIds.toList(), 10) else emptyList()
+            val recentMovies = if (movieIds.isNotEmpty()) movieDao.recentlyAdded(movieIds.toList(), 20) else emptyList()
+            val recentSeries = if (seriesIds.isNotEmpty()) seriesDao.recentlyAdded(seriesIds.toList(), 20) else emptyList()
 
             val allItems = planner.buildContinuationItems(profileId)
             val items = allItems
@@ -449,6 +606,10 @@ class HomeViewModel(
                 trendingSeasonCounts = trendingSeasonCounts,
                 heroItems = heroItems,
                 activeHeroIndex = 0,
+                topRatedMovies = topMovies,
+                topRatedSeries = topSeries,
+                recentMovies = recentMovies,
+                recentSeries = recentSeries,
                 continueMovies = movies,
                 continueSeries = series,
                 heroMetadata = previous.heroMetadata.filterKeys { key -> heroItems.any { homeHeroKey(it) == key } },
@@ -512,6 +673,10 @@ class HomeViewModel(
             }
         }
         is HeroItem.LiveHero -> null
+        is HeroItem.TrailerHero -> HomeHeroMetadata(
+            backdropUrl = item.backdropUrl,
+            plot = item.plot,
+        )
     }
 
     private suspend fun seriesContinuationArtwork(item: LauncherContinuationItem): String? {
@@ -711,6 +876,7 @@ class HomeViewModel(
         is HeroItem.MovieHero -> "movie:${item.movie.id}"
         is HeroItem.SeriesHero -> "episode:${item.episode.id}"
         is HeroItem.LiveHero -> "live:${item.channel.id}"
+        is HeroItem.TrailerHero -> "trailer:${if (item.type == MediaType.MOVIE) "movie" else "series"}:${item.itemId}"
     }
 
     private suspend fun recentlyWatchedLive(

@@ -1,12 +1,12 @@
 package tv.own.owntv.features.home
 
 import android.content.Context
+import android.graphics.BlurMaskFilter
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -17,17 +17,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -35,86 +38,97 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.graphics.BlurMaskFilter
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.ContentScale.Companion.Crop
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import tv.own.owntv.R
-import tv.own.owntv.core.database.entity.ChannelEntity
-import tv.own.owntv.core.database.entity.MetadataCacheEntity
 import tv.own.owntv.core.database.dao.TrendingDao
+import tv.own.owntv.core.database.entity.ChannelEntity
+import android.util.Log
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import tv.own.owntv.BuildConfig
+import tv.own.owntv.core.database.entity.MetadataCacheEntity
+import tv.own.owntv.core.database.entity.MovieEntity
+import tv.own.owntv.core.database.entity.SeriesEntity
 import tv.own.owntv.core.launcher.LauncherContinuationItem
 import tv.own.owntv.core.launcher.LauncherWatchNextType
+import tv.own.owntv.core.metadata.MetadataImages
+import tv.own.owntv.core.trending.ProviderVariantParser
+import tv.own.owntv.features.settings.data.SettingsRepository
+import tv.own.owntv.features.shell.components.MediaDetailsScreen
+import tv.own.owntv.features.shell.components.MediaDetailsUi
 import tv.own.owntv.player.HeroPreviewEngine
 import tv.own.owntv.ui.components.BrandLockup
+import tv.own.owntv.ui.components.ContentPanelFill
 import tv.own.owntv.ui.components.FocusableSurface
+import tv.own.owntv.ui.components.InAppToast
 import tv.own.owntv.ui.components.OwnTVButton
 import tv.own.owntv.ui.components.OwnTVButtonStyle
 import tv.own.owntv.ui.components.OwnTVIcon
 import tv.own.owntv.ui.components.OwnTVSpinner
-import tv.own.owntv.ui.components.InAppToast
+import tv.own.owntv.ui.components.RankingPosterCard
 import tv.own.owntv.ui.components.TrailerPlayerScreen
-import tv.own.owntv.ui.components.rememberInAppToast
 import tv.own.owntv.ui.components.PosterCard
-import tv.own.owntv.ui.components.ContentPanelFill
+import tv.own.owntv.ui.components.rememberInAppToast
 import tv.own.owntv.ui.components.roundedPanel
 import tv.own.owntv.ui.format.formatSystemTime
+import tv.own.owntv.ui.format.localizedInteger
 import tv.own.owntv.ui.theme.Dimens
 import tv.own.owntv.ui.theme.GlassSurface
 import tv.own.owntv.ui.theme.OwnTVTheme
-import tv.own.owntv.ui.format.localizedInteger
-import tv.own.owntv.features.shell.components.MediaDetailsScreen
-import tv.own.owntv.features.shell.components.MediaDetailsUi
-import tv.own.owntv.core.metadata.MetadataImages
-import tv.own.owntv.core.trending.ProviderVariantParser
-import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
-import androidx.compose.foundation.layout.widthIn
 import tv.own.owntv.ui.theme.PopupFontTheme
 import java.util.Calendar
 
@@ -124,6 +138,8 @@ fun HomeScreen(
     vm: HomeViewModel,
     onPlayMovie: (movieId: Long, positionMs: Long) -> Unit,
     onPlayEpisode: (seriesId: Long, episodeId: Long, positionMs: Long) -> Unit,
+    onOpenMovie: (MovieEntity) -> Unit,
+    onOpenSeries: (SeriesEntity) -> Unit,
     onPlayChannel: (channelId: Long, zapChannels: List<ChannelEntity>) -> Unit,
     onOpenGuide: () -> Unit,
     onActivateTrending: (TrendingHomeItem, onUnavailable: () -> Unit) -> Unit,
@@ -143,7 +159,7 @@ fun HomeScreen(
     val engineState by heroPreviewEngine.state.collectAsStateWithLifecycle()
     val isPreviewActive by vm.isPreviewActive.collectAsStateWithLifecycle()
     val lastInteractionMs by vm.lastHeroInteractionMs.collectAsStateWithLifecycle()
-    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val listState = rememberLazyListState()
     val chromeScrollThresholdPx = with(LocalDensity.current) { 8.dp.roundToPx() }
     val contentScrolled by remember(listState, chromeScrollThresholdPx) {
         androidx.compose.runtime.derivedStateOf {
@@ -168,10 +184,16 @@ fun HomeScreen(
     val rowFirstFocusRequesters = remember {
         HomeRow.entries.associateWith { FocusRequester() }
     }
-    // Nothing starts expanded: a hero card earns its wide (16:9) state only after 3s of continuous focus
-    // (see the dwell effect below). Moving focus — to another card or out of the row — collapses it again.
-    var expandedHeroIndex by remember { mutableStateOf(-1) }
-    var focusedHeroIndex by remember { mutableStateOf(-1) }
+    
+    // Expanded card state. Shared across HERO and trailer rows so only one expands at once.
+    var expandedRow by remember { mutableStateOf<HomeRow?>(null) }
+    var expandedIndex by remember { mutableStateOf(-1) }
+    var focusedRow by remember { mutableStateOf<HomeRow?>(null) }
+    var focusedIndex by remember { mutableStateOf(-1) }
+    
+    // Active Trailer State for expanded Top 10 / Recent rows
+    var activeTrailerItem by remember { mutableStateOf<HeroItem.TrailerHero?>(null) }
+
     val orderedRows = state.config.visibleOrder
     val heroVisible = HomeRow.HERO in orderedRows
     val hasNonHeroContent = orderedRows.any { it != HomeRow.HERO && rowHasData(it, state) }
@@ -198,29 +220,53 @@ fun HomeScreen(
         {
             vm.setHeroFocused(false)
             heroPreviewEngine.stop()
-            expandedHeroIndex = -1
+            expandedIndex = -1
+            expandedRow = null
+            activeTrailerItem = null
             onChildFocused()
         }
     }
 
-    LaunchedEffect(focusedHeroIndex) {
-        if (focusedHeroIndex != -1) return@LaunchedEffect
+    LaunchedEffect(focusedRow, focusedIndex) {
+        if (focusedIndex != -1) return@LaunchedEffect
         // Focus moves between hero cards very quickly (old loses focus before new gains). Debounce the
         // "left hero row" signal so we don't flap preview state while navigating within the row.
         kotlinx.coroutines.delay(40L)
-        if (focusedHeroIndex != -1) return@LaunchedEffect
+        if (focusedIndex != -1) return@LaunchedEffect
         vm.setHeroFocused(false)
         heroPreviewEngine.stop()
-        expandedHeroIndex = -1
+        expandedIndex = -1
+        expandedRow = null
+        activeTrailerItem = null
     }
 
-    // Dwell-to-expand: a card widens only after 3s of uninterrupted focus. Navigating away cancels the
-    // timer (this effect restarts), so quick D-pad sweeps never expand anything.
-    LaunchedEffect(focusedHeroIndex) {
-        val index = focusedHeroIndex
-        if (index < 0) return@LaunchedEffect
-        kotlinx.coroutines.delay(3_000L)
-        if (focusedHeroIndex == index) expandedHeroIndex = index
+    // Dwell-to-expand: a card widens only after a delay.
+    LaunchedEffect(focusedRow, focusedIndex) {
+        val row = focusedRow
+        val index = focusedIndex
+        if (index < 0 || row == null) return@LaunchedEffect
+        
+        val delayMs = if (row == HomeRow.HERO) 3_000L else 1_500L
+        kotlinx.coroutines.delay(delayMs)
+        
+        if (focusedRow == row && focusedIndex == index) {
+            expandedRow = row
+            expandedIndex = index
+            
+            when (row) {
+                HomeRow.TOP_RATED_MOVIES, HomeRow.RECENT_MOVIES -> {
+                    val item = if (row == HomeRow.TOP_RATED_MOVIES) state.topRatedMovies[index] else state.recentMovies[index]
+                    activeTrailerItem = vm.resolveTrailerHero(item) as? HeroItem.TrailerHero
+                }
+                HomeRow.TOP_RATED_SERIES, HomeRow.RECENT_SERIES -> {
+                    val item = if (row == HomeRow.TOP_RATED_SERIES) state.topRatedSeries[index] else state.recentSeries[index]
+                    activeTrailerItem = vm.resolveTrailerHero(item) as? HeroItem.TrailerHero
+                }
+                else -> {
+                    activeTrailerItem = null
+                }
+            }
+        }
     }
 
     LaunchedEffect(previewEnabled) {
@@ -267,11 +313,6 @@ fun HomeScreen(
         }
     }
 
-    // Cold-start "structure first": Home's queries are indexed and profile-scoped, but their first reads
-    // still come off cold eMMC before the OS page cache warms — so there's a brief gap between the shell
-    // painting and `home-data` arriving. During it we render the skeleton (instant) rather than flashing the
-    // empty state, which would look wrong (and momentarily disappear) for a user who actually has history.
-    // isLoading is true only for the initial state; it flips false on the first load and never goes back.
     if (state.isLoading) {
         HomeSkeleton(modifier = modifier.fillMaxSize())
         return
@@ -285,7 +326,12 @@ fun HomeScreen(
         return
     }
 
-    val hero = state.heroItems.getOrNull(state.activeHeroIndex)
+    val activeExpandedItem = when (expandedRow) {
+        HomeRow.HERO -> state.heroItems.getOrNull(expandedIndex)
+        HomeRow.TOP_RATED_MOVIES, HomeRow.TOP_RATED_SERIES, HomeRow.RECENT_MOVIES, HomeRow.RECENT_SERIES -> activeTrailerItem
+        else -> null
+    }
+
     val defaultBringIntoViewSpec = LocalBringIntoViewSpec.current
     val homeBringIntoViewSpec = remember(defaultBringIntoViewSpec) {
         object : BringIntoViewSpec {
@@ -389,23 +435,27 @@ fun HomeScreen(
                         HeroRowSection(
                             items = state.heroItems,
                             activeHeroIndex = state.activeHeroIndex,
-                            expandedIndex = expandedHeroIndex,
+                            expandedIndex = if (expandedRow == HomeRow.HERO) expandedIndex else -1,
                             heroPreviewEngine = heroPreviewEngine,
                             engineState = engineState,
                             heroFocusRequester = firstItemFocusRequester ?: heroFocus,
                             heroMetadata = state.heroMetadata,
-                            onHeroFocusChanged = { index, hasFocus ->
+                            onHeroFocusChanged = { i, hasFocus ->
                                 if (hasFocus) {
-                                    if (expandedHeroIndex != index) {
-                                        heroPreviewEngine.stop() // stop the previous hero's video before switching
-                                        expandedHeroIndex = -1 // collapse immediately; the dwell timer re-expands after 3s
+                                    if (expandedRow != HomeRow.HERO || expandedIndex != i) {
+                                        heroPreviewEngine.stop()
+                                        expandedIndex = -1
+                                        expandedRow = null
+                                        activeTrailerItem = null
                                     }
-                                    focusedHeroIndex = index
-                                    vm.onHeroUserNavigate(index)
+                                    focusedIndex = i
+                                    focusedRow = HomeRow.HERO
+                                    vm.onHeroUserNavigate(i)
                                     vm.setHeroFocused(true)
                                     onChildFocused()
-                                } else if (focusedHeroIndex == index) {
-                                    focusedHeroIndex = -1
+                                } else if (focusedIndex == i && focusedRow == HomeRow.HERO) {
+                                    focusedIndex = -1
+                                    focusedRow = null
                                 }
                             },
                             onPlay = { item ->
@@ -413,6 +463,7 @@ fun HomeScreen(
                                     is HeroItem.MovieHero -> onPlayMovie(item.movie.id, item.positionMs)
                                     is HeroItem.SeriesHero -> onPlayEpisode(item.series.id, item.episode.id, item.positionMs)
                                     is HeroItem.LiveHero -> onPlayChannel(item.channel.id, state.recentLive)
+                                    else -> Unit
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -424,6 +475,132 @@ fun HomeScreen(
                             onChildFocused = onNonHeroFocused,
                         )
                     }
+                }
+
+                HomeRow.TOP_RATED_MOVIES -> if (state.topRatedMovies.isNotEmpty()) {
+                    ExpandableRowSection(
+                        title = row.displayTitle(),
+                        items = state.topRatedMovies,
+                        expandedIndex = if (expandedRow == HomeRow.TOP_RATED_MOVIES) expandedIndex else -1,
+                        heroPreviewEngine = heroPreviewEngine,
+                        engineState = engineState,
+                        trailerItem = if (expandedRow == HomeRow.TOP_RATED_MOVIES) activeTrailerItem else null,
+                        showRank = true,
+                        onItemClick = { onOpenMovie(it as MovieEntity) },
+                        onFocusChanged = { i, hasFocus ->
+                            if (hasFocus) {
+                                if (expandedRow != HomeRow.TOP_RATED_MOVIES || expandedIndex != i) {
+                                    heroPreviewEngine.stop()
+                                    expandedIndex = -1
+                                    expandedRow = null
+                                    activeTrailerItem = null
+                                }
+                                focusedIndex = i
+                                focusedRow = HomeRow.TOP_RATED_MOVIES
+                                vm.setHeroFocused(true)
+                                onChildFocused()
+                            } else if (focusedIndex == i && focusedRow == HomeRow.TOP_RATED_MOVIES) {
+                                focusedIndex = -1
+                                focusedRow = null
+                            }
+                        },
+                        onPlayTrailer = { onOpenMovie(it as MovieEntity) },
+                        firstItemFocusRequester = firstItemFocusRequester,
+                    )
+                }
+
+                HomeRow.TOP_RATED_SERIES -> if (state.topRatedSeries.isNotEmpty()) {
+                    ExpandableRowSection(
+                        title = row.displayTitle(),
+                        items = state.topRatedSeries,
+                        expandedIndex = if (expandedRow == HomeRow.TOP_RATED_SERIES) expandedIndex else -1,
+                        heroPreviewEngine = heroPreviewEngine,
+                        engineState = engineState,
+                        trailerItem = if (expandedRow == HomeRow.TOP_RATED_SERIES) activeTrailerItem else null,
+                        showRank = true,
+                        onItemClick = { onOpenSeries(it as SeriesEntity) },
+                        onFocusChanged = { i, hasFocus ->
+                            if (hasFocus) {
+                                if (expandedRow != HomeRow.TOP_RATED_SERIES || expandedIndex != i) {
+                                    heroPreviewEngine.stop()
+                                    expandedIndex = -1
+                                    expandedRow = null
+                                    activeTrailerItem = null
+                                }
+                                focusedIndex = i
+                                focusedRow = HomeRow.TOP_RATED_SERIES
+                                vm.setHeroFocused(true)
+                                onChildFocused()
+                            } else if (focusedIndex == i && focusedRow == HomeRow.TOP_RATED_SERIES) {
+                                focusedIndex = -1
+                                focusedRow = null
+                            }
+                        },
+                        onPlayTrailer = { onOpenSeries(it as SeriesEntity) },
+                        firstItemFocusRequester = firstItemFocusRequester,
+                    )
+                }
+
+                HomeRow.RECENT_MOVIES -> if (state.recentMovies.isNotEmpty()) {
+                    ExpandableRowSection(
+                        title = row.displayTitle(),
+                        items = state.recentMovies,
+                        expandedIndex = if (expandedRow == HomeRow.RECENT_MOVIES) expandedIndex else -1,
+                        heroPreviewEngine = heroPreviewEngine,
+                        engineState = engineState,
+                        trailerItem = if (expandedRow == HomeRow.RECENT_MOVIES) activeTrailerItem else null,
+                        onItemClick = { onOpenMovie(it as MovieEntity) },
+                        onFocusChanged = { i, hasFocus ->
+                            if (hasFocus) {
+                                if (expandedRow != HomeRow.RECENT_MOVIES || expandedIndex != i) {
+                                    heroPreviewEngine.stop()
+                                    expandedIndex = -1
+                                    expandedRow = null
+                                    activeTrailerItem = null
+                                }
+                                focusedIndex = i
+                                focusedRow = HomeRow.RECENT_MOVIES
+                                vm.setHeroFocused(true)
+                                onChildFocused()
+                            } else if (focusedIndex == i && focusedRow == HomeRow.RECENT_MOVIES) {
+                                focusedIndex = -1
+                                focusedRow = null
+                            }
+                        },
+                        onPlayTrailer = { onOpenMovie(it as MovieEntity) },
+                        firstItemFocusRequester = firstItemFocusRequester,
+                    )
+                }
+
+                HomeRow.RECENT_SERIES -> if (state.recentSeries.isNotEmpty()) {
+                    ExpandableRowSection(
+                        title = row.displayTitle(),
+                        items = state.recentSeries,
+                        expandedIndex = if (expandedRow == HomeRow.RECENT_SERIES) expandedIndex else -1,
+                        heroPreviewEngine = heroPreviewEngine,
+                        engineState = engineState,
+                        trailerItem = if (expandedRow == HomeRow.RECENT_SERIES) activeTrailerItem else null,
+                        onItemClick = { onOpenSeries(it as SeriesEntity) },
+                        onFocusChanged = { i, hasFocus ->
+                            if (hasFocus) {
+                                if (expandedRow != HomeRow.RECENT_SERIES || expandedIndex != i) {
+                                    heroPreviewEngine.stop()
+                                    expandedIndex = -1
+                                    expandedRow = null
+                                    activeTrailerItem = null
+                                }
+                                focusedIndex = i
+                                focusedRow = HomeRow.RECENT_SERIES
+                                vm.setHeroFocused(true)
+                                onChildFocused()
+                            } else if (focusedIndex == i && focusedRow == HomeRow.RECENT_SERIES) {
+                                focusedIndex = -1
+                                focusedRow = null
+                            }
+                        },
+                        onPlayTrailer = { onOpenSeries(it as SeriesEntity) },
+                        firstItemFocusRequester = firstItemFocusRequester,
+                    )
                 }
 
                 HomeRow.RECENT_CHANNELS -> if (state.recentLive.isNotEmpty()) {
@@ -484,29 +661,25 @@ fun HomeScreen(
       }
     }
 
-    // Video preview starts after the expanded card has settled, so 4K decoder setup does not compete with
-    // the width animation. Until then the expanded card stays on the poster.
-    // A trailer counts as "not previewing": the hero preview is hidden behind the trailer window, so
-    // leaving it decoding costs a second 4K video pipeline for a picture nobody can see — on a low-spec
-    // TV that is exactly the budget the trailer needs. The same reasoning as the 520ms delay below,
-    // applied to the one case that was missed.
-    LaunchedEffect(isPreviewActive, hero, expandedHeroIndex, focusedHeroIndex, lastInteractionMs, trailerVideoKey) {
-        if (!isPreviewActive || trailerVideoKey != null || hero == null || expandedHeroIndex < 0 ||
-            focusedHeroIndex != expandedHeroIndex
+    LaunchedEffect(isPreviewActive, activeExpandedItem, expandedIndex, focusedIndex, lastInteractionMs, trailerVideoKey) {
+        if (!isPreviewActive || trailerVideoKey != null || activeExpandedItem == null || expandedIndex < 0 ||
+            focusedIndex != expandedIndex
         ) {
             heroPreviewEngine.stop()
             return@LaunchedEffect
         }
 
-        val scheduledIndex = expandedHeroIndex
-        val scheduledHero = hero
+        val scheduledIndex = expandedIndex
+        val scheduledHero = activeExpandedItem
         val interactionStamp = lastInteractionMs
 
         heroPreviewEngine.stop()
         kotlinx.coroutines.delay(520L)
         if (!isPreviewActive || interactionStamp != lastInteractionMs) return@LaunchedEffect
-        if (focusedHeroIndex != scheduledIndex || expandedHeroIndex != scheduledIndex) return@LaunchedEffect
-        if (scheduledHero != state.heroItems.getOrNull(state.activeHeroIndex)) return@LaunchedEffect
+        if (focusedIndex != scheduledIndex || expandedIndex != scheduledIndex) return@LaunchedEffect
+        
+        // Only start ExoPlayer if it's NOT a YouTube trailer
+        if (scheduledHero is HeroItem.TrailerHero && !scheduledHero.youtubeVideoId.isNullOrBlank()) return@LaunchedEffect
 
         vm.startPreview(scheduledHero)
     }
@@ -536,6 +709,10 @@ fun HomeScreen(
 private fun rowHasData(row: HomeRow, state: HomeUiState): Boolean = when (row) {
     HomeRow.TRENDING -> state.trendingItems.size >= TrendingDao.MIN_ELIGIBLE_ITEMS
     HomeRow.HERO -> state.heroItems.isNotEmpty()
+    HomeRow.TOP_RATED_MOVIES -> state.topRatedMovies.isNotEmpty()
+    HomeRow.TOP_RATED_SERIES -> state.topRatedSeries.isNotEmpty()
+    HomeRow.RECENT_MOVIES -> state.recentMovies.isNotEmpty()
+    HomeRow.RECENT_SERIES -> state.recentSeries.isNotEmpty()
     HomeRow.RECENT_CHANNELS -> when (state.config.recentLiveMode) {
         HomeLiveRowMode.CARDS -> state.recentLive.isNotEmpty()
         HomeLiveRowMode.ON_NOW -> state.recentGuide.hasContent
@@ -558,6 +735,7 @@ private fun HeroItem.heroKey(): String = when (this) {
     is HeroItem.MovieHero -> "movie:${movie.id}"
     is HeroItem.SeriesHero -> "episode:${episode.id}"
     is HeroItem.LiveHero -> "live:${channel.id}"
+    is HeroItem.TrailerHero -> "trailer:${if (type == tv.own.owntv.core.model.MediaType.MOVIE) "movie" else "series"}:$itemId"
 }
 
 private fun expandedHeroImageUrl(item: HeroItem, metadata: HomeHeroMetadata?): String? = when (item) {
@@ -570,12 +748,14 @@ private fun expandedHeroImageUrl(item: HeroItem, metadata: HomeHeroMetadata?): S
             ?: item.series.backdropUrl?.takeIf { it.isNotBlank() }
             ?: item.series.posterUrl?.takeIf { it.isNotBlank() }
     is HeroItem.LiveHero -> item.channel.logoUrl?.takeIf { it.isNotBlank() }
+    is HeroItem.TrailerHero -> item.backdropUrl ?: item.posterUrl
 }
 
 private fun expandedHeroPlot(item: HeroItem, metadata: HomeHeroMetadata?): String? = when (item) {
     is HeroItem.MovieHero -> metadata?.plot ?: item.movie.plot?.takeIf { it.isNotBlank() }
     is HeroItem.SeriesHero -> metadata?.plot ?: item.episode.plot?.takeIf { it.isNotBlank() } ?: item.series.plot?.takeIf { it.isNotBlank() }
     is HeroItem.LiveHero -> null
+    is HeroItem.TrailerHero -> item.plot
 }
 
 @Composable
@@ -1107,8 +1287,6 @@ private fun HeroRowSection(
     }
 
     LaunchedEffect(expandedIndex, items.size) {
-        // The rect is only ever written by the expanded card's onGloballyPositioned; drop it on collapse
-        // so the next expansion can't flash its overlay at the previous card's stale position.
         if (expandedIndex < 0) {
             previewRectInRowPx = null
         } else if (expandedIndex < items.size) {
@@ -1179,6 +1357,7 @@ private fun HeroRowSection(
                         is HeroItem.MovieHero -> item.movie.posterUrl
                         is HeroItem.SeriesHero -> item.series.posterUrl
                         is HeroItem.LiveHero -> item.channel.logoUrl
+                        else -> null
                     }
                     val itemMetadata = heroMetadata[item.heroKey()]
                     val expandedImageUrl = expandedHeroImageUrl(item, itemMetadata)
@@ -1253,9 +1432,6 @@ private fun HeroRowSection(
                             surface = GlassSurface.CARDS,
                         ) { focused ->
                             if (isExpanded) {
-                                // No blurred backdrop here: the preview overlay covers this card as soon
-                                // as previewRectInRowPx is known and renders the blur itself — doubling the
-                                // blur underneath just costs frames on TV hardware.
                                 Box(Modifier.fillMaxSize().background(Color.Black)) {
                                     val cardImageUrl = expandedImageUrl ?: imageUrl
                                     if (!cardImageUrl.isNullOrBlank()) {
@@ -1292,6 +1468,7 @@ private fun HeroRowSection(
                                                 is HeroItem.MovieHero -> OwnTVIcon.MOVIES
                                                 is HeroItem.SeriesHero -> OwnTVIcon.SERIES
                                                 is HeroItem.LiveHero -> OwnTVIcon.LIVE_TV
+                                                else -> OwnTVIcon.PLAY
                                             }
                                             OwnTVIcon(fallback, tint = colors.onSurfaceVariant, modifier = Modifier.size(64.dp))
                                         }
@@ -1335,6 +1512,7 @@ private fun HeroRowSection(
                                                 is HeroItem.MovieHero -> OwnTVIcon.MOVIES
                                                 is HeroItem.SeriesHero -> OwnTVIcon.SERIES
                                                 is HeroItem.LiveHero -> OwnTVIcon.LIVE_TV
+                                                else -> OwnTVIcon.PLAY
                                             }
                                             OwnTVIcon(fallback, tint = colors.onSurfaceVariant, modifier = Modifier.size(42.dp))
                                         }
@@ -1345,6 +1523,7 @@ private fun HeroRowSection(
                                         is HeroItem.MovieHero -> item.item.title
                                         is HeroItem.SeriesHero -> item.item.title
                                         is HeroItem.LiveHero -> item.channel.name
+                                        else -> ""
                                     }
                                     Text(
                                         text = title,
@@ -1401,14 +1580,11 @@ private fun HeroRowSection(
                             contentAlignment = Alignment.Center,
                         ) {
                             HeroPreviewSurface(
+                                item = expandedItem,
                                 engine = heroPreviewEngine,
                                 modifier = Modifier.fillMaxSize(),
                             )
                             if (engineState != HeroPreviewEngine.State.PLAYING) {
-                                // Opaque cover: the SurfaceView below holds the previous preview's last
-                                // frame after stop(), and the parent's black background is punched out by
-                                // the SurfaceView. The loading images and fallback icon rely on this layer
-                                // to hide it.
                                 Box(Modifier.fillMaxSize().background(Color.Black))
                                 val expandedMeta = heroMetadata[expandedItem.heroKey()]
                                 val artUrl = expandedHeroImageUrl(expandedItem, expandedMeta)
@@ -1440,6 +1616,7 @@ private fun HeroRowSection(
                                         is HeroItem.MovieHero -> OwnTVIcon.MOVIES
                                         is HeroItem.SeriesHero -> OwnTVIcon.SERIES
                                         is HeroItem.LiveHero -> OwnTVIcon.LIVE_TV
+                                        else -> OwnTVIcon.PLAY
                                     }
                                     OwnTVIcon(fallback, tint = colors.onSurfaceVariant, modifier = Modifier.size(64.dp))
                                 }
@@ -1471,6 +1648,7 @@ private fun HeroRowSection(
                                 is HeroItem.MovieHero -> expandedItem.item.title
                                 is HeroItem.SeriesHero -> expandedItem.item.title
                                 is HeroItem.LiveHero -> expandedItem.channel.name
+                                else -> ""
                             }
                             val logoUrl = expandedMeta?.logoUrl?.takeIf { expandedItem !is HeroItem.LiveHero }
                             if (!logoUrl.isNullOrBlank()) {
@@ -1498,6 +1676,7 @@ private fun HeroRowSection(
                                 is HeroItem.SeriesHero ->
                                     expandedItem.item.subtitle.orEmpty()
                                 is HeroItem.LiveHero -> stringResource(R.string.home_recent_live)
+                                else -> ""
                             }
                             if (subtitle.isNotBlank()) {
                                 Spacer(Modifier.height(4.dp))
@@ -1588,6 +1767,7 @@ private fun heroStatLabel(item: HeroItem, nowMs: Long): String? =
         is HeroItem.MovieHero,
         is HeroItem.SeriesHero -> finishByLabel(LocalContext.current, item.positionMs, item.durationMs, nowMs)
         is HeroItem.LiveHero -> relativeLastWatchedLabel(item.lastEngagementAt, nowMs)
+        else -> null
     }
 
 @Composable
@@ -1645,23 +1825,352 @@ private fun relativeLastWatchedLabel(lastEngagementAt: Long, nowMs: Long): Strin
 
 @Composable
 private fun HeroPreviewSurface(
+    item: HeroItem?,
     engine: HeroPreviewEngine,
+    onStateChanged: (HeroPreviewEngine.State) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            android.view.SurfaceView(ctx).apply {
-                holder.addCallback(object : android.view.SurfaceHolder.Callback {
-                    override fun surfaceCreated(holder: android.view.SurfaceHolder) = engine.setSurface(holder.surface)
-                    override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
-                    override fun surfaceDestroyed(holder: android.view.SurfaceHolder) = engine.setSurface(null)
-                })
+    if (item is HeroItem.TrailerHero && !item.youtubeVideoId.isNullOrBlank()) {
+        val settings = koinInject<SettingsRepository>()
+        val previewAudioEnabled by settings.livePreviewAudio.collectAsStateWithLifecycle(initialValue = true)
+        val videoKey = item.youtubeVideoId
+        val lifecycleOwner = LocalLifecycleOwner.current
+        
+        var youtubePlayer by remember { mutableStateOf<YouTubePlayer?>(null) }
+
+        // Initial load and video key updates.
+        LaunchedEffect(videoKey, youtubePlayer) {
+            val p = youtubePlayer ?: return@LaunchedEffect
+            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube loadVideo: $videoKey")
+            p.loadVideo(videoKey, 0f)
+        }
+        
+        AndroidView(
+            modifier = modifier,
+            factory = { ctx ->
+                YouTubePlayerView(ctx).apply {
+                    enableAutomaticInitialization = false
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                    isFocusable = false
+                    descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    
+                    val listener = object : AbstractYouTubePlayerListener() {
+                        override fun onReady(youTubePlayer: YouTubePlayer) {
+                            youtubePlayer = youTubePlayer
+                            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube player ready")
+                            if (previewAudioEnabled) youTubePlayer.unMute() else youTubePlayer.mute()
+                        }
+
+                        override fun onStateChange(youTubePlayer: YouTubePlayer, state: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState) {
+                            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube state change: $state")
+                            when (state) {
+                                com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.PLAYING -> onStateChanged(HeroPreviewEngine.State.PLAYING)
+                                com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.BUFFERING -> onStateChanged(HeroPreviewEngine.State.LOADING)
+                                com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.ENDED -> onStateChanged(HeroPreviewEngine.State.IDLE)
+                                else -> Unit
+                            }
+                        }
+
+                        override fun onError(youTubePlayer: YouTubePlayer, error: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerError) {
+                            if (BuildConfig.DEBUG) Log.e("HomePreview", "YouTube player error: $error")
+                            onStateChanged(HeroPreviewEngine.State.ERROR)
+                        }
+                    }
+                    initialize(listener)
+                    lifecycleOwner.lifecycle.addObserver(this)
+                }
+            },
+            update = { _ ->
+                if (previewAudioEnabled) youtubePlayer?.unMute() else youtubePlayer?.mute()
+            },
+            onRelease = { view ->
+                if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube player release")
+                view.release()
             }
-        },
-        update = { it.keepScreenOn = false },
-    )
+        )
+    } else {
+        AndroidView(
+            modifier = modifier,
+            factory = { ctx ->
+                android.view.SurfaceView(ctx).apply {
+                    holder.addCallback(object : android.view.SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: android.view.SurfaceHolder) = engine.setSurface(holder.surface)
+                        override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
+                        override fun surfaceDestroyed(holder: android.view.SurfaceHolder) = engine.setSurface(null)
+                    })
+                }
+            },
+            update = { it.keepScreenOn = false },
+        )
+    }
 }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ExpandableRowSection(
+    title: String,
+    items: List<Any>,
+    expandedIndex: Int,
+    heroPreviewEngine: HeroPreviewEngine,
+    engineState: HeroPreviewEngine.State,
+    trailerItem: HeroItem.TrailerHero?,
+    onItemClick: (Any) -> Unit,
+    onFocusChanged: (index: Int, hasFocus: Boolean) -> Unit,
+    onPlayTrailer: (Any) -> Unit,
+    showRank: Boolean = false,
+    firstItemFocusRequester: FocusRequester? = null,
+    modifier: Modifier = Modifier,
+) {
+    val colors = OwnTVTheme.colors
+    val density = LocalDensity.current
+    
+    val cardHeight = Dimens.HeroMinCardHeight
+    val expandedWidth = cardHeight * 16f / 9f
+    val cardShape = RoundedCornerShape(Dimens.HeroCardCorner)
+
+    var rowTopLeftInRoot by remember { mutableStateOf(Offset.Zero) }
+    var previewRectInRowPx by remember { mutableStateOf<Rect?>(null) }
+    val rowState = rememberLazyListState()
+
+    LaunchedEffect(expandedIndex) {
+        if (expandedIndex < 0) {
+            previewRectInRowPx = null
+        } else if (expandedIndex < items.size) {
+            rowState.animateScrollToItem(expandedIndex)
+        }
+    }
+
+    Column(modifier = modifier) {
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.titleSmall,
+            color = colors.primary,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = Dimens.HomeRowPaddingH),
+        )
+        Spacer(Modifier.height(10.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(cardHeight)
+                .onGloballyPositioned {
+                    rowTopLeftInRoot = it.positionInRoot()
+                },
+        ) {
+            LazyRow(
+                state = rowState,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(horizontal = Dimens.HomeRowPaddingH),
+                modifier = Modifier.fillMaxSize().focusGroup(),
+            ) {
+                itemsIndexed(items) { index, item ->
+                    val isExpanded = index == expandedIndex
+                    val targetWidth = if (isExpanded) expandedWidth else 150.dp
+                    val width by animateDpAsState(
+                        targetValue = targetWidth,
+                        animationSpec = tween(durationMillis = if (isExpanded) 500 else 150),
+                        label = "expandableCardWidth",
+                    )
+
+                    val posterUrl = when (item) {
+                        is MovieEntity -> item.posterUrl
+                        is SeriesEntity -> item.posterUrl
+                        else -> null
+                    }
+                    val name = when (item) {
+                        is MovieEntity -> item.name
+                        is SeriesEntity -> item.name
+                        else -> ""
+                    }
+                    val rating = when (item) {
+                        is MovieEntity -> item.rating
+                        is SeriesEntity -> item.rating
+                        else -> null
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .height(cardHeight)
+                            .width(width)
+                            .then(if (isExpanded) Modifier.zIndex(1f) else Modifier)
+                            .then(
+                                if (isExpanded) Modifier.onGloballyPositioned { coords ->
+                                    val b = coords.boundsInRoot()
+                                    previewRectInRowPx = Rect(
+                                        left = b.left - rowTopLeftInRoot.x,
+                                        top = b.top - rowTopLeftInRoot.y,
+                                        right = b.right - rowTopLeftInRoot.x,
+                                        bottom = b.bottom - rowTopLeftInRoot.y,
+                                    )
+                                } else Modifier
+                            ),
+                    ) {
+                        if (showRank) {
+                            RankingPosterCard(
+                                rank = index + 1,
+                                posterUrl = posterUrl,
+                                title = name,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .width(width)
+                                    .height(cardHeight)
+                                    .then(if (index == 0 && firstItemFocusRequester != null) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                                    .onFocusChanged { onFocusChanged(index, it.hasFocus) },
+                                focusedScale = 1f,
+                                onClick = { onItemClick(item) }
+                            )
+                        } else {
+                            PosterCard(
+                                posterUrl = posterUrl,
+                                title = name,
+                                rating = rating,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .width(width)
+                                    .height(cardHeight)
+                                    .then(if (index == 0 && firstItemFocusRequester != null) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                                    .onFocusChanged { onFocusChanged(index, it.hasFocus) },
+                                focusedScale = 1f,
+                                onClick = { onItemClick(item) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            val rect = previewRectInRowPx
+            if (rect != null && expandedIndex >= 0 && trailerItem != null) {
+                val ox = with(density) { rect.left.toDp() }
+                val oy = with(density) { rect.top.toDp() }
+                val ow = with(density) { rect.width.toDp() }
+                val oh = with(density) { rect.height.toDp() }
+
+                Box(
+                    modifier = Modifier
+                        .focusProperties { canFocus = false }
+                        .absoluteOffset(x = ox, y = oy)
+                        .width(ow)
+                        .height(oh)
+                        .clip(cardShape),
+                ) {
+                    Box(
+                        Modifier.fillMaxSize().background(Color.Black),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        var youtubeState by remember(trailerItem.itemId) { mutableStateOf(HeroPreviewEngine.State.IDLE) }
+                        
+                        HeroPreviewSurface(
+                            item = trailerItem,
+                            engine = heroPreviewEngine,
+                            onStateChanged = { youtubeState = it },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+
+                        val isPlaying = if (!trailerItem.youtubeVideoId.isNullOrBlank()) {
+                            youtubeState == HeroPreviewEngine.State.PLAYING
+                        } else {
+                            engineState == HeroPreviewEngine.State.PLAYING
+                        }
+
+                        if (!isPlaying) {
+                            Box(Modifier.fillMaxSize().background(Color.Black))
+                            AsyncImage(
+                                model = expandedHeroImageUrl(trailerItem, null),
+                                contentDescription = null,
+                                contentScale = Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.Transparent,
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.86f),
+                                    ),
+                                ),
+                            ),
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp)
+                            .widthIn(max = Dimens.HeroOverlayMaxWidth),
+                    ) {
+                        Text(
+                            text = trailerItem.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colors.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontWeight = FontWeight.Bold,
+                        )
+
+                        val subtitleParts = mutableListOf<String>()
+                        trailerItem.rating?.let { subtitleParts.add(stringResource(R.string.content_rating, it)) }
+                        trailerItem.year?.let { subtitleParts.add(localizedInteger(it, grouping = false)) }
+                        trailerItem.durationSecs?.takeIf { it > 0 }?.let { secs ->
+                            val h = secs / 3600
+                            val m = (secs % 3600) / 60
+                            subtitleParts.add(if (h > 0) stringResource(R.string.content_duration_hours, h, m) else stringResource(R.string.content_duration_minutes, m))
+                        }
+                        
+                        if (subtitleParts.isNotEmpty()) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = subtitleParts.joinToString(stringResource(R.string.content_metadata_separator)),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.onSurfaceVariant,
+                            )
+                        }
+
+                        trailerItem.plot?.let {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+                        OwnTVButton(
+                            label = stringResource(R.string.home_trending_more_details),
+                            icon = OwnTVIcon.INFO,
+                            onClick = { onPlayTrailer(items[expandedIndex]) },
+                            modifier = Modifier.focusProperties { canFocus = false },
+                            style = OwnTVButtonStyle.SECONDARY,
+                            compact = true,
+                        )
+                    }
+
+                    if (engineState == HeroPreviewEngine.State.LOADING) {
+                        OwnTVSpinner(
+                            sizeDp = 18,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 16.dp, bottom = 16.dp)
+                                .alpha(0.3f),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun ContinueWatchingRow(
@@ -1783,7 +2292,7 @@ private fun LandscapeContinuationCard(
                     AsyncImage(
                         model = imageUrl,
                         contentDescription = null,
-                        contentScale = if (cropImage) ContentScale.Crop else ContentScale.Fit,
+                        contentScale = if (cropImage) Crop else ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
@@ -1837,6 +2346,7 @@ private fun LandscapeContinuationCard(
         }
     }
 }
+
 
 @Composable
 private fun HeroFallbackPane(
@@ -1944,12 +2454,6 @@ private fun AllRowsHiddenState(
     }
 }
 
-/**
- * Instant structure painted while Home's data loads on a cold start (see [HomeViewModel.HomeUiState.isLoading]).
- * Static placeholders only — no shimmer/animation, on purpose: this is a low-end-TV first paint, where an
- * animating skeleton would just compete with the cold DB reads for the same weak CPU/GPU we're trying to
- * unblock. Spacing/shape reuse the real rows' Dimens so the skeleton→content hand-off doesn't visibly jump.
- */
 @Composable
 private fun HomeSkeleton(modifier: Modifier = Modifier) {
     val colors = OwnTVTheme.colors

@@ -970,7 +970,9 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND name LIKE '%' || :query || '%' ORDER BY addedAt DESC, sortOrder DESC, id DESC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND name LIKE '%' || :query || '%' ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND name LIKE '%' || :query || '%' ORDER BY name ASC LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY rating DESC, name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY sourceId ASC, sortOrder ASC, name ASC
@@ -1092,7 +1094,9 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND name LIKE '%' || :query || '%' ORDER BY addedAt DESC, sortOrder DESC, id DESC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND name LIKE '%' || :query || '%' ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND name LIKE '%' || :query || '%' ORDER BY name ASC LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY rating DESC, name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY sourceId ASC, sortOrder ASC, name ASC
@@ -1994,6 +1998,7 @@
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	${season.id}:$epNo
 1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	SeriesRepository
+1	technical	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	series:${series.sourceId}:${series.remoteId ?: series.name}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	stalker episode load failed seriesId=${series.id}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SeriesRepository.kt	xtream episode load failed seriesId=${series.id}
 1	technical	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	Cancelled
@@ -2840,7 +2845,14 @@
 2	preference-key	app/src/main/java/tv/own/owntv/features/home/HomeRow.kt	recentLiveMode
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	#${activeIndex + 1}
 2	locale	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	EN
+5	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	HomePreview
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube loadVideo: $videoKey
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube player error: $error
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube player ready
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube player release
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube state change: $state
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	episode:${episode.id}
+1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	expandableCardWidth
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	heroCardWidth
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	live:${channel.id}
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	movie:${movie.id}
@@ -2852,6 +2864,9 @@
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	•
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	✓ $providerMatchLabel
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	${snapshot.mediaType.name}:${snapshot.tmdbId}
+2	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	/
+2	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	/embed/
+2	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	/shorts/
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	1080p FHD
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	4K
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	4K UHD
@@ -2860,12 +2875,16 @@
 2	locale	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	EN
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	FHD
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	HD
+4	log	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	HomePreview
 1	protocol	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	SD
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	cache miss or no trailer for $name ($lookupKey), fetching...
 1	locale	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	en
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	episode:${item.episode.id}
 1	performance	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	home-data
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	live:${item.channel.id}
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	movie:${item.movie.id}
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	player prepare: title=${(hero as? HeroItem.TrailerHero)?.title} url=${tv.own.owntv.core.network.HttpClient.redactUrl(hero.streamUrl)}
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	using TMDB fallback trailer for $name
 3	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	w1280
 2	technical	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	w780
 1	technical	app/src/main/java/tv/own/owntv/features/live/CatchupJumpDialog.kt	EEEHm
@@ -3519,7 +3538,11 @@
 1	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	Hero preview play failed for ${HttpClient.redactUrl(url)}
 1	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	Hero preview produced no frame in ${NO_FRAME_TIMEOUT_MS}ms — falling back to the poster
 1	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	HeroPreviewEngine
+3	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	HomePreview
 1	technical	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	User-Agent
+1	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	player error: ${error.errorCodeName}
+1	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	player playing: url=${HttpClient.redactUrl(currentUrl ?: "")}
+1	log	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	player ready: url=${HttpClient.redactUrl(currentUrl ?: "")}
 4	empty	app/src/main/java/tv/own/owntv/player/LiveDiagnosticsLog.kt	\0
 1	log	app/src/main/java/tv/own/owntv/player/LiveDiagnosticsLog.kt	${timeFmt.format(Date())} $message
 1	log	app/src/main/java/tv/own/owntv/player/LiveDiagnosticsLog.kt	MM-dd HH:mm:ss.SSS

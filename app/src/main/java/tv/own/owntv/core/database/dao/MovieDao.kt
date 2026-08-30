@@ -268,6 +268,12 @@ interface MovieDao {
     )
     suspend fun recentlyWatchedSnapshot(profileId: Long, sourceIds: List<Long>, limit: Int): List<MovieEntity>
 
+    @Query("SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit")
+    suspend fun topRated(sourceIds: List<Long>, limit: Int): List<MovieEntity>
+
+    @Query("SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit")
+    suspend fun recentlyAdded(sourceIds: List<Long>, limit: Int): List<MovieEntity>
+
     /** Search "Unwatched" chip: favourite movies with no watch-history row (bounded by favourites). */
     @Query(
         "SELECT m.* FROM movies m " +
