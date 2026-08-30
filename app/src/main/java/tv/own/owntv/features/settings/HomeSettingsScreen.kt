@@ -96,23 +96,6 @@ fun HomeSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                GroupLabel(stringResource(R.string.home_row_now_trending))
-            }
-
-            item {
-                Row2(
-                    icon = OwnTVIcon.STAR,
-                    title = stringResource(R.string.home_row_now_trending),
-                    desc = "$trendingDescription\n$trendingStatus",
-                    chip = stringResource(if (trendingEnabled) R.string.common_on else R.string.common_off),
-                    primaryChip = trendingEnabled,
-                    modifier = Modifier.focusRequester(firstFocus),
-                    onClick = { vm.setRowHidden(HomeRow.TRENDING, trendingEnabled) },
-                )
-            }
-
-            item {
-                Spacer(Modifier.height(14.dp))
                 Text(stringResource(R.string.settings_sections), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -124,22 +107,30 @@ fun HomeSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             }
 
             itemsIndexed(config.settingsRows, key = { _, row -> row.name }) { index, row ->
+                val rowHidden = row in config.hidden
+                val isTrending = row == HomeRow.TRENDING
+                val firstItemModifier = if (index == 0) Modifier.focusRequester(firstFocus) else Modifier
+
                 HomeRowCard(
                     row = row,
-                    hidden = row in config.hidden,
+                    hidden = rowHidden,
                     canMoveUp = index > 0,
                     canMoveDown = index < config.settingsRows.lastIndex,
                     onMoveUp = { vm.move(row, up = true) },
                     onMoveDown = { vm.move(row, up = false) },
                     onMoveTop = { vm.moveToEdge(row, top = true) },
                     onMoveBottom = { vm.moveToEdge(row, top = false) },
-                    onToggleHidden = { vm.setRowHidden(row, row !in config.hidden) },
+                    onToggleHidden = { vm.setRowHidden(row, !rowHidden) },
                     liveMode = when (row) {
                         HomeRow.RECENT_CHANNELS -> config.recentLiveMode
                         HomeRow.FAVORITE_CHANNELS -> config.favoriteLiveMode
                         else -> null
                     },
                     onToggleLiveMode = { mode -> vm.setLiveRowMode(row, mode.toggled()) },
+                    description = if (isTrending) {
+                        "$trendingDescription\n$trendingStatus"
+                    } else null,
+                    modifier = firstItemModifier,
                 )
             }
 
@@ -250,11 +241,13 @@ private fun HomeRowCard(
     onToggleHidden: () -> Unit,
     liveMode: HomeLiveRowMode?,
     onToggleLiveMode: (HomeLiveRowMode) -> Unit,
+    modifier: Modifier = Modifier,
+    description: String? = null,
 ) {
     val colors = OwnTVTheme.colors
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(colors.surfaceContainerHigh)
@@ -269,15 +262,14 @@ private fun HomeRowCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (hidden) {
-                Text(
-                    stringResource(R.string.settings_hidden),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            val descText = description ?: row.settingsDescription()
+            Text(
+                if (hidden) stringResource(R.string.settings_hidden) else descText,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Spacer(Modifier.width(10.dp))
         if (liveMode != null) {

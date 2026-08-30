@@ -5,19 +5,23 @@ import kotlinx.coroutines.withContext
 import tv.own.owntv.core.database.dao.SeriesDao
 import tv.own.owntv.core.database.dao.SourceDao
 import tv.own.owntv.core.database.entity.EpisodeEntity
+import tv.own.owntv.core.database.dao.ProviderMetadataDao
+import tv.own.owntv.core.database.entity.ProviderMetadataEntity
 import tv.own.owntv.core.database.entity.SeriesEntity
 import tv.own.owntv.core.database.entity.SourceEntity
 import tv.own.owntv.core.model.SourceType
 import tv.own.owntv.core.parser.XtreamClient
+import tv.own.owntv.core.parser.XtProviderMetadata
 import tv.own.owntv.core.stalker.StalkerAuthManager
 import tv.own.owntv.core.stalker.StalkerClient
 import tv.own.owntv.core.stalker.stalkerCredentials
 
 /** Loads a series' seasons/episodes on demand (Xtream `get_series_info`; Stalker paged
- *  `get_ordered_list&movie_id=` season rows, plan D-2). Episodes carry their season number
+ *  get_ordered_list&movie_id=` season rows, plan D-2). Episodes carry their season number
  *  directly, so no separate Season rows are needed for browsing. */
 class SeriesRepository(
     private val seriesDao: SeriesDao,
+    private val providerMetadataDao: ProviderMetadataDao,
     private val sourceDao: SourceDao,
     private val xtream: XtreamClient,
     private val userData: tv.own.owntv.core.backup.UserDataResolver,
@@ -33,7 +37,7 @@ class SeriesRepository(
      * Loads a series' seasons/episodes and its rich metadata (Xtream only).
      * Returns the rich info block if available.
      */
-    suspend fun loadEpisodesWithInfo(series: SeriesEntity): tv.own.owntv.core.parser.XtProviderMetadata? = withContext(Dispatchers.IO) {
+    suspend fun loadEpisodesWithInfo(series: SeriesEntity): XtProviderMetadata? = withContext(Dispatchers.IO) {
         val cachedCount = seriesDao.episodeCount(series.id)
         val source = sourceDao.getById(series.sourceId) ?: return@withContext null
 
@@ -56,8 +60,41 @@ class SeriesRepository(
         if (!fetched.isNullOrEmpty() && shouldRefresh) {
             applyEpisodes(series.id, fetched)
         }
+
+        // Cache rich metadata if available (XTREAM only for now).
+        if (info != null) {
+            cacheRichMetadata(series, info)
+        }
+
         info
     }
+
+    private suspend fun cacheRichMetadata(series: SeriesEntity, info: XtProviderMetadata) {
+        val key = getCacheKey(series)
+        val entity = ProviderMetadataEntity(
+            key = key,
+            sourceId = series.sourceId,
+            remoteId = series.remoteId!!,
+            title = info.title,
+            plot = info.plot,
+            rating = info.rating,
+            releaseDate = info.releaseDate,
+            year = info.year,
+            genre = info.genre,
+            durationSecs = info.durationSecs,
+            director = info.director,
+            actors = info.actors,
+            trailer = info.trailer,
+            backdropUrl = info.backdropUrls.firstOrNull(),
+            posterUrl = info.posterUrl,
+            tmdbId = info.tmdbId?.takeIf { it.isNotBlank() },
+            updatedAt = System.currentTimeMillis()
+        )
+        providerMetadataDao.upsertMetadata(entity)
+    }
+
+    fun getCacheKey(series: SeriesEntity): String =
+        "series:${series.sourceId}:${series.remoteId ?: series.name}"
 
     /**
      * Writes a fetched list over the stored one, preserving the row id of every episode that

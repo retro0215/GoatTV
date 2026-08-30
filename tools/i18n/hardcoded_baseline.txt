@@ -296,6 +296,21 @@
 1	app/src/main/java/tv/own/owntv/features/customize/MoveToCategoryDialog.kt	☐
 1	app/src/main/java/tv/own/owntv/features/customize/MoveToCategoryDialog.kt	☑
 1	app/src/main/java/tv/own/owntv/features/epg/EpgScreen.kt	ALL
+4	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	\0
+1	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	movie
+1	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	series
+1	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	trailer:${if (type == tv.own.owntv.core.model.MediaType.MOVIE) "movie" else "series"}:$itemId
+3	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	\0
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	$typeKey:$sourceId:$id
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	$typeKey:$sourceId:$remoteId
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	.
+2	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	movie
+2	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	series
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	trace: title=$name initialCacheHit=$initialCacheHit trailerPresent=${!trailerUrl.isNullOrBlank()} source=${youtubeId ?: tv.own.owntv.core.network.HttpClient.redactUrl(trailerUrl ?: "")}
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	trailer:${if (item.type == MediaType.MOVIE) "movie" else "series"}:${item.itemId}
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	v
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	youtu.be
+1	app/src/main/java/tv/own/owntv/features/home/HomeViewModel.kt	youtube.com
 2	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	CUSTOM:
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	CUSTOM:$id
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	ExoPlayer error before first frame: ${info?.raw ?: previewEngine.error.value}
@@ -443,6 +458,7 @@
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	tracks_changed
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	unknown
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	volume=${p.volume}
+2	app/src/main/java/tv/own/owntv/player/HeroPreviewEngine.kt	\0
 4	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	\0
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_OUTPUT_POLICY mime=$mime codec=${format.codecs} ch=${format.channelCount}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	Content-Type

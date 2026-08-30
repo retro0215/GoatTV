@@ -6,12 +6,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class HomeRow {
-    TRENDING,
+    TOP_RATED_MOVIES,
+    TOP_RATED_SERIES,
     HERO,
     RECENT_CHANNELS,
     FAVORITE_CHANNELS,
     CONTINUE_MOVIES,
-    CONTINUE_SERIES;
+    CONTINUE_SERIES,
+    RECENT_MOVIES,
+    RECENT_SERIES,
+    TRENDING;
 
     val implemented: Boolean get() = true
 }
@@ -33,23 +37,18 @@ enum class HeroKind {
 @Immutable
 data class HomeConfig(
     val order: List<HomeRow> = HomeRow.entries.toList(),
-    val hidden: Set<HomeRow> = setOf(HomeRow.RECENT_CHANNELS),
+    val hidden: Set<HomeRow> = setOf(HomeRow.TRENDING),
     val heroIncludeLive: Boolean = true,
     val heroIncludeMovies: Boolean = true,
     val heroIncludeSeries: Boolean = true,
     val recentLiveMode: HomeLiveRowMode = HomeLiveRowMode.CARDS,
-    val favoriteLiveMode: HomeLiveRowMode = HomeLiveRowMode.ON_NOW,
+    val favoriteLiveMode: HomeLiveRowMode = HomeLiveRowMode.CARDS,
 ) {
     val visibleOrder: List<HomeRow>
-        get() = buildList {
-            // Trending is a fixed, optional Home feature rather than a reorderable content row.
-            // When enabled it always owns the top position, regardless of any previously saved order.
-            if (HomeRow.TRENDING !in hidden) add(HomeRow.TRENDING)
-            addAll(order.filter { it != HomeRow.TRENDING && it.implemented && it !in hidden })
-        }
+        get() = order.filter { it.implemented && it !in hidden }
 
     val settingsRows: List<HomeRow>
-        get() = order.filter { it != HomeRow.TRENDING && it.implemented }
+        get() = order.filter { it.implemented }
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("order", JSONArray(order.map { it.name }))

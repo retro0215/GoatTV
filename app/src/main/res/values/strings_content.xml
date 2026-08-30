@@ -184,6 +184,14 @@
     <string name="content_hide_watched">Hide watched</string>
     <!-- Translators: Button or section header for the sorting options. -->
     <string name="content_sorting">Sorting</string>
+    <!-- Translators: Label for ascending sort order. -->
+    <string name="content_ascending">Ascending</string>
+    <!-- Translators: Label for descending sort order. -->
+    <string name="content_descending">Descending</string>
+    <!-- Translators: Label for the season-order setting in the sorting dialog. -->
+    <string name="content_season_order">Season order</string>
+    <!-- Translators: Label for the episode-order setting in the sorting dialog. -->
+    <string name="content_episode_order">Episode order</string>
     <!-- Translators: Sorting-dialog row label for season ordering. -->
     <string name="content_seasons">Seasons</string>
     <!-- Translators: Sorting-dialog row label for episode ordering. -->

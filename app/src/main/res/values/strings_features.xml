@@ -157,6 +157,14 @@
     <string name="home_row_now_trending">Now Trending</string>
     <!-- Translators: Home row name in Settings for the "Keep Watching" row. -->
     <string name="home_row_keep_watching">Keep Watching</string>
+    <!-- Translators: Home row name in Settings for the "Top 10 Rated Movies" row. -->
+    <string name="home_row_top_rated_movies">Top 10 Rated Movies</string>
+    <!-- Translators: Home row name in Settings for the "Top 10 Rated Series" row. -->
+    <string name="home_row_top_rated_series">Top 10 Rated Series</string>
+    <!-- Translators: Home row name in Settings for the "Recently Added Movies" row. -->
+    <string name="home_row_recent_movies">Recently Added Movies</string>
+    <!-- Translators: Home row name in Settings for the "Recently Added Series" row. -->
+    <string name="home_row_recent_series">Recently Added Series</string>
     <!-- Translators: Home row name in Settings for the "Continue Watching Movies" row. -->
     <string name="home_row_continue_movies">Continue Watching Movies</string>
     <!-- Translators: Home row name in Settings for the "Continue Watching Series" row. -->
@@ -170,6 +178,14 @@
     <!-- Translators: Home row description in Settings for the hero row. -->
     <string name="home_row_hero_description">The large preview row at the top</string>
     <string name="home_row_trending_description">Shows 4–10 items only when TMDB trending titles match movies or series in your provider catalog.</string>
+    <!-- Translators: Home row description in Settings for "Top 10 Rated Movies". -->
+    <string name="home_row_top_rated_movies_description">Highest rated films from your provider</string>
+    <!-- Translators: Home row description in Settings for "Top 10 Rated Series". -->
+    <string name="home_row_top_rated_series_description">Highest rated series from your provider</string>
+    <!-- Translators: Home row description in Settings for "Recently Added Movies". -->
+    <string name="home_row_recent_movies_description">Newest films in your library</string>
+    <!-- Translators: Home row description in Settings for "Recently Added Series". -->
+    <string name="home_row_recent_series_description">Newest series in your library</string>
     <string name="settings_trending_status_off">Now Trending is turned off.</string>
     <string name="settings_trending_status_building">Now Trending is being prepared after provider sync.</string>
     <string name="settings_trending_status_metadata_disabled">Now Trending needs TMDB metadata. Choose TMDB only or Provider + TMDB.</string>
@@ -217,6 +233,7 @@
     <string name="home_trending_resume">Resume</string>
     <string name="home_trending_next">Next</string>
     <string name="home_trending_unavailable">This version is no longer available</string>
+    <string name="home_play_trailer">Play Trailer</string>
     <!-- Translators: Home row description in Settings for "Continue Watching Movies". -->
     <string name="home_row_continue_movies_description">Movies with a saved position</string>
     <!-- Translators: Home row description in Settings for "Continue Watching Series". -->

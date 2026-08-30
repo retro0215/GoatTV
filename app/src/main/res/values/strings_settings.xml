@@ -452,7 +452,7 @@
     <!-- Translators: Setting label for the preview sound toggle. -->
     <string name="settings_preview_audio">Preview audio</string>
     <!-- Translators: Description of the preview sound setting. -->
-    <string name="settings_preview_audio_description">Play sound in the Live preview</string>
+    <string name="settings_preview_audio_description">Play sound in the video previews</string>
     <!-- Translators: Settings navigation label for Mini-player settings. -->
     <string name="settings_mini_player_root">Mini-player</string>
     <!-- Translators: Description of the Mini-player settings group. -->

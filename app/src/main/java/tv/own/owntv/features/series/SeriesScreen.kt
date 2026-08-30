@@ -22,7 +22,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.items as lazyItems
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -56,6 +57,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.runtime.rememberUpdatedState
+import tv.own.owntv.ui.components.ResumeDialog
+import tv.own.owntv.features.subtitles.SubtitleDeletePopup
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -561,10 +566,19 @@ private fun SeriesDetailsPage(
     val lastEpId by vm.lastPlayedEpisodeId.collectAsStateWithLifecycle()
     val loading by vm.episodesLoading.collectAsStateWithLifecycle()
     val nextUpId by vm.nextUpEpisodeId.collectAsStateWithLifecycle()
+    val episodeViewMode by vm.episodeViewMode.collectAsStateWithLifecycle()
+    val seriesOrder by vm.seriesOrder.collectAsStateWithLifecycle()
 
     val colors = OwnTVTheme.colors
     val focus = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
     var trailerKey by remember { mutableStateOf<String?>(null) }
+    var showSortDialog by remember { mutableStateOf(false) }
+    var contextEpisode by remember { mutableStateOf<EpisodeEntity?>(null) }
+    var contextEpisodeSubs by remember { mutableStateOf<List<tv.own.owntv.core.database.dao.LinkedSubtitle>>(emptyList()) }
+    var showDeleteSubs by remember { mutableStateOf(false) }
+    var resumePrompt by remember { mutableStateOf<Pair<EpisodeEntity, Long>?>(null) }
+    val toast = rememberInAppToast()
 
     BackHandler { onBack() }
     
@@ -581,20 +595,25 @@ private fun SeriesDetailsPage(
 
     val trailer = extractYoutubeId(openedMeta?.trailer) ?: meta?.cache?.trailerKey
 
-    val seasons = episodes.map { it.seasonNumber }.distinct().sorted()
+    val seasons = episodes.map { it.seasonNumber }.distinct().let {
+        if (seriesOrder.seasonsDescending) it.sortedDescending() else it.sorted()
+    }
     val activeSeason = if (seasons.contains(selectedSeason)) selectedSeason else seasons.firstOrNull() ?: selectedSeason
-    val seasonEpisodes = episodes.filter { it.seasonNumber == activeSeason }.sortedBy { it.episodeNumber }
+    val seasonEpisodes = episodes.filter { it.seasonNumber == activeSeason }.let {
+        if (seriesOrder.episodesDescending) it.sortedByDescending { e -> e.episodeNumber } else it.sortedBy { e -> e.episodeNumber }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
         val episodeMeta by vm.seasonEpisodeMeta.collectAsStateWithLifecycle()
 
-        LazyColumn(
+        LazyVerticalGrid(
+            columns = if (episodeViewMode == SettingsRepository.VodViewMode.GRID) GridCells.Adaptive(220.dp) else GridCells.Fixed(1),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 48.dp)
         ) {
             // Hero
             if (!backdropUrl.isNullOrBlank()) {
-                item {
+                item(span = { GridItemSpan(maxCurrentLineSpan) }) {
                     Box(modifier = Modifier.fillMaxWidth().aspectRatio(21f / 9f)) {
                         AsyncImage(model = backdropUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                         Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)))))
@@ -602,7 +621,7 @@ private fun SeriesDetailsPage(
                 }
             }
 
-            item {
+            item(span = { GridItemSpan(maxCurrentLineSpan) }) {
                 Column(modifier = Modifier.padding(horizontal = 48.dp, vertical = 24.dp)) {
                     Text(series.name, style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
                     Spacer(Modifier.height(8.dp))
@@ -614,17 +633,30 @@ private fun SeriesDetailsPage(
                         if (nextUp != null) {
                             OwnTVButton(
                                 label = stringResource(R.string.content_action_play_next, nextUp.seasonNumber, nextUp.episodeNumber),
-                                onClick = { vm.playEpisode(nextUp); onFullscreen() },
+                                onClick = { 
+                                    scope.launch {
+                                        val pos = vm.savedPositionMs(nextUp)
+                                        if (pos > 0 && vm.resumeMode.value == SettingsRepository.ResumeMode.ASK) {
+                                            resumePrompt = nextUp to pos
+                                        } else {
+                                            vm.playEpisode(nextUp)
+                                            onFullscreen()
+                                        }
+                                    }
+                                },
                                 icon = OwnTVIcon.PLAY, style = OwnTVButtonStyle.PRIMARY,
                                 modifier = Modifier.focusRequester(focus),
                             )
                         }
                         if (!trailer.isNullOrBlank()) {
-                            OwnTVButton(label = stringResource(R.string.content_play_trailer), onClick = { trailerKey = trailer }, icon = OwnTVIcon.PLAY, style = OwnTVButtonStyle.SECONDARY)
+                            OwnTVButton(label = stringResource(R.string.content_play_trailer), onClick = { trailerKey = trailer }, icon = OwnTVIcon.PLAY, style = OwnTVButtonStyle.SECONDARY,
+                                modifier = if (nextUp == null) Modifier.focusRequester(focus) else Modifier
+                            )
                         }
                         OwnTVButton(
                             label = if (favoriteIds.contains(series.id)) stringResource(R.string.content_favorited) else stringResource(R.string.content_favorite),
                             onClick = { vm.toggleFavorite(series) }, icon = OwnTVIcon.FAVORITE, style = OwnTVButtonStyle.SECONDARY,
+                            modifier = if (nextUp == null && trailer.isNullOrBlank()) Modifier.focusRequester(focus) else Modifier
                         )
                     }
 
@@ -655,10 +687,25 @@ private fun SeriesDetailsPage(
                     if (loading) {
                         Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { OwnTVSpinner() }
                     } else if (seasons.isNotEmpty()) {
-                        Text(stringResource(R.string.content_seasons), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.content_seasons), style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.weight(1f))
+                            OwnTVButton(
+                                label = stringResource(if (episodeViewMode == SettingsRepository.VodViewMode.GRID) R.string.settings_view_grid else R.string.settings_view_list),
+                                onClick = { vm.setEpisodeViewMode(if (episodeViewMode == SettingsRepository.VodViewMode.GRID) SettingsRepository.VodViewMode.LIST else SettingsRepository.VodViewMode.GRID) },
+                                icon = if (episodeViewMode == SettingsRepository.VodViewMode.GRID) OwnTVIcon.MENU else OwnTVIcon.SERIES,
+                                style = OwnTVButtonStyle.SECONDARY,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            OwnTVButton(
+                                label = stringResource(R.string.content_sorting),
+                                onClick = { showSortDialog = true },
+                                icon = OwnTVIcon.SORT,
+                                style = OwnTVButtonStyle.SECONDARY,
+                            )
+                        }
                         Spacer(Modifier.height(12.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 12.dp)) {
-                            items(seasons) { s ->
+                            lazyItems(seasons) { s ->
                                 val doneCount = episodes.count { it.seasonNumber == s && completedIds.contains(it.id) }
                                 val totalCount = episodes.count { it.seasonNumber == s }
                                 SeasonChip(
@@ -672,20 +719,55 @@ private fun SeriesDetailsPage(
             }
 
             if (!loading && seasons.isNotEmpty()) {
-                items(seasonEpisodes, key = { it.id }) { ep ->
+                gridItems(seasonEpisodes, key = { it.id }, span = { if (episodeViewMode == SettingsRepository.VodViewMode.GRID) GridItemSpan(1) else GridItemSpan(maxCurrentLineSpan) }) { ep ->
                     Box(modifier = Modifier.padding(horizontal = 48.dp, vertical = 6.dp)) {
-                        EpisodeCard(
-                            episode = ep,
-                            meta = episodeMeta[ep.id],
-                            tmdbWins = metadataMode.tmdbWins,
-                            isCompleted = completedIds.contains(ep.id),
-                            isLastPlayed = ep.id == lastEpId,
-                            progress = episodeProgress[ep.id],
-                            seriesBackdrop = backdropUrl,
-                            seriesName = series.name,
-                            onClick = { vm.playEpisode(ep); onFullscreen() },
-                            onLongClick = { /* context menu for episode? */ },
-                        )
+                        if (episodeViewMode == SettingsRepository.VodViewMode.GRID) {
+                            EpisodeGridCard(
+                                episode = ep,
+                                meta = episodeMeta[ep.id],
+                                tmdbWins = metadataMode.tmdbWins,
+                                isCompleted = completedIds.contains(ep.id),
+                                isLastPlayed = ep.id == lastEpId,
+                                progress = episodeProgress[ep.id],
+                                seriesBackdrop = backdropUrl,
+                                seriesName = series.name,
+                                onClick = { 
+                                    scope.launch {
+                                        val pos = vm.savedPositionMs(ep)
+                                        if (pos > 0 && vm.resumeMode.value == SettingsRepository.ResumeMode.ASK) {
+                                            resumePrompt = ep to pos
+                                        } else {
+                                            vm.playEpisode(ep)
+                                            onFullscreen()
+                                        }
+                                    }
+                                },
+                                onLongClick = { contextEpisode = ep },
+                            )
+                        } else {
+                            EpisodeCard(
+                                episode = ep,
+                                meta = episodeMeta[ep.id],
+                                tmdbWins = metadataMode.tmdbWins,
+                                isCompleted = completedIds.contains(ep.id),
+                                isLastPlayed = ep.id == lastEpId,
+                                progress = episodeProgress[ep.id],
+                                seriesBackdrop = backdropUrl,
+                                seriesName = series.name,
+                                onClick = { 
+                                    scope.launch {
+                                        val pos = vm.savedPositionMs(ep)
+                                        if (pos > 0 && vm.resumeMode.value == SettingsRepository.ResumeMode.ASK) {
+                                            resumePrompt = ep to pos
+                                        } else {
+                                            vm.playEpisode(ep)
+                                            onFullscreen()
+                                        }
+                                    }
+                                },
+                                onLongClick = { contextEpisode = ep },
+                            )
+                        }
                     }
                 }
             }
@@ -693,6 +775,68 @@ private fun SeriesDetailsPage(
     }
 
     trailerKey?.let { key -> TrailerPlayerScreen(videoKey = key, onExit = { trailerKey = null }) }
+
+    if (showSortDialog) {
+        var localOrder by remember { mutableStateOf(seriesOrder) }
+        SeriesSortingDialog(
+            order = localOrder,
+            onOrderChange = { localOrder = it },
+            onApply = { vm.setSeriesOrder(localOrder.seasonsDescending, localOrder.episodesDescending); showSortDialog = false },
+            onDismiss = { showSortDialog = false }
+        )
+    }
+
+    LaunchedEffect(contextEpisode?.id) {
+        contextEpisodeSubs = contextEpisode?.let { runCatching { vm.downloadedSubtitles(it) }.getOrDefault(emptyList()) } ?: emptyList()
+    }
+
+    contextEpisode?.let { ep ->
+        val watched = completedIds.contains(ep.id)
+        EpisodeContextMenu(
+            title = ep.name.ifBlank { stringResource(R.string.content_episode_n, ep.episodeNumber) },
+            watched = watched,
+            onPlay = { 
+                scope.launch {
+                    val pos = vm.savedPositionMs(ep)
+                    vm.playEpisode(ep, pos)
+                    onFullscreen()
+                }
+                contextEpisode = null
+            },
+            onRestart = { vm.playEpisode(ep, 0); onFullscreen(); contextEpisode = null },
+            onToggleWatched = { if (watched) vm.markEpisodeUnwatched(ep) else vm.markEpisodeWatched(ep); contextEpisode = null },
+            onDownload = { vm.downloadEpisode(ep); contextEpisode = null },
+            onDeleteSubtitles = if (contextEpisodeSubs.isNotEmpty()) ({ showDeleteSubs = true }) else null,
+            onDismiss = { contextEpisode = null },
+        )
+    }
+
+    if (showDeleteSubs) {
+        val ep = contextEpisode
+        if (ep == null || contextEpisodeSubs.isEmpty()) { showDeleteSubs = false } else {
+            SubtitleDeletePopup(
+                contentTitle = ep.name.ifBlank { stringResource(R.string.content_episode_n, ep.episodeNumber) },
+                items = contextEpisodeSubs,
+                onDelete = { sub ->
+                    vm.deleteSubtitle(sub.cacheId)
+                    contextEpisodeSubs = contextEpisodeSubs.filterNot { it.cacheId == sub.cacheId }
+                    if (contextEpisodeSubs.isEmpty()) { showDeleteSubs = false; contextEpisode = null }
+                },
+                onDismiss = { showDeleteSubs = false },
+            )
+        }
+    }
+
+    resumePrompt?.let { (ep, pos) ->
+        ResumeDialog(
+            positionMs = pos,
+            onResume = { resumePrompt = null; vm.playEpisode(ep, pos); onFullscreen() },
+            onStartOver = { resumePrompt = null; vm.playEpisode(ep, 0); onFullscreen() },
+            onDismiss = { resumePrompt = null },
+        )
+    }
+
+    InAppToast(toast)
 }
 
 @Composable
@@ -895,6 +1039,176 @@ private fun cleanEpisodeTitle(raw: String, episodeNumber: Int, seriesName: Strin
 }
 
 @Composable
+private fun EpisodeGridCard(
+    episode: EpisodeEntity,
+    meta: tv.own.owntv.core.database.entity.MetadataCacheEntity?,
+    tmdbWins: Boolean,
+    isCompleted: Boolean,
+    isLastPlayed: Boolean,
+    progress: tv.own.owntv.core.database.entity.PlaybackProgressEntity?,
+    seriesBackdrop: String?,
+    seriesName: String,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    val colors = OwnTVTheme.colors
+    val stillUrl = if (tmdbWins) {
+        meta?.backdropPath?.let { tv.own.owntv.core.metadata.MetadataImages.backdrop(it) } ?: episode.stillUrl ?: seriesBackdrop
+    } else {
+        episode.stillUrl ?: meta?.backdropPath?.let { tv.own.owntv.core.metadata.MetadataImages.backdrop(it) } ?: seriesBackdrop
+    }
+
+    val title = if (tmdbWins) {
+        meta?.title?.takeIf { it.isNotBlank() } ?: cleanEpisodeTitle(episode.name, episode.episodeNumber, seriesName)
+    } else {
+        val cleaned = cleanEpisodeTitle(episode.name, episode.episodeNumber, seriesName)
+        if (cleaned.isNotBlank()) cleaned else meta?.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.content_episode_n, episode.episodeNumber)
+    }
+
+    FocusableSurface(
+        onClick = onClick, onLongClick = onLongClick, shape = RoundedCornerShape(12.dp), surface = GlassSurface.CARDS,
+        modifier = Modifier.fillMaxWidth()
+    ) { focused ->
+        Column(modifier = Modifier.fillMaxWidth().padding(10.dp)) {
+            // Still
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.surfaceContainerLowest),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!stillUrl.isNullOrBlank()) {
+                    AsyncImage(model = stillUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                } else {
+                    OwnTVIcon(OwnTVIcon.SERIES, tint = colors.onSurfaceVariant, modifier = Modifier.size(32.dp))
+                }
+                
+                if (isCompleted) {
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.45f)))
+                    Box(
+                        modifier = Modifier.align(Alignment.Center).size(32.dp).clip(RoundedCornerShape(50)).background(colors.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        OwnTVIcon(OwnTVIcon.WATCHED_CHECK, tint = colors.onPrimary, modifier = Modifier.size(20.dp))
+                    }
+                }
+                
+                if (progress != null && !isCompleted) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+                        ProgressBar(progress.positionMs.toFloat() / progress.durationMs, color = colors.primary, height = 3.dp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp))
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                title, style = MaterialTheme.typography.titleSmall,
+                color = if (focused || isLastPlayed) colors.primary else colors.onSurface,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+            
+            Text(
+                stringResource(R.string.content_season_episode, episode.seasonNumber, episode.episodeNumber),
+                style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeriesSortingDialog(
+    order: SeriesViewModel.SeriesOrder,
+    onOrderChange: (SeriesViewModel.SeriesOrder) -> Unit,
+    onApply: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = OwnTVTheme.colors
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BackHandler { onDismiss() }
+    
+    Box(modifier = Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(), contentAlignment = Alignment.Center) {
+        Column(modifier = Modifier.dialogPanel().width(320.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(R.string.content_sorting), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+            
+            Text(stringResource(R.string.content_season_order), style = MaterialTheme.typography.labelMedium, color = colors.primary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OwnTVButton(
+                    label = stringResource(R.string.content_ascending),
+                    onClick = { onOrderChange(order.copy(seasonsDescending = false)) },
+                    style = if (!order.seasonsDescending) OwnTVButtonStyle.PRIMARY else OwnTVButtonStyle.SECONDARY,
+                    modifier = Modifier.weight(1f).focusRequester(focus)
+                )
+                OwnTVButton(
+                    label = stringResource(R.string.content_descending),
+                    onClick = { onOrderChange(order.copy(seasonsDescending = true)) },
+                    style = if (order.seasonsDescending) OwnTVButtonStyle.PRIMARY else OwnTVButtonStyle.SECONDARY,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.content_episode_order), style = MaterialTheme.typography.labelMedium, color = colors.primary)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OwnTVButton(
+                    label = stringResource(R.string.content_ascending),
+                    onClick = { onOrderChange(order.copy(episodesDescending = false)) },
+                    style = if (!order.episodesDescending) OwnTVButtonStyle.PRIMARY else OwnTVButtonStyle.SECONDARY,
+                    modifier = Modifier.weight(1f)
+                )
+                OwnTVButton(
+                    label = stringResource(R.string.content_descending),
+                    onClick = { onOrderChange(order.copy(episodesDescending = true)) },
+                    style = if (order.episodesDescending) OwnTVButtonStyle.PRIMARY else OwnTVButtonStyle.SECONDARY,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OwnTVButton(stringResource(R.string.settings_apply), onClick = onApply, style = OwnTVButtonStyle.PRIMARY, modifier = Modifier.weight(1f))
+                OwnTVButton(stringResource(R.string.common_cancel), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun EpisodeContextMenu(
+    title: String, watched: Boolean, onPlay: () -> Unit, onRestart: () -> Unit,
+    onToggleWatched: () -> Unit, onDownload: () -> Unit,
+    onDeleteSubtitles: (() -> Unit)? = null, onDismiss: () -> Unit,
+) {
+    val colors = OwnTVTheme.colors
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BackHandler { onDismiss() }
+    Box(modifier = Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup().longPressMenuGuard(), contentAlignment = Alignment.Center) {
+        Column(modifier = Modifier.dialogPanel(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(4.dp))
+            OwnTVButton(
+                stringResource(R.string.content_play), onClick = onPlay, style = OwnTVButtonStyle.PRIMARY, icon = OwnTVIcon.PLAY, 
+                modifier = Modifier.fillMaxWidth().focusRequester(focus)
+            )
+            OwnTVButton(stringResource(R.string.common_start_over), onClick = onRestart, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth())
+            OwnTVButton(
+                if (watched) stringResource(R.string.content_mark_unwatched) else stringResource(R.string.content_mark_watched),
+                onClick = onToggleWatched, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth()
+            )
+            OwnTVButton(stringResource(R.string.content_download), onClick = onDownload, style = OwnTVButtonStyle.SECONDARY, icon = OwnTVIcon.DOWNLOADS, modifier = Modifier.fillMaxWidth())
+            onDeleteSubtitles?.let {
+                OwnTVButton(stringResource(R.string.content_delete_subtitles), onClick = it, style = OwnTVButtonStyle.SECONDARY, icon = OwnTVIcon.SUBTITLE, modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(4.dp))
+            OwnTVButton(stringResource(R.string.content_close), onClick = onDismiss, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+    @Composable
 private fun SeriesDetailsPane(
     series: SeriesEntity?, meta: tv.own.owntv.core.database.entity.MetadataCacheEntity?,
     tmdbWins: Boolean, isFavorite: Boolean, onOpen: () -> Unit, onToggleFavorite: () -> Unit,
