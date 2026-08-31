@@ -185,6 +185,8 @@ fun HomeScreen(
         HomeRow.entries.associateWith { FocusRequester() }
     }
     
+    var youtubeFailed by remember { mutableStateOf(false) }
+    
     // Expanded card state. Shared across HERO and trailer rows so only one expands at once.
     var expandedRow by remember { mutableStateOf<HomeRow?>(null) }
     var expandedIndex by remember { mutableStateOf(-1) }
@@ -438,6 +440,8 @@ fun HomeScreen(
                             expandedIndex = if (expandedRow == HomeRow.HERO) expandedIndex else -1,
                             heroPreviewEngine = heroPreviewEngine,
                             engineState = engineState,
+                            youtubeFailed = youtubeFailed,
+                            onYoutubeFailed = { youtubeFailed = true },
                             heroFocusRequester = firstItemFocusRequester ?: heroFocus,
                             heroMetadata = state.heroMetadata,
                             onHeroFocusChanged = { i, hasFocus ->
@@ -484,6 +488,8 @@ fun HomeScreen(
                         expandedIndex = if (expandedRow == HomeRow.TOP_RATED_MOVIES) expandedIndex else -1,
                         heroPreviewEngine = heroPreviewEngine,
                         engineState = engineState,
+                        youtubeFailed = youtubeFailed,
+                        onYoutubeFailed = { youtubeFailed = true },
                         trailerItem = if (expandedRow == HomeRow.TOP_RATED_MOVIES) activeTrailerItem else null,
                         showRank = true,
                         onItemClick = { onOpenMovie(it as MovieEntity) },
@@ -516,6 +522,8 @@ fun HomeScreen(
                         expandedIndex = if (expandedRow == HomeRow.TOP_RATED_SERIES) expandedIndex else -1,
                         heroPreviewEngine = heroPreviewEngine,
                         engineState = engineState,
+                        youtubeFailed = youtubeFailed,
+                        onYoutubeFailed = { youtubeFailed = true },
                         trailerItem = if (expandedRow == HomeRow.TOP_RATED_SERIES) activeTrailerItem else null,
                         showRank = true,
                         onItemClick = { onOpenSeries(it as SeriesEntity) },
@@ -548,6 +556,8 @@ fun HomeScreen(
                         expandedIndex = if (expandedRow == HomeRow.RECENT_MOVIES) expandedIndex else -1,
                         heroPreviewEngine = heroPreviewEngine,
                         engineState = engineState,
+                        youtubeFailed = youtubeFailed,
+                        onYoutubeFailed = { youtubeFailed = true },
                         trailerItem = if (expandedRow == HomeRow.RECENT_MOVIES) activeTrailerItem else null,
                         onItemClick = { onOpenMovie(it as MovieEntity) },
                         onFocusChanged = { i, hasFocus ->
@@ -579,6 +589,8 @@ fun HomeScreen(
                         expandedIndex = if (expandedRow == HomeRow.RECENT_SERIES) expandedIndex else -1,
                         heroPreviewEngine = heroPreviewEngine,
                         engineState = engineState,
+                        youtubeFailed = youtubeFailed,
+                        onYoutubeFailed = { youtubeFailed = true },
                         trailerItem = if (expandedRow == HomeRow.RECENT_SERIES) activeTrailerItem else null,
                         onItemClick = { onOpenSeries(it as SeriesEntity) },
                         onFocusChanged = { i, hasFocus ->
@@ -1247,6 +1259,8 @@ private fun HeroRowSection(
     expandedIndex: Int,
     heroPreviewEngine: HeroPreviewEngine,
     engineState: HeroPreviewEngine.State,
+    youtubeFailed: Boolean,
+    onYoutubeFailed: () -> Unit,
     heroFocusRequester: FocusRequester,
     heroMetadata: Map<String, HomeHeroMetadata>,
     onHeroFocusChanged: (index: Int, hasFocus: Boolean) -> Unit,
@@ -1582,6 +1596,8 @@ private fun HeroRowSection(
                             HeroPreviewSurface(
                                 item = expandedItem,
                                 engine = heroPreviewEngine,
+                                youtubeFailed = youtubeFailed,
+                                onYoutubeFailed = onYoutubeFailed,
                                 modifier = Modifier.fillMaxSize(),
                             )
                             if (engineState != HeroPreviewEngine.State.PLAYING) {
@@ -1827,28 +1843,24 @@ private fun relativeLastWatchedLabel(lastEngagementAt: Long, nowMs: Long): Strin
 private fun HeroPreviewSurface(
     item: HeroItem?,
     engine: HeroPreviewEngine,
+    youtubeFailed: Boolean,
+    onYoutubeFailed: () -> Unit,
     onStateChanged: (HeroPreviewEngine.State) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (item is HeroItem.TrailerHero && !item.youtubeVideoId.isNullOrBlank()) {
+        if (youtubeFailed) return
+
         val settings = koinInject<SettingsRepository>()
         val previewAudioEnabled by settings.livePreviewAudio.collectAsStateWithLifecycle(initialValue = true)
         val videoKey = item.youtubeVideoId
         val lifecycleOwner = LocalLifecycleOwner.current
-        
-        var youtubePlayer by remember { mutableStateOf<YouTubePlayer?>(null) }
+        val context = LocalContext.current
 
-        // Initial load and video key updates.
-        LaunchedEffect(videoKey, youtubePlayer) {
-            val p = youtubePlayer ?: return@LaunchedEffect
-            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube loadVideo: $videoKey")
-            p.loadVideo(videoKey, 0f)
-        }
-        
-        AndroidView(
-            modifier = modifier,
-            factory = { ctx ->
-                YouTubePlayerView(ctx).apply {
+        var youtubePlayer by remember { mutableStateOf<YouTubePlayer?>(null) }
+        val playerView = remember {
+            runCatching {
+                YouTubePlayerView(context).apply {
                     enableAutomaticInitialization = false
                     layoutParams = android.view.ViewGroup.LayoutParams(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1856,39 +1868,68 @@ private fun HeroPreviewSurface(
                     )
                     isFocusable = false
                     descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                    
-                    val listener = object : AbstractYouTubePlayerListener() {
-                        override fun onReady(youTubePlayer: YouTubePlayer) {
-                            youtubePlayer = youTubePlayer
-                            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube player ready")
-                            if (previewAudioEnabled) youTubePlayer.unMute() else youTubePlayer.mute()
-                        }
-
-                        override fun onStateChange(youTubePlayer: YouTubePlayer, state: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState) {
-                            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube state change: $state")
-                            when (state) {
-                                com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.PLAYING -> onStateChanged(HeroPreviewEngine.State.PLAYING)
-                                com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.BUFFERING -> onStateChanged(HeroPreviewEngine.State.LOADING)
-                                com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.ENDED -> onStateChanged(HeroPreviewEngine.State.IDLE)
-                                else -> Unit
-                            }
-                        }
-
-                        override fun onError(youTubePlayer: YouTubePlayer, error: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerError) {
-                            if (BuildConfig.DEBUG) Log.e("HomePreview", "YouTube player error: $error")
-                            onStateChanged(HeroPreviewEngine.State.ERROR)
-                        }
-                    }
-                    initialize(listener)
-                    lifecycleOwner.lifecycle.addObserver(this)
                 }
-            },
+            }.onFailure {
+                if (BuildConfig.DEBUG) Log.e("HomePreview", "Failed to construct YouTubePlayerView", it)
+                onYoutubeFailed()
+            }.getOrNull()
+        }
+
+        if (playerView == null) return
+
+        // Initial load and video key updates.
+        LaunchedEffect(videoKey, youtubePlayer) {
+            val p = youtubePlayer ?: return@LaunchedEffect
+            if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube loadVideo: $videoKey")
+            p.loadVideo(videoKey, 0f)
+        }
+
+        DisposableEffect(playerView) {
+            val listener = object : AbstractYouTubePlayerListener() {
+                override fun onReady(youTubePlayer: YouTubePlayer) {
+                    youtubePlayer = youTubePlayer
+                    if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube player ready")
+                    if (previewAudioEnabled) youTubePlayer.unMute() else youTubePlayer.mute()
+                }
+
+                override fun onStateChange(youTubePlayer: YouTubePlayer, state: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState) {
+                    if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube state change: $state")
+                    when (state) {
+                        com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.PLAYING -> onStateChanged(HeroPreviewEngine.State.PLAYING)
+                        com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.BUFFERING -> onStateChanged(HeroPreviewEngine.State.LOADING)
+                        com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState.ENDED -> onStateChanged(HeroPreviewEngine.State.IDLE)
+                        else -> Unit
+                    }
+                }
+
+                override fun onError(youTubePlayer: YouTubePlayer, error: com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerError) {
+                    if (BuildConfig.DEBUG) Log.e("HomePreview", "YouTube player error: $error")
+                    onStateChanged(HeroPreviewEngine.State.ERROR)
+                    // Optional: could trigger onYoutubeFailed() here if we want to give up on trailers entirely after any error
+                }
+            }
+            runCatching {
+                playerView.initialize(listener)
+                lifecycleOwner.lifecycle.addObserver(playerView)
+            }.onFailure {
+                if (BuildConfig.DEBUG) Log.e("HomePreview", "Failed to initialize YouTubePlayerView", it)
+                onYoutubeFailed()
+            }
+
+            onDispose {
+                youtubePlayer = null
+                runCatching {
+                    lifecycleOwner.lifecycle.removeObserver(playerView)
+                    playerView.release()
+                }
+            }
+        }
+        
+        AndroidView(
+            modifier = modifier,
+            factory = { playerView },
             update = { _ ->
                 if (previewAudioEnabled) youtubePlayer?.unMute() else youtubePlayer?.mute()
-            },
-            onRelease = { view ->
-                if (BuildConfig.DEBUG) Log.d("HomePreview", "YouTube player release")
-                view.release()
             }
         )
     } else {
@@ -1916,6 +1957,8 @@ private fun ExpandableRowSection(
     expandedIndex: Int,
     heroPreviewEngine: HeroPreviewEngine,
     engineState: HeroPreviewEngine.State,
+    youtubeFailed: Boolean,
+    onYoutubeFailed: () -> Unit,
     trailerItem: HeroItem.TrailerHero?,
     onItemClick: (Any) -> Unit,
     onFocusChanged: (index: Int, hasFocus: Boolean) -> Unit,
@@ -2066,6 +2109,8 @@ private fun ExpandableRowSection(
                         HeroPreviewSurface(
                             item = trailerItem,
                             engine = heroPreviewEngine,
+                            youtubeFailed = youtubeFailed,
+                            onYoutubeFailed = onYoutubeFailed,
                             onStateChanged = { youtubeState = it },
                             modifier = Modifier.fillMaxSize(),
                         )

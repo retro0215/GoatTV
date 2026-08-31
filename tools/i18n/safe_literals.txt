@@ -2845,11 +2845,12 @@
 2	preference-key	app/src/main/java/tv/own/owntv/features/home/HomeRow.kt	recentLiveMode
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	#${activeIndex + 1}
 2	locale	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	EN
-5	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	HomePreview
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	Failed to construct YouTubePlayerView
+1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	Failed to initialize YouTubePlayerView
+6	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	HomePreview
 1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube loadVideo: $videoKey
 1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube player error: $error
 1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube player ready
-1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube player release
 1	log	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	YouTube state change: $state
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	episode:${episode.id}
 1	technical	app/src/main/java/tv/own/owntv/features/home/HomeScreen.kt	expandableCardWidth
