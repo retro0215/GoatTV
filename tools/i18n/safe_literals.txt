@@ -457,7 +457,7 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/BulkInsertHelper.kt	movies_fts
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/BulkInsertHelper.kt	room_fts_content_sync_${it}_AFTER_INSERT
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/BulkInsertHelper.kt	series_fts
-13	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	)
+16	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	?
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	ALTER TABLE `$table` ADD COLUMN `advertisedCapabilities` TEXT
@@ -513,10 +513,10 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_content_order_profileId_mediaType_contextKey` ON `content_order` (`profileId`, `mediaType`, `contextKey`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_content_order_profileId` ON `content_order` (`profileId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_channels_sourceId` ON `epg_channels` (`sourceId`)
-2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_epgChannelId_startMs` ON `epg_programmes` (`epgChannelId`, `startMs`)
-3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_sourceId_epgChannelId` ON `epg_programmes` (`sourceId`, `epgChannelId`)
-2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_sourceId` ON `epg_programmes` (`sourceId`)
-2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_stopMs` ON `epg_programmes` (`stopMs`)
+3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_epgChannelId_startMs` ON `epg_programmes` (`epgChannelId`, `startMs`)
+4	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_sourceId_epgChannelId` ON `epg_programmes` (`sourceId`, `epgChannelId`)
+3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_sourceId` ON `epg_programmes` (`sourceId`)
+3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_epg_programmes_stopMs` ON `epg_programmes` (`stopMs`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_metadata_cache_tmdbId` ON `metadata_cache` (`tmdbId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_metadata_cache_updatedAt` ON `metadata_cache` (`updatedAt`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_metadata_match_updatedAt` ON `metadata_match` (`updatedAt`)
@@ -558,6 +558,7 @@
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE INDEX IF NOT EXISTS `index_tv_provider_programs_profileId` ON `tv_provider_programs` (`profileId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `content_order` (
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `epg_channels` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `epgChannelId` TEXT NOT NULL, `displayName` TEXT)
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `epg_programmes` (
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `epg_programmes` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `epgChannelId` TEXT NOT NULL, `startMs` INTEGER NOT NULL, `stopMs` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `metadata_cache` (
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE TABLE IF NOT EXISTS `metadata_match` (
@@ -573,6 +574,7 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_content_order_profileId_mediaType_contextKey_itemId` ON `content_order` (`profileId`, `mediaType`, `contextKey`, `itemId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_epg_channels_sourceId_epgChannelId` ON `epg_channels` (`sourceId`, `epgChannelId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_epg_programmes_natural_key`
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_epg_programmes_natural_key` ON `epg_programmes` (`sourceId`, `epgChannelId`, `startMs`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_movies_sourceId_remoteId` ON `movies` (`sourceId`, `remoteId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_series_sort_order_profileId_seriesId` ON `series_sort_order` (`profileId`, `seriesId`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE UNIQUE INDEX IF NOT EXISTS `index_series_sourceId_remoteId` ON `series` (`sourceId`, `remoteId`)
@@ -584,7 +586,7 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	CREATE VIRTUAL TABLE IF NOT EXISTS `series_fts` USING FTS4(`name` TEXT NOT NULL, content=`series`)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	DELETE FROM `epg_programmes`
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	DROP TABLE IF EXISTS `epg_channels`
-1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	DROP TABLE IF EXISTS `epg_programmes`
+3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	DROP TABLE IF EXISTS `epg_programmes`
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	FOREIGN KEY(`cacheId`) REFERENCES `subtitle_cache`(`id`) ON DELETE CASCADE
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	FOREIGN KEY(`cacheId`) REFERENCES `subtitle_cache`(`id`) ON DELETE SET NULL
 6	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	FOREIGN KEY(`profileId`) REFERENCES `profiles`(`id`) ON DELETE CASCADE
@@ -622,10 +624,13 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`canonicalTitle` TEXT NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`castJson` TEXT,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`confidence` REAL NOT NULL,
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`contentHash` INTEGER NOT NULL DEFAULT 0
 4	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`contentKey` TEXT NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`contentTitle` TEXT NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`contextKey` TEXT NOT NULL,
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`description` TEXT,
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`durationMs` INTEGER NOT NULL,
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`epgChannelId` TEXT NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`episodesDescending` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`fileName` TEXT NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`format` TEXT,
@@ -633,7 +638,7 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`genresJson` TEXT,
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`groupId` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`hearingImpaired` INTEGER NOT NULL DEFAULT 0,
-5	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+8	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`imdbId` TEXT,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`itemCount` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`itemId` INTEGER NOT NULL,
@@ -667,13 +672,15 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`releaseName` TEXT,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`seasonsDescending` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`seriesId` INTEGER NOT NULL,
-2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`sourceId` INTEGER NOT NULL,
+5	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`sourceId` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`source` TEXT NOT NULL,
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`startMs` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`status` TEXT NOT NULL,
+2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`stopMs` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`subtitleKey` TEXT NOT NULL,
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`surface` TEXT NOT NULL,
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`targetItemId` INTEGER NOT NULL,
-1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`title` TEXT NOT NULL,
+3	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`title` TEXT NOT NULL,
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`tmdbId` INTEGER NOT NULL,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`tmdbId` INTEGER,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/OwnTVDatabase.kt	`trailerKey` TEXT,

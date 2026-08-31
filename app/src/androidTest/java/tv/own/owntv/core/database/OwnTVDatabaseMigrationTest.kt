@@ -490,6 +490,66 @@ class OwnTVDatabaseMigrationTest {
         }
     }
 
+    /**
+     * (missing DEFAULT 0 on contentHash) and is fixed by MIGRATION_36_37.
+     */
+    @Test
+    fun verifyVersion35To37MigrationFix() {
+        context.deleteDatabase(DB_NAME)
+        val db35 = context.openOrCreateDatabase(DB_NAME, Context.MODE_PRIVATE, null)
+        try {
+            executeSchemaQueries(db35, "tv.own.owntv.core.database.OwnTVDatabase/35.json")
+            // Manually break the schema by recreating the table without the default value.
+            db35.execSQL("DROP TABLE epg_programmes")
+            db35.execSQL(
+                "CREATE TABLE `epg_programmes` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`sourceId` INTEGER NOT NULL, " +
+                    "`epgChannelId` TEXT NOT NULL, " +
+                    "`startMs` INTEGER NOT NULL, " +
+                    "`stopMs` INTEGER NOT NULL, " +
+                    "`title` TEXT NOT NULL, " +
+                    "`description` TEXT, " +
+                    "`contentHash` INTEGER NOT NULL" + // MISSING DEFAULT 0
+                    ")",
+            )
+            // Re-add indices that Room expects for version 35.
+            db35.execSQL("CREATE INDEX `index_epg_programmes_epgChannelId_startMs` ON `epg_programmes` (`epgChannelId`, `startMs`)")
+            db35.execSQL("CREATE INDEX `index_epg_programmes_sourceId` ON `epg_programmes` (`sourceId`)")
+            db35.execSQL("CREATE INDEX `index_epg_programmes_stopMs` ON `epg_programmes` (`stopMs`)")
+            db35.execSQL("CREATE INDEX `index_epg_programmes_sourceId_epgChannelId` ON `epg_programmes` (`sourceId`, `epgChannelId`)")
+            db35.execSQL("CREATE UNIQUE INDEX `index_epg_programmes_natural_key` ON `epg_programmes` (`sourceId`, `epgChannelId`, `startMs`)")
+
+            db35.version = 35
+        } finally {
+            db35.close()
+        }
+
+        // Attempting to open at version 37 will run MIGRATION_35_36 and MIGRATION_36_37.
+        // MIGRATION_36_37 recreates epg_programmes correctly.
+        val db = openWithAllMigrations()
+        try {
+            val sqlite = db.openHelper.writableDatabase
+            assertEquals(37, sqlite.version)
+            assertColumnExists(sqlite, "epg_programmes", "contentHash")
+            // Verify default value is restored.
+            sqlite.query("PRAGMA table_info(`epg_programmes`)").use { cursor ->
+                val nameIdx = cursor.getColumnIndex("name")
+                val dfltIdx = cursor.getColumnIndex("dflt_value")
+                var found = false
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIdx) == "contentHash") {
+                        assertEquals("0", cursor.getString(dfltIdx))
+                        found = true
+                    }
+                }
+                assert(found) { "contentHash column missing after migration" }
+            }
+        } finally {
+            db.close()
+        }
+    }
+
     private fun indexNameOf(createSql: String) =
         createSql.substringAfter("IF NOT EXISTS `").substringBefore('`')
 
@@ -543,6 +603,7 @@ class OwnTVDatabaseMigrationTest {
             OwnTVDatabase.MIGRATION_33_34,
             OwnTVDatabase.MIGRATION_34_35,
             OwnTVDatabase.MIGRATION_35_36,
+            OwnTVDatabase.MIGRATION_36_37,
         )
         .allowMainThreadQueries()
         .build()
@@ -769,7 +830,7 @@ class OwnTVDatabaseMigrationTest {
         private const val DB_NAME = "owntv-migration-test.db"
 
         /** Must match `@Database(version = …)` on [OwnTVDatabase]. */
-        private const val CURRENT_VERSION = 36
+        private const val CURRENT_VERSION = 37
 
         /**
          * Every version with an exported schema that a real database can be sitting at.
