@@ -38,6 +38,7 @@ jobs:
     env:
       PUSHWOOSH_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_DEVICE_API_TOKEN }}
       PUSHWOOSH_GOAT_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_GOAT_DEVICE_API_TOKEN }}
+      PUSHWOOSH_5STAR_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_5STAR_DEVICE_API_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,6 +59,7 @@ jobs:
         env:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
           ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
+          FIVESTAR_JSON_B64: ${{ secrets.FIVESTAR_GOOGLE_SERVICES_JSON }}
         run: |
           if [ -n "$GOAT_JSON_B64" ]; then
             for ABI in standard x86_64; do
@@ -70,6 +72,13 @@ jobs:
             for ABI in standard x86_64; do
               mkdir -p "app/src/$ABI/allaccess"
               echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/$ABI/allaccess/google-services.json"
+            done
+          fi
+
+          if [ -n "$FIVESTAR_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/fivestar"
+              echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/$ABI/fivestar/google-services.json"
             done
           fi
 
@@ -104,6 +113,7 @@ jobs:
     env:
       PUSHWOOSH_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_DEVICE_API_TOKEN }}
       PUSHWOOSH_GOAT_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_GOAT_DEVICE_API_TOKEN }}
+      PUSHWOOSH_5STAR_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_5STAR_DEVICE_API_TOKEN }}
 
       # Set at runtime via $GITHUB_ENV in the "Name the APK" step. Declared here (empty) so static
       # linters don't flag the later ${{ env.APK_OUT }} references as "context access might be invalid".
@@ -128,6 +138,7 @@ jobs:
         env:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
           ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
+          FIVESTAR_JSON_B64: ${{ secrets.FIVESTAR_GOOGLE_SERVICES_JSON }}
         run: |
           if [ -n "$GOAT_JSON_B64" ]; then
             for ABI in standard x86_64; do
@@ -140,6 +151,13 @@ jobs:
             for ABI in standard x86_64; do
               mkdir -p "app/src/$ABI/allaccess"
               echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/$ABI/allaccess/google-services.json"
+            done
+          fi
+
+          if [ -n "$FIVESTAR_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/fivestar"
+              echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/$ABI/fivestar/google-services.json"
             done
           fi
 
