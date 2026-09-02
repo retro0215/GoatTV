@@ -54,6 +54,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Reconstruct Google Services JSON
+        env:
+          GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
+          ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOAT_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/goat"
+              echo "$GOAT_JSON_B64" | base64 -d > "app/src/$ABI/goat/google-services.json"
+            done
+          fi
+
+          if [ -n "$ALLACCESS_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/allaccess"
+              echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/$ABI/allaccess/google-services.json"
+            done
+          fi
+
       # One variant, not `test`/`lint` across every flavor: standard+debug is the variant the JVM
       # tests are written against, and the ABI flavors differ only in the packaged native libs.
       - name: Unit tests
@@ -104,6 +123,26 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Reconstruct Google Services JSON
+        env:
+          GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
+          ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOAT_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/goat"
+              echo "$GOAT_JSON_B64" | base64 -d > "app/src/$ABI/goat/google-services.json"
+            done
+          fi
+
+          if [ -n "$ALLACCESS_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/allaccess"
+              echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/$ABI/allaccess/google-services.json"
+            done
+          fi
+
       - name: Compute version (from the git tag on releases)
         id: ver
         shell: bash
