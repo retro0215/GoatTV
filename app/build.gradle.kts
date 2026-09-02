@@ -22,8 +22,12 @@ val localProperties = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.isFile) f.inputStream().use { load(it) }
 }
-val pushwooshToken = localProperties.getProperty("PUSHWOOSH_DEVICE_API_TOKEN") ?: ""
-val goatPushwooshToken = localProperties.getProperty("PUSHWOOSH_GOAT_DEVICE_API_TOKEN") ?: ""
+val pushwooshToken = providers.environmentVariable("PUSHWOOSH_DEVICE_API_TOKEN").orNull
+    ?: localProperties.getProperty("PUSHWOOSH_DEVICE_API_TOKEN")
+    ?: ""
+val goatPushwooshToken = providers.environmentVariable("PUSHWOOSH_GOAT_DEVICE_API_TOKEN").orNull
+    ?: localProperties.getProperty("PUSHWOOSH_GOAT_DEVICE_API_TOKEN")
+    ?: ""
 
 /** Fail builds if a required Device API Token is missing from local.properties. */
 abstract class VerifyPushwooshToken : DefaultTask() {
@@ -38,9 +42,10 @@ abstract class VerifyPushwooshToken : DefaultTask() {
         if (token.get().isBlank()) {
             val key = if (brand.get().lowercase() == "allaccess") "PUSHWOOSH_DEVICE_API_TOKEN"                      else "PUSHWOOSH_${brand.get().uppercase()}_DEVICE_API_TOKEN"
             throw GradleException(
-                "\n\n  ERROR: $key is missing or blank in local.properties.\n" +
+                "\n\n  ERROR: $key is missing or blank.\n" +
                 "  This is required for ${brand.get()} builds to avoid 401 Unauthorized errors.\n" +
-                "  Add $key=<token> to local.properties and retry.\n"
+                "  - LOCAL: Add $key=<token> to local.properties\n" +
+                "  - CI: Set $key environment variable or GitHub Secret\n"
             )
         }
     }
