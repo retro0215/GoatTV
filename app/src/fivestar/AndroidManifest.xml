@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Pushwoosh configuration for 5Star Ultra -->
+        <meta-data android:name="com.pushwoosh.appid" android:value="60105-2EE07" />
+        <meta-data android:name="com.pushwoosh.senderid" android:value="1079894272618" />
+
+        <!-- Authorized Device API Token for 5Star Ultra -->
+        <meta-data android:name="com.pushwoosh.apitoken" android:value="${pushwooshDeviceApiToken}" />
+
+        <!-- Force High importance (4) to enable heads-up banners on Android TV -->
+        <meta-data
+            android:name="com.pushwoosh.notification_channel_importance"
+            android:value="4" />
+
+        <!-- Custom Notification Factory to migrate to a new channel ID for HIGH importance -->
+        <meta-data
+            android:name="com.pushwoosh.notification_factory"
+            android:value="tv.own.owntv.core.notifications.FivestarNotificationFactory" />
+
+        <!-- Notification Channel Name for the new channel -->
+        <meta-data
+            android:name="com.pushwoosh.notification_channel_name"
+            android:value="5Star Notifications" />
+
+    </application>
+</manifest>

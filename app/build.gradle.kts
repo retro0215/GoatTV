@@ -28,6 +28,9 @@ val pushwooshToken = providers.environmentVariable("PUSHWOOSH_DEVICE_API_TOKEN")
 val goatPushwooshToken = providers.environmentVariable("PUSHWOOSH_GOAT_DEVICE_API_TOKEN").orNull
     ?: localProperties.getProperty("PUSHWOOSH_GOAT_DEVICE_API_TOKEN")
     ?: ""
+val fivestarPushwooshToken = providers.environmentVariable("PUSHWOOSH_5STAR_DEVICE_API_TOKEN").orNull
+    ?: localProperties.getProperty("PUSHWOOSH_5STAR_DEVICE_API_TOKEN")
+    ?: ""
 
 /** Fail builds if a required Device API Token is missing from local.properties. */
 abstract class VerifyPushwooshToken : DefaultTask() {
@@ -40,7 +43,12 @@ abstract class VerifyPushwooshToken : DefaultTask() {
     @TaskAction
     fun verify() {
         if (token.get().isBlank()) {
-            val key = if (brand.get().lowercase() == "allaccess") "PUSHWOOSH_DEVICE_API_TOKEN"                      else "PUSHWOOSH_${brand.get().uppercase()}_DEVICE_API_TOKEN"
+            val key = when (brand.get().lowercase()) {
+                "allaccess" -> "PUSHWOOSH_DEVICE_API_TOKEN"
+                "goat" -> "PUSHWOOSH_GOAT_DEVICE_API_TOKEN"
+                "fivestar" -> "PUSHWOOSH_5STAR_DEVICE_API_TOKEN"
+                else -> "PUSHWOOSH_${brand.get().uppercase()}_DEVICE_API_TOKEN"
+            }
             throw GradleException(
                 "\n\n  ERROR: $key is missing or blank.\n" +
                 "  This is required for ${brand.get()} builds to avoid 401 Unauthorized errors.\n" +
@@ -201,7 +209,11 @@ android {
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"5Star Ultra\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"5Star-Ultra\"")
+            buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
+            buildConfigField("String", "PUSHWOOSH_APP_ID", "\"60105-2EE07\"")
+            buildConfigField("String", "FCM_SENDER_ID", "\"1079894272618\"")
             signingConfig = signingConfigs.findByName("fivestar")
+            manifestPlaceholders["pushwooshDeviceApiToken"] = fivestarPushwooshToken
         }
         create("allaccess") {
             dimension = "brand"
@@ -335,7 +347,7 @@ androidComponents {
     // Disable google-services tasks for variants without Pushwoosh to prevent "missing JSON" errors.
     onVariants { variant ->
         val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
-        val isPushEnabled = brand == "allaccess" || brand == "goat"
+        val isPushEnabled = brand == "allaccess" || brand == "goat" || brand == "fivestar"
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
 
         if (!isPushEnabled) {
@@ -344,7 +356,12 @@ androidComponents {
             }
         } else {
             // Fail builds if the required Device API Token is missing from local.properties.
-            val token = if (brand == "allaccess") pushwooshToken else goatPushwooshToken
+            val token = when (brand) {
+                "allaccess" -> pushwooshToken
+                "goat" -> goatPushwooshToken
+                "fivestar" -> fivestarPushwooshToken
+                else -> ""
+            }
             val verifyTask = tasks.register<VerifyPushwooshToken>("verifyPushwooshTokenFor$variantName") {
                 this.token.set(token)
                 this.brand.set(brand)
@@ -543,6 +560,11 @@ dependencies {
     "allaccessImplementation"("com.google.firebase:firebase-messaging")
     "allaccessImplementation"("com.pushwoosh:pushwoosh:6.11.1")
     "allaccessImplementation"("com.pushwoosh:pushwoosh-firebase:6.11.1")
+
+    "fivestarImplementation"(platform("com.google.firebase:firebase-bom:33.2.0"))
+    "fivestarImplementation"("com.google.firebase:firebase-messaging")
+    "fivestarImplementation"("com.pushwoosh:pushwoosh:6.11.1")
+    "fivestarImplementation"("com.pushwoosh:pushwoosh-firebase:6.11.1")
 
     "goatImplementation"(platform("com.google.firebase:firebase-bom:33.2.0"))
     "goatImplementation"("com.google.firebase:firebase-messaging")
