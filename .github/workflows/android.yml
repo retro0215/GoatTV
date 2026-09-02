@@ -167,6 +167,9 @@ jobs:
           ALLACCESS_KEYSTORE_PASSWORD: ${{ secrets.ALLACCESS_KEYSTORE_PASSWORD }}
           ALLACCESS_KEY_ALIAS: ${{ secrets.ALLACCESS_KEY_ALIAS }}
           ALLACCESS_KEY_PASSWORD: ${{ secrets.ALLACCESS_KEY_PASSWORD }}
+          # Pushwoosh Device API Tokens
+          PUSHWOOSH_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_DEVICE_API_TOKEN }}
+          PUSHWOOSH_GOAT_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_GOAT_DEVICE_API_TOKEN }}
           # Shared secret for the default metadata Worker's edge rule. Forks have no secret and
           # resolve "" — the app then falls back to the unprotected workers.dev base URL.
           OWNTV_EDGE_KEY: ${{ secrets.OWNTV_EDGE_KEY }}
