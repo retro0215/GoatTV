@@ -1601,9 +1601,14 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         LiveBuffer.effectiveSeconds(LiveLatency.fromName(mode), custom)
     }
 
+    private val defaultAccent: AccentColor =
+        runCatching {
+            AccentColor.valueOf(tv.own.owntv.BuildConfig.DEFAULT_ACCENT)
+        }.getOrDefault(AccentColor.TEAL)
+
     val accent: Flow<AccentColor> = prefsFlow { prefs ->
         prefs[Keys.ACCENT]?.let { runCatching { AccentColor.valueOf(it) }.getOrNull() }
-            ?: AccentColor.TEAL
+            ?: defaultAccent
     }
 
     /** Picking a preset clears any custom accent so the preset takes effect. */

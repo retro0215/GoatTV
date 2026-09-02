@@ -137,6 +137,7 @@ android {
         buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
         buildConfigField("String", "PUSHWOOSH_APP_ID", "\"\"")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
+        buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -241,6 +242,7 @@ android {
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"C0AC0-30F51\"")
             buildConfigField("String", "FCM_SENDER_ID", "\"349697010982\"")
+            buildConfigField("String", "DEFAULT_ACCENT", "\"RED\"")
             signingConfig = signingConfigs.findByName("supreme")
             manifestPlaceholders["pushwooshDeviceApiToken"] = supremePushwooshToken
         }
