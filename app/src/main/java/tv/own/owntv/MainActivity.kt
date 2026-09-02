@@ -47,6 +47,7 @@ import tv.own.owntv.features.profiles.ProfilesViewModel
 import tv.own.owntv.features.setup.Onboarding
 import tv.own.owntv.features.shell.OwnTVShell
 import tv.own.owntv.features.shell.ShellViewModel
+import tv.own.owntv.ui.components.BrandBanner
 import tv.own.owntv.ui.theme.BlurredBackdrop
 import tv.own.owntv.ui.theme.BackdropLuminanceMap
 import tv.own.owntv.ui.theme.GlassConfig
@@ -378,6 +379,10 @@ class MainActivity : ComponentActivity() {
                         // Background image sits behind everything when a path is set; otherwise the solid
                         // base color shows through and glass renders over that instead.
                         if (bgImagePath.isNotBlank()) BackgroundLayer(bgImagePath)
+
+                        BrandBanner(onNavigate = { url ->
+                            pendingDeepLink = tv.own.owntv.core.launcher.LauncherDeepLink.parse(android.net.Uri.parse(url))
+                        })
 
                         Box(modifier = Modifier.fillMaxSize()) {
                         val profile = activeProfileId

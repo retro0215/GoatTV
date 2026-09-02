@@ -22,6 +22,7 @@ import tv.own.owntv.di.appModule
 import tv.own.owntv.di.databaseModule
 import tv.own.owntv.di.dataModule
 import tv.own.owntv.di.playerModule
+import tv.own.owntv.core.notifications.PushNotifications
 
 class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Configuration.Provider {
 
@@ -74,6 +75,10 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
     override fun onCreate() {
         Perf.begin() // zero-point for the OwnTVPerf startup timeline (adb logcat -s OwnTVPerf)
         super.onCreate()
+
+        // Pushwoosh initialization (flavor-isolated via source sets)
+        PushNotifications.init(this)
+
         startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.ERROR else Level.NONE)
             androidContext(this@OwnTVApp)

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Pushwoosh configuration for AllAccess -->
+        <meta-data android:name="com.pushwoosh.appid" android:value="2E521-83F80" />
+        <meta-data android:name="com.pushwoosh.senderid" android:value="224309092606" />
+
+        <!-- Authorized Device API Token for goattv.net / 2E521-83F80 -->
+        <meta-data android:name="com.pushwoosh.apitoken" android:value="${pushwooshDeviceApiToken}" />
+
+        <!-- Force High importance (4) to enable heads-up banners on Android TV -->
+        <meta-data
+            android:name="com.pushwoosh.notification_channel_importance"
+            android:value="4" />
+
+        <!-- Custom Notification Factory to migrate to a new channel ID for HIGH importance -->
+        <meta-data
+            android:name="com.pushwoosh.notification_factory"
+            android:value="tv.own.owntv.core.notifications.AllAccessNotificationFactory" />
+
+        <!-- Notification Channel Name for the new channel -->
+        <meta-data
+            android:name="com.pushwoosh.notification_channel_name"
+            android:value="AllAccess Notifications" />
+
+        <!-- Pushwoosh 6.x registration handling -->
+        <activity
+            android:name="com.pushwoosh.internal.utils.NotificationRegistrarActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+    </application>
+</manifest>

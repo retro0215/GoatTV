@@ -9,6 +9,20 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## allaccess-v1.4.0 — 2026-09-01
+
+### ✨ New features
+
+- **📣 Messaging & Announcement system — see important updates inside the app**
+- **🔔 Improved notification support and reliability**
+
+## v4.3.0 — 2026-09-01
+
+### ✨ New features
+
+- **📣 Messaging & Announcement system — see important updates inside the app**
+- **🔔 Improved notification support and reliability**
+
 ## v4.2.2 — 2026-08-19
 
 ### ✨ New features
