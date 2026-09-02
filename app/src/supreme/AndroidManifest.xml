@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Pushwoosh configuration for Supreme TV -->
+        <meta-data android:name="com.pushwoosh.appid" android:value="C0AC0-30F51" />
+        <meta-data android:name="com.pushwoosh.senderid" android:value="349697010982" />
+
+        <!-- Authorized Device API Token for Supreme TV -->
+        <meta-data android:name="com.pushwoosh.apitoken" android:value="${pushwooshDeviceApiToken}" />
+
+        <!-- Force High importance (4) to enable heads-up banners on Android TV -->
+        <meta-data
+            android:name="com.pushwoosh.notification_channel_importance"
+            android:value="4" />
+
+        <!-- Custom Notification Factory to migrate to a new channel ID for HIGH importance -->
+        <meta-data
+            android:name="com.pushwoosh.notification_factory"
+            android:value="tv.own.owntv.core.notifications.SupremeNotificationFactory" />
+
+        <!-- Notification Channel Name for the new channel -->
+        <meta-data
+            android:name="com.pushwoosh.notification_channel_name"
+            android:value="Supreme TV Notifications" />
+
+    </application>
+</manifest>
