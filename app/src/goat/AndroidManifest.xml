@@ -23,11 +23,6 @@
             android:name="com.pushwoosh.notification_channel_name"
             android:value="GoatTV Notifications" />
 
-        <!-- Pushwoosh 6.x registration handling -->
-        <activity
-            android:name="com.pushwoosh.internal.utils.NotificationRegistrarActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
     </application>
 </manifest>
