@@ -17,6 +17,35 @@ val packagedLocaleQualifiers: Set<String> = run {
     }.toSet()
 }
 
+// Load local.properties for the Pushwoosh Device API Token (not committed).
+val localProperties = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.isFile) f.inputStream().use { load(it) }
+}
+val pushwooshToken = localProperties.getProperty("PUSHWOOSH_DEVICE_API_TOKEN") ?: ""
+val goatPushwooshToken = localProperties.getProperty("PUSHWOOSH_GOAT_DEVICE_API_TOKEN") ?: ""
+
+/** Fail builds if a required Device API Token is missing from local.properties. */
+abstract class VerifyPushwooshToken : DefaultTask() {
+    @get:Input
+    abstract val token: Property<String>
+
+    @get:Input
+    abstract val brand: Property<String>
+
+    @TaskAction
+    fun verify() {
+        if (token.get().isBlank()) {
+            val key = if (brand.get().lowercase() == "allaccess") "PUSHWOOSH_DEVICE_API_TOKEN"                      else "PUSHWOOSH_${brand.get().uppercase()}_DEVICE_API_TOKEN"
+            throw GradleException(
+                "\n\n  ERROR: $key is missing or blank in local.properties.\n" +
+                "  This is required for ${brand.get()} builds to avoid 401 Unauthorized errors.\n" +
+                "  Add $key=<token> to local.properties and retry.\n"
+            )
+        }
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     // Kotlin is provided by AGP 9's built-in Kotlin support. KSP 2.3.6+ is compatible with it.
@@ -88,6 +117,10 @@ android {
             ?: ""
         buildConfigField("String", "TMDB_EDGE_KEY", "\"${edgeKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
 
+        buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
+        buildConfigField("String", "PUSHWOOSH_APP_ID", "\"\"")
+        buildConfigField("String", "FCM_SENDER_ID", "\"\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -149,7 +182,11 @@ android {
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"GoatTV\"")
+            buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
+            buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")
+            buildConfigField("String", "FCM_SENDER_ID", "\"17825531376\"")
             signingConfig = signingConfigs.findByName("goat")
+            manifestPlaceholders["pushwooshDeviceApiToken"] = goatPushwooshToken
         }
         create("fivestar") {
             dimension = "brand"
@@ -169,7 +206,11 @@ android {
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"AllAccess\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"AllAccess\"")
+            buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
+            buildConfigField("String", "PUSHWOOSH_APP_ID", "\"2E521-83F80\"")
+            buildConfigField("String", "FCM_SENDER_ID", "\"224309092606\"")
             signingConfig = signingConfigs.findByName("allaccess")
+            manifestPlaceholders["pushwooshDeviceApiToken"] = pushwooshToken
         }
     }
 
@@ -285,6 +326,29 @@ androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         variant.androidResources.localeFilters.addAll("en-rXA", "ar-rXB")
     }
+
+    // Disable google-services tasks for variants without Pushwoosh to prevent "missing JSON" errors.
+    onVariants { variant ->
+        val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
+        val isPushEnabled = brand == "allaccess" || brand == "goat"
+        val variantName = variant.name.replaceFirstChar { it.uppercase() }
+
+        if (!isPushEnabled) {
+            tasks.matching { it.name == "process${variantName}GoogleServices" }.configureEach {
+                enabled = false
+            }
+        } else {
+            // Fail builds if the required Device API Token is missing from local.properties.
+            val token = if (brand == "allaccess") pushwooshToken else goatPushwooshToken
+            val verifyTask = tasks.register<VerifyPushwooshToken>("verifyPushwooshTokenFor$variantName") {
+                this.token.set(token)
+                this.brand.set(brand)
+            }
+            tasks.matching {
+                it.name.contains(variantName) && it.name.startsWith("process") && it.name.endsWith("Manifest")
+            }.configureEach { dependsOn(verifyTask) }
+        }
+    }
 }
 
 // The profile is a list of code paths, not machine code, so one recording serves every ABI flavor.
@@ -386,6 +450,8 @@ val verifyI18nLiterals = tasks.register<VerifyI18nLiterals>("verifyI18nLiterals"
 // Inputs are declared above, so an unchanged source tree makes this UP-TO-DATE and free.
 tasks.named("preBuild") { dependsOn(verifyI18nLiterals) }
 
+apply(plugin = "com.google.gms.google-services")
+
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
@@ -467,6 +533,16 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
 
+    // Pushwoosh & Firebase (Flavor-specific)
+    "allaccessImplementation"(platform("com.google.firebase:firebase-bom:33.2.0"))
+    "allaccessImplementation"("com.google.firebase:firebase-messaging")
+    "allaccessImplementation"("com.pushwoosh:pushwoosh:6.11.1")
+    "allaccessImplementation"("com.pushwoosh:pushwoosh-firebase:6.11.1")
+
+    "goatImplementation"(platform("com.google.firebase:firebase-bom:33.2.0"))
+    "goatImplementation"("com.google.firebase:firebase-messaging")
+    "goatImplementation"("com.pushwoosh:pushwoosh:6.11.1")
+    "goatImplementation"("com.pushwoosh:pushwoosh-firebase:6.11.1")
 
     // Debug tooling
     debugImplementation(libs.androidx.compose.ui.tooling)
