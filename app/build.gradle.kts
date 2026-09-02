@@ -31,6 +31,9 @@ val goatPushwooshToken = providers.environmentVariable("PUSHWOOSH_GOAT_DEVICE_AP
 val fivestarPushwooshToken = providers.environmentVariable("PUSHWOOSH_5STAR_DEVICE_API_TOKEN").orNull
     ?: localProperties.getProperty("PUSHWOOSH_5STAR_DEVICE_API_TOKEN")
     ?: ""
+val supremePushwooshToken = providers.environmentVariable("PUSHWOOSH_SUPREME_DEVICE_API_TOKEN").orNull
+    ?: localProperties.getProperty("PUSHWOOSH_SUPREME_DEVICE_API_TOKEN")
+    ?: ""
 
 /** Fail builds if a required Device API Token is missing from local.properties. */
 abstract class VerifyPushwooshToken : DefaultTask() {
@@ -47,6 +50,7 @@ abstract class VerifyPushwooshToken : DefaultTask() {
                 "allaccess" -> "PUSHWOOSH_DEVICE_API_TOKEN"
                 "goat" -> "PUSHWOOSH_GOAT_DEVICE_API_TOKEN"
                 "fivestar" -> "PUSHWOOSH_5STAR_DEVICE_API_TOKEN"
+                "supreme" -> "PUSHWOOSH_SUPREME_DEVICE_API_TOKEN"
                 else -> "PUSHWOOSH_${brand.get().uppercase()}_DEVICE_API_TOKEN"
             }
             throw GradleException(
@@ -142,6 +146,8 @@ android {
         providers.environmentVariable(env).orNull?.takeIf { it.isNotBlank() }
             ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
             ?: localSigningProps.getProperty(property)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty(env)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty(property)?.takeIf { it.isNotBlank() }
 
     signingConfigs {
         val goatFile = signingValue("KEYSTORE_FILE", "owntv.keystoreFile")
@@ -169,6 +175,15 @@ android {
                 storePassword = signingValue("ALLACCESS_KEYSTORE_PASSWORD", "allaccess.keystorePassword")
                 keyAlias = signingValue("ALLACCESS_KEY_ALIAS", "allaccess.keyAlias")
                 keyPassword = signingValue("ALLACCESS_KEY_PASSWORD", "allaccess.keyPassword")
+            }
+        }
+        val supremeFile = signingValue("SUPREME_KEYSTORE_FILE", "supreme.keystoreFile")
+        if (supremeFile != null) {
+            create("supreme") {
+                storeFile = rootProject.file(supremeFile)
+                storePassword = signingValue("SUPREME_KEYSTORE_PASSWORD", "supreme.keystorePassword")
+                keyAlias = signingValue("SUPREME_KEY_ALIAS", "supreme.keyAlias")
+                keyPassword = signingValue("SUPREME_KEY_PASSWORD", "supreme.keyPassword")
             }
         }
     }
@@ -214,6 +229,20 @@ android {
             buildConfigField("String", "FCM_SENDER_ID", "\"1079894272618\"")
             signingConfig = signingConfigs.findByName("fivestar")
             manifestPlaceholders["pushwooshDeviceApiToken"] = fivestarPushwooshToken
+        }
+        create("supreme") {
+            dimension = "brand"
+            // Verified production identity for Supreme TV.
+            applicationId = "tv.supreme.app"
+            buildConfigField("String", "RELEASE_TAG_PREFIX", "\"supreme-v\"")
+            buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
+            buildConfigField("String", "BRAND_UA", "\"Supreme TV\"")
+            buildConfigField("String", "UPDATE_APK_PREFIX", "\"Supreme-TV\"")
+            buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
+            buildConfigField("String", "PUSHWOOSH_APP_ID", "\"C0AC0-30F51\"")
+            buildConfigField("String", "FCM_SENDER_ID", "\"349697010982\"")
+            signingConfig = signingConfigs.findByName("supreme")
+            manifestPlaceholders["pushwooshDeviceApiToken"] = supremePushwooshToken
         }
         create("allaccess") {
             dimension = "brand"
@@ -347,7 +376,7 @@ androidComponents {
     // Disable google-services tasks for variants without Pushwoosh to prevent "missing JSON" errors.
     onVariants { variant ->
         val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
-        val isPushEnabled = brand == "allaccess" || brand == "goat" || brand == "fivestar"
+        val isPushEnabled = brand == "allaccess" || brand == "goat" || brand == "fivestar" || brand == "supreme"
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
 
         if (!isPushEnabled) {
@@ -360,6 +389,7 @@ androidComponents {
                 "allaccess" -> pushwooshToken
                 "goat" -> goatPushwooshToken
                 "fivestar" -> fivestarPushwooshToken
+                "supreme" -> supremePushwooshToken
                 else -> ""
             }
             val verifyTask = tasks.register<VerifyPushwooshToken>("verifyPushwooshTokenFor$variantName") {
@@ -565,6 +595,11 @@ dependencies {
     "fivestarImplementation"("com.google.firebase:firebase-messaging")
     "fivestarImplementation"("com.pushwoosh:pushwoosh:6.11.1")
     "fivestarImplementation"("com.pushwoosh:pushwoosh-firebase:6.11.1")
+
+    "supremeImplementation"(platform("com.google.firebase:firebase-bom:33.2.0"))
+    "supremeImplementation"("com.google.firebase:firebase-messaging")
+    "supremeImplementation"("com.pushwoosh:pushwoosh:6.11.1")
+    "supremeImplementation"("com.pushwoosh:pushwoosh-firebase:6.11.1")
 
     "goatImplementation"(platform("com.google.firebase:firebase-bom:33.2.0"))
     "goatImplementation"("com.google.firebase:firebase-messaging")

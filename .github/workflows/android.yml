@@ -8,7 +8,7 @@ name: Android CI
 on:
   push:
     branches: [ main ]
-    tags: [ "v*", "5star-v*", "allaccess-v*" ]
+    tags: [ "v*", "5star-v*", "allaccess-v*", "supreme-v*" ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -22,6 +22,7 @@ on:
           - goat
           - fivestar
           - allaccess
+          - supreme
 
 permissions:
   contents: write   # required so tag builds can create a Release
@@ -39,6 +40,7 @@ jobs:
       PUSHWOOSH_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_DEVICE_API_TOKEN }}
       PUSHWOOSH_GOAT_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_GOAT_DEVICE_API_TOKEN }}
       PUSHWOOSH_5STAR_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_5STAR_DEVICE_API_TOKEN }}
+      PUSHWOOSH_SUPREME_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_SUPREME_DEVICE_API_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +62,7 @@ jobs:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
           ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
           FIVESTAR_JSON_B64: ${{ secrets.FIVESTAR_GOOGLE_SERVICES_JSON }}
+          SUPREME_JSON_B64: ${{ secrets.SUPREME_GOOGLE_SERVICES_JSON }}
         run: |
           if [ -n "$GOAT_JSON_B64" ]; then
             for ABI in standard x86_64; do
@@ -79,6 +82,13 @@ jobs:
             for ABI in standard x86_64; do
               mkdir -p "app/src/$ABI/fivestar"
               echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/$ABI/fivestar/google-services.json"
+            done
+          fi
+
+          if [ -n "$SUPREME_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/supreme"
+              echo "$SUPREME_JSON_B64" | base64 -d > "app/src/$ABI/supreme/google-services.json"
             done
           fi
 
@@ -114,6 +124,7 @@ jobs:
       PUSHWOOSH_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_DEVICE_API_TOKEN }}
       PUSHWOOSH_GOAT_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_GOAT_DEVICE_API_TOKEN }}
       PUSHWOOSH_5STAR_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_5STAR_DEVICE_API_TOKEN }}
+      PUSHWOOSH_SUPREME_DEVICE_API_TOKEN: ${{ secrets.PUSHWOOSH_SUPREME_DEVICE_API_TOKEN }}
 
       # Set at runtime via $GITHUB_ENV in the "Name the APK" step. Declared here (empty) so static
       # linters don't flag the later ${{ env.APK_OUT }} references as "context access might be invalid".
@@ -139,6 +150,7 @@ jobs:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
           ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
           FIVESTAR_JSON_B64: ${{ secrets.FIVESTAR_GOOGLE_SERVICES_JSON }}
+          SUPREME_JSON_B64: ${{ secrets.SUPREME_GOOGLE_SERVICES_JSON }}
         run: |
           if [ -n "$GOAT_JSON_B64" ]; then
             for ABI in standard x86_64; do
@@ -161,6 +173,13 @@ jobs:
             done
           fi
 
+          if [ -n "$SUPREME_JSON_B64" ]; then
+            for ABI in standard x86_64; do
+              mkdir -p "app/src/$ABI/supreme"
+              echo "$SUPREME_JSON_B64" | base64 -d > "app/src/$ABI/supreme/google-services.json"
+            done
+          fi
+
       - name: Compute version (from the git tag on releases)
         id: ver
         shell: bash
@@ -169,12 +188,14 @@ jobs:
             NAME="${GITHUB_REF_NAME#allaccess-v}"
           elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             NAME="${GITHUB_REF_NAME#5star-v}"
+          elif [[ "$GITHUB_REF" == refs/tags/supreme-v* ]]; then
+            NAME="${GITHUB_REF_NAME#supreme-v}"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             NAME="${GITHUB_REF_NAME#v}"
           else
             NAME="99.99.99"
           fi
-          if [[ "$GITHUB_REF" == refs/tags/allaccess-v* || "$GITHUB_REF" == refs/tags/5star-v* || "$GITHUB_REF" == refs/tags/v* ]]; then
+          if [[ "$GITHUB_REF" == refs/tags/allaccess-v* || "$GITHUB_REF" == refs/tags/5star-v* || "$GITHUB_REF" == refs/tags/supreme-v* || "$GITHUB_REF" == refs/tags/v* ]]; then
             IFS='.' read -r MA MI PA <<< "$NAME"
             CODE=$(( ${MA:-0} * 10000 + ${MI:-0} * 100 + ${PA:-0} ))
             [ "$CODE" -gt 0 ] || CODE=1
@@ -190,6 +211,7 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           FIVESTAR_KEYSTORE_BASE64: ${{ secrets.FIVESTAR_KEYSTORE_BASE64 }}
           ALLACCESS_KEYSTORE_BASE64: ${{ secrets.ALLACCESS_KEYSTORE_BASE64 }}
+          SUPREME_KEYSTORE_BASE64: ${{ secrets.SUPREME_KEYSTORE_BASE64 }}
         run: |
           # Runs on every push (not just tags) so dev builds are also signed RELEASE builds —
           # required since R8 was enabled: only assembleRelease exercises shrinking/keep rules.
@@ -209,7 +231,12 @@ jobs:
             echo "ALLACCESS_KEYSTORE_FILE=$RUNNER_TEMP/allaccess.keystore" >> "$GITHUB_ENV"
             echo "AllAccess signing configured."
           fi
-          if [ -z "$KEYSTORE_BASE64" ] && [ -z "$FIVESTAR_KEYSTORE_BASE64" ] && [ -z "$ALLACCESS_KEYSTORE_BASE64" ]; then
+          if [ -n "$SUPREME_KEYSTORE_BASE64" ]; then
+            echo "$SUPREME_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/supreme.keystore"
+            echo "SUPREME_KEYSTORE_FILE=$RUNNER_TEMP/supreme.keystore" >> "$GITHUB_ENV"
+            echo "Supreme TV signing configured."
+          fi
+          if [ -z "$KEYSTORE_BASE64" ] && [ -z "$FIVESTAR_KEYSTORE_BASE64" ] && [ -z "$ALLACCESS_KEYSTORE_BASE64" ] && [ -z "$SUPREME_KEYSTORE_BASE64" ]; then
             echo "No signing secrets set — building debug-signed APKs."
           fi
 
@@ -220,6 +247,7 @@ jobs:
           KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
           FIVESTAR_KEYSTORE_FILE: ${{ env.FIVESTAR_KEYSTORE_FILE }}
           ALLACCESS_KEYSTORE_FILE: ${{ env.ALLACCESS_KEYSTORE_FILE }}
+          SUPREME_KEYSTORE_FILE: ${{ env.SUPREME_KEYSTORE_FILE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -229,6 +257,9 @@ jobs:
           ALLACCESS_KEYSTORE_PASSWORD: ${{ secrets.ALLACCESS_KEYSTORE_PASSWORD }}
           ALLACCESS_KEY_ALIAS: ${{ secrets.ALLACCESS_KEY_ALIAS }}
           ALLACCESS_KEY_PASSWORD: ${{ secrets.ALLACCESS_KEY_PASSWORD }}
+          SUPREME_KEYSTORE_PASSWORD: ${{ secrets.SUPREME_KEYSTORE_PASSWORD }}
+          SUPREME_KEY_ALIAS: ${{ secrets.SUPREME_KEY_ALIAS }}
+          SUPREME_KEY_PASSWORD: ${{ secrets.SUPREME_KEY_PASSWORD }}
           # Shared secret for the default metadata Worker's edge rule. Forks have no secret and
           # resolve "" — the app then falls back to the unprotected workers.dev base URL.
           OWNTV_EDGE_KEY: ${{ secrets.OWNTV_EDGE_KEY }}
@@ -245,6 +276,9 @@ jobs:
           elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
             BRAND="fivestar"
             IS_TAG="true"
+          elif [[ "$GITHUB_REF" == refs/tags/supreme-v* ]]; then
+            BRAND="supreme"
+            IS_TAG="true"
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             BRAND="goat"
             IS_TAG="true"
@@ -256,6 +290,8 @@ jobs:
           if [[ "$BRAND" == "goat" && -n "$KEYSTORE_FILE" ]]; then
             CAN_SIGN="true"
           elif [[ "$BRAND" == "fivestar" && -n "$FIVESTAR_KEYSTORE_FILE" ]]; then
+            CAN_SIGN="true"
+          elif [[ "$BRAND" == "supreme" && -n "$SUPREME_KEYSTORE_FILE" ]]; then
             CAN_SIGN="true"
           elif [[ "$BRAND" == "allaccess" && -n "$ALLACCESS_KEYSTORE_FILE" && -n "$ALLACCESS_KEYSTORE_PASSWORD" && -n "$ALLACCESS_KEY_ALIAS" && -n "$ALLACCESS_KEY_PASSWORD" ]]; then
             CAN_SIGN="true"
@@ -317,6 +353,12 @@ jobs:
             if [ -n "$X86_64_SRC" ]; then
               cp "$X86_64_SRC" "dist/5Star-Ultra-x86_64-v${{ steps.ver.outputs.name }}.apk"
             fi
+          elif [[ "$GITHUB_REF" == refs/tags/supreme-v* ]]; then
+            OUT="Supreme-TV-v${{ steps.ver.outputs.name }}.apk"
+            cp "$ARM_SRC" "dist/Supreme-TV.apk"
+            if [ -n "$X86_64_SRC" ]; then
+              cp "$X86_64_SRC" "dist/Supreme-TV-x86_64-v${{ steps.ver.outputs.name }}.apk"
+            fi
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             OUT="GoatTV-v${{ steps.ver.outputs.name }}.apk"
             cp "$ARM_SRC" "dist/GoatTV.apk"
@@ -339,7 +381,7 @@ jobs:
           if-no-files-found: error
 
       - name: Extract release notes from CHANGELOG_APP.md
-        if: github.event_name != 'workflow_dispatch' && (startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/allaccess-v'))
+        if: github.event_name != 'workflow_dispatch' && (startsWith(github.ref, 'refs/tags/5star-v') || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/allaccess-v') || startsWith(github.ref, 'refs/tags/supreme-v'))
         env:
           TAG: ${{ github.ref_name }}
         run: |
@@ -404,4 +446,15 @@ jobs:
             dist/${{ env.APK_OUT }}
             dist/AllAccess.apk
             dist/AllAccess-x86_64-v${{ steps.ver.outputs.name }}.apk
+          body_path: dist/RELEASE_NOTES.md
+
+      - name: Publish Supreme TV GitHub Release
+        if: github.event_name != 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/supreme-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Supreme TV v${{ steps.ver.outputs.name }}
+          files: |
+            dist/${{ env.APK_OUT }}
+            dist/Supreme-TV.apk
+            dist/Supreme-TV-x86_64-v${{ steps.ver.outputs.name }}.apk
           body_path: dist/RELEASE_NOTES.md
