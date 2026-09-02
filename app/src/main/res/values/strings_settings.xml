@@ -635,6 +635,8 @@
     <string name="settings_accent_green">Green</string>
     <!-- Translators: Accent color preset name. -->
     <string name="settings_accent_amber">Amber</string>
+    <!-- Translators: Accent color preset name. -->
+    <string name="settings_accent_red">Red</string>
     <!-- Translators: Settings search-result breadcrumb category for Profile. -->
     <string name="settings_group_profile">Profile</string>
     <!-- Translators: Settings search-result breadcrumb category for Content. -->

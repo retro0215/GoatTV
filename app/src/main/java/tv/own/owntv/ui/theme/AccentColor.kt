@@ -57,6 +57,13 @@ enum class AccentColor(
         primaryContainerDark = Color(0xFF624000), onPrimaryContainerDark = Color(0xFFFFDDB3),
         primaryLight = Color(0xFF8A5100), onPrimaryLight = Color(0xFFFFFFFF),
         primaryContainerLight = Color(0xFFFFDDB3), onPrimaryContainerLight = Color(0xFF2C1600),
+    ),
+    RED(
+        R.string.settings_accent_red,
+        primaryDark = Color(0xFFFF5252), onPrimaryDark = Color(0xFF690005),
+        primaryContainerDark = Color(0xFF93000A), onPrimaryContainerDark = Color(0xFFFFDAD6),
+        primaryLight = Color(0xFFC00018), onPrimaryLight = Color(0xFFFFFFFF),
+        primaryContainerLight = Color(0xFFFFDAD6), onPrimaryContainerLight = Color(0xFF410002),
     );
 
     fun primary(isDark: Boolean) = if (isDark) primaryDark else primaryLight
