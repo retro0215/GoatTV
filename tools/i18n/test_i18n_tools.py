@@ -39,12 +39,12 @@ def _make_fixture(tmpdir: Path, source_xml: str, locales: list, translations: di
     res = tmpdir / "app/src/main/res"
     res.mkdir(parents=True)
     (res / "values").mkdir()
-    (res / "values/strings.xml").write_text(source_xml)
+    (res / "values/strings.xml").write_text(source_xml, encoding="utf-8")
     for resdir, xml in (translations or {}).items():
         (res / resdir).mkdir(parents=True)
-        (res / f"{resdir}/strings.xml").write_text(xml)
+        (res / f"{resdir}/strings.xml").write_text(xml, encoding="utf-8")
     (tmpdir / "tools/i18n").mkdir(parents=True)
-    (tmpdir / "tools/i18n/locales.json").write_text(json.dumps(locales))
+    (tmpdir / "tools/i18n/locales.json").write_text(json.dumps(locales), encoding="utf-8")
     return res
 
 
@@ -485,7 +485,7 @@ class TestValidateStrings(unittest.TestCase):
         self.assertEqual(len(tags), 42)  # original 23 plus 19 catalogue-only community targets
 
     def test_requested_catalogue_metadata_and_zero_resource_status(self):
-        catalogue = json.loads((ROOT / "tools/i18n/locales.json").read_text())
+        catalogue = json.loads((ROOT / "tools/i18n/locales.json").read_text(encoding="utf-8"))
         expected = {
             "bg": ("bg", "bg", "bg", "Bulgarian", "Български", "Cyrl", False),
             "hr": ("hr", "hr", "hr", "Croatian", "Hrvatski", "Latn", False),
@@ -522,7 +522,7 @@ class TestValidateStrings(unittest.TestCase):
                 self.assertFalse((ROOT / "app/src/main/res" / entry["resourceDirectory"]).exists())
 
     def test_spanish_default_uses_current_weblate_es_definition(self):
-        catalogue = json.loads((ROOT / "tools/i18n/locales.json").read_text())
+        catalogue = json.loads((ROOT / "tools/i18n/locales.json").read_text(encoding="utf-8"))
         self.assertEqual("es", next(e for e in catalogue if e["id"] == "es-ES")["weblateCode"])
 
     def test_catalogue_only_directory_is_rejected_if_created(self):
@@ -535,7 +535,7 @@ class TestValidateStrings(unittest.TestCase):
         self.assertIn("catalogue-only locale must not have a resource directory", out)
 
     def test_language_page_has_one_global_cta_and_remote_safe_contribution_panel(self):
-        screen = (ROOT / "app/src/main/java/tv/own/owntv/features/settings/LanguageSettingsScreen.kt").read_text()
+        screen = (ROOT / "app/src/main/java/tv/own/owntv/features/settings/LanguageSettingsScreen.kt").read_text(encoding="utf-8")
         page = screen.split("if (showContribution)", 1)[0]
         self.assertEqual(1, page.count("settings_language_help_translate"))
         self.assertEqual(1, screen.count("CompanionLink.renderQr(url)"))
@@ -566,18 +566,18 @@ class TestValidateStrings(unittest.TestCase):
             screen.index("label = stringResource(R.string.settings_language_help_translate)"),
             screen.index("if (showSystemDefault)"),
         )
-        settings = (ROOT / "app/src/main/java/tv/own/owntv/features/shell/components/SettingsScreen.kt").read_text()
+        settings = (ROOT / "app/src/main/java/tv/own/owntv/features/shell/components/SettingsScreen.kt").read_text(encoding="utf-8")
         appearance = settings.index("GroupLabel(stringResource(R.string.settings_appearance_group))")
         language = settings.index("title = stringResource(R.string.settings_language),")
         theme = settings.index("title = stringResource(R.string.settings_theme),")
         self.assertLess(appearance, language)
         self.assertLess(language, theme)
-        view_model = (ROOT / "app/src/main/java/tv/own/owntv/features/settings/LanguageSettingsViewModel.kt").read_text()
+        view_model = (ROOT / "app/src/main/java/tv/own/owntv/features/settings/LanguageSettingsViewModel.kt").read_text(encoding="utf-8")
         self.assertIn("sortedBy { it.englishName.lowercase(Locale.ROOT) }", view_model)
         self.assertNotIn("sortedBy { it.endonym.lowercase() }", view_model)
 
     def test_canonical_url_and_qr_payload_artifacts_are_consistent(self):
-        config = json.loads((ROOT / "tools/i18n/community.json").read_text())
+        config = json.loads((ROOT / "tools/i18n/community.json").read_text(encoding="utf-8"))
         url = config["projectUrl"]
         request_url = config["languageRequestUrl"]
         self.assertEqual("https://hosted.weblate.org/projects/owntv/", url)
@@ -586,9 +586,9 @@ class TestValidateStrings(unittest.TestCase):
             request_url,
         )
         self.assertEqual(70, config["translationReadinessThresholdPercent"])
-        generated = (ROOT / "app/src/main/java/tv/own/owntv/core/i18n/SupportedLocales.kt").read_text()
-        readme = (ROOT / "README.md").read_text()
-        guide = (ROOT / "tools/i18n/README.md").read_text()
+        generated = (ROOT / "app/src/main/java/tv/own/owntv/core/i18n/SupportedLocales.kt").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        guide = (ROOT / "tools/i18n/README.md").read_text(encoding="utf-8")
         self.assertIn(f'CONTRIBUTION_PROJECT_URL: String = "{url}"', generated)
         self.assertIn(f'LANGUAGE_REQUEST_URL: String = "{request_url}"', generated)
         self.assertIn(f"[Hosted Weblate]({url})", readme)
@@ -1023,7 +1023,7 @@ val d = 'x'
         self._write_kt("Main.kt", 'package x\nval a = "Hello"\nval b = "World"\n')
         self.assertEqual(self.chs.cmd_generate(None), 0)
         self.assertEqual(
-            set(self.chs._parse(self.chs.BASELINE.read_text())),
+            set(self.chs._parse(self.chs.BASELINE.read_text(encoding="utf-8"))),
             {("src/Main.kt", "Hello"), ("src/Main.kt", "World")},
         )
 
@@ -1032,7 +1032,7 @@ val d = 'x'
         entries = {("src/Main.kt", "Worker"): (1, "log")}
         self.chs.SAFE_MANIFEST.write_text(self.chs._serialize_safe(entries))
         self.assertEqual(self.chs.cmd_generate(None), 0)
-        baseline = self.chs._parse(self.chs.BASELINE.read_text())
+        baseline = self.chs._parse(self.chs.BASELINE.read_text(encoding="utf-8"))
         self.assertNotIn(("src/Main.kt", "Worker"), baseline)
         self.assertIn(("src/Main.kt", "Settings"), baseline)
 
@@ -1053,9 +1053,9 @@ val d = 'x'
     def test_stale_safe_literal_fails_verification_and_generation(self):
         self._write_kt("Main.kt", 'package x\nval x = "Hello"\n')
         self.chs.SAFE_MANIFEST.write_text(
-            self.chs._serialize_safe({("src/Main.kt", "Gone"): (1, "technical")})
+            self.chs._serialize_safe({("src/Main.kt", "Gone"): (1, "technical")}), encoding="utf-8"
         )
-        self.chs.BASELINE.write_text(self.chs._serialize({("src/Main.kt", "Hello"): 1}))
+        self.chs.BASELINE.write_text(self.chs._serialize({("src/Main.kt", "Hello"): 1}), encoding="utf-8")
         self.assertEqual(self.chs.cmd_verify(self._args()), 1)
         self.assertEqual(self.chs.cmd_generate(None), 1)
 
@@ -1070,7 +1070,7 @@ val d = 'x'
         self._write_kt("Main.kt", 'package x\nval x = "Hello"\n')
         self.assertEqual(self.chs.cmd_generate(None), 0)
         base = self.tmpdir / "base.txt"
-        base.write_text(self.chs.BASELINE.read_text())
+        base.write_text(self.chs.BASELINE.read_text(encoding="utf-8"), encoding="utf-8")
         self._write_kt("Main.kt", 'package x\nval x = "Hello"\nval y = "New literal"\n')
         self.assertEqual(self.chs.cmd_generate(None), 0)
         self.assertEqual(self.chs.cmd_verify(self._args(str(base), bootstrap=False)), 1)
@@ -1084,15 +1084,15 @@ val d = 'x'
             category = "log"
             count = None
         self.assertEqual(self.chs.cmd_classify_safe(Args()), 0)
-        self.assertEqual(self.chs._parse(self.chs.BASELINE.read_text()), {})
+        self.assertEqual(self.chs._parse(self.chs.BASELINE.read_text(encoding="utf-8")), {})
         safe, categories, errors = self.chs._safe_entries()
         self.assertFalse(errors)
         self.assertEqual(safe[("src/Main.kt", "Worker")], 1)
         self.assertEqual(categories[("src/Main.kt", "Worker")], "log")
 
     def test_scanner_migration_policy_freezes_app_tree(self):
-        workflow = (ROOT / ".github/workflows/i18n.yml").read_text()
-        checker = (ROOT / "tools/i18n/check_hardcoded_strings.py").read_text()
+        workflow = (ROOT / ".github/workflows/i18n.yml").read_text(encoding="utf-8")
+        checker = (ROOT / "tools/i18n/check_hardcoded_strings.py").read_text(encoding="utf-8")
         self.assertIn("verify-ci --base-sha", workflow)
         self.assertIn('"diff", "--name-only", base_sha, "HEAD", "--", "app/src/main"', checker)
         self.assertIn("Scanner migrations may not change app/src/main", checker)
@@ -1547,7 +1547,7 @@ class TestSeedText(unittest.TestCase):
                 "de", staged, final_dir, source_dir,
                 replace_existing=True, expected_existing_hash=expected_hash,
             )
-            self.assertIn("Neu", (final_dir / "strings.xml").read_text())
+            self.assertIn("Neu", (final_dir / "strings.xml").read_text(encoding="utf-8"))
             self.assertFalse((Path(d) / ".values-de.seed-backup").exists())
 
             stale_staged = Path(d) / "work" / "stale-de"
@@ -1559,7 +1559,7 @@ class TestSeedText(unittest.TestCase):
                     "de", stale_staged, final_dir, source_dir,
                     replace_existing=True, expected_existing_hash=expected_hash,
                 )
-            self.assertIn("Neu", (final_dir / "strings.xml").read_text())
+            self.assertIn("Neu", (final_dir / "strings.xml").read_text(encoding="utf-8"))
             self.assertTrue(stale_staged.exists())
 
     def test_chunking_covers_the_current_source_inventory(self):
@@ -1832,7 +1832,7 @@ class TestSeedTranslations(unittest.TestCase):
             request = next(iter(current["stages"]["translation"]["requests"].values()))
             payload = json.loads(
                 (Path(d) / "current" / "requests" / "translation" /
-                 f"{next(iter(current['stages']['translation']['requests']))}.json").read_text()
+                 f"{next(iter(current['stages']['translation']['requests']))}.json").read_text(encoding="utf-8")
             )
             self.assertIn(f"{terms[0]} -> translated-{terms[0]}", payload["params"]["system"][0]["text"])
             self.assertEqual(request["locale"], "de")

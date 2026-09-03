@@ -669,7 +669,7 @@
     <string name="content_reminder_dismiss">Dismiss</string>
     <string name="content_channel_unavailable">Channel no longer available</string>
     <string name="content_reminder_cancelled">Reminder Cancelled</string>
-    <string name="content_reminder_set_confirmation">Reminder Set\n\"%1$s\"\nThis program will automatically play when it starts.</string>
+    <string name="content_reminder_set_confirmation">Reminder Set\n\"<xliff:g id="title">%1$s</xliff:g>\"\nThis program will automatically play when it starts.</string>
     <string name="content_reminder_indicator">REMINDER SET</string>
     <string name="content_reminder_already_set">REMINDER ALREADY SET</string>
     <string name="content_epg_offset_use_global">Use global</string>
