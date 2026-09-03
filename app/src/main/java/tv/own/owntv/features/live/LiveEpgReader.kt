@@ -239,16 +239,49 @@ internal class LiveEpgReader(
         to: Long,
     ): List<EpgProgrammeEntity> = withContext(Dispatchers.IO) {
         val epgKey = (cust.epgMatches[CustomizeKeys.channel(ch)] ?: ch.epgChannelId)
-            ?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: ch.name.trim().lowercase()
+            ?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
         val ids = liveSourceIds + epgSourceStore.getAll().map { it.id }
         val shift = EpgShift.minutesFor(cust, ch, globalShiftMinutes)
         val shiftedFrom = EpgShift.toStored(from, shift)
         val shiftedTo = EpgShift.toStored(to, shift)
 
-        var stored = epgDao.programmesForChannel(ids, epgKey, shiftedFrom, shiftedTo)
+        var stored = if (epgKey != null) {
+            epgDao.programmesForChannel(ids, epgKey, shiftedFrom, shiftedTo)
+        } else {
+            emptyList()
+        }
         if (stored.isEmpty()) {
             val nameKey = ch.name.trim().lowercase()
             stored = epgDao.programmesForChannel(ids, nameKey, shiftedFrom, shiftedTo)
+        }
+        if (stored.isEmpty()) {
+            val streamId = ch.remoteId
+            val source = sourceDao.getById(ch.sourceId)
+            if (streamId != null && source != null) {
+                val rawEntries = when (source.type) {
+                    SourceType.XTREAM -> runCatching { xtreamClient.getShortEpg(source, streamId, limit = 20) }.getOrNull().orEmpty()
+                    SourceType.STALKER -> runCatching {
+                        streamUrlResolver.shortEpg(source, streamId)
+                            .map { XtEpgEntry(title = it.title, description = it.description, startMs = it.startMs, stopMs = it.stopMs) }
+                    }.getOrNull().orEmpty()
+                    else -> emptyList()
+                }
+                val entries = if (shift == 0) rawEntries else rawEntries.map {
+                    it.copy(startMs = it.startMs + shift * 60_000L, stopMs = it.stopMs + shift * 60_000L)
+                }
+                stored = entries.mapIndexed { idx, entry ->
+                    EpgProgrammeEntity(
+                        id = idx.toLong() + 1000L,
+                        sourceId = ch.sourceId,
+                        epgChannelId = ch.epgChannelId ?: ch.name,
+                        startMs = entry.startMs,
+                        stopMs = entry.stopMs,
+                        title = entry.title,
+                        description = entry.description,
+                        contentHash = 0,
+                    )
+                }
+            }
         }
         if (tv.own.owntv.BuildConfig.DEBUG) {
             Log.d("EPG_DIAGNOSTIC", "found epg entries")
