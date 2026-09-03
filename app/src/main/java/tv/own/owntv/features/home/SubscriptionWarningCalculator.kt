@@ -1,9 +1,7 @@
 package tv.own.owntv.features.home
 
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
+import java.time.ZoneOffset
 
 /**
  * Pure logic for the Home screen subscription warning (v34). Calculates remaining days from
@@ -13,12 +11,10 @@ object SubscriptionWarningCalculator {
 
     fun calculate(
         expiryMs: Long,
-        today: LocalDate = LocalDate.now(ZoneId.systemDefault()),
-        zone: ZoneId = ZoneId.systemDefault()
+        todayMs: Long = System.currentTimeMillis()
     ): SubscriptionWarningState? {
-        // Use the same zone for both to avoid off-by-one errors near midnight.
-        val expiryDate = Instant.ofEpochMilli(expiryMs).atZone(zone).toLocalDate()
-        val daysUntil = ChronoUnit.DAYS.between(today, expiryDate)
+        val dayMs = 86_400_000L
+        val daysUntil = (expiryMs / dayMs) - (todayMs / dayMs)
 
         return when {
             daysUntil > 7 -> null
@@ -27,5 +23,15 @@ object SubscriptionWarningCalculator {
             daysUntil == 0L -> SubscriptionWarningState.ExpiringToday
             else -> SubscriptionWarningState.Expired
         }
+    }
+
+    @androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.O)
+    fun calculate(
+        expiryMs: Long,
+        today: LocalDate,
+        zone: ZoneOffset
+    ): SubscriptionWarningState? {
+        val todayMs = today.atStartOfDay().toInstant(zone).toEpochMilli()
+        return calculate(expiryMs, todayMs)
     }
 }

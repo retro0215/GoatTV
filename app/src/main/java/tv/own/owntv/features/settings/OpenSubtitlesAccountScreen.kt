@@ -496,7 +496,12 @@ private fun openSubtitlesResetLabel(raw: String?): String {
     val now = System.currentTimeMillis()
     val target = raw?.trim()?.takeIf { it.isNotEmpty() }?.let { value ->
         value.toLongOrNull()?.let { epoch -> if (epoch < 10_000_000_000L) epoch * 1_000L else epoch }
-            ?: runCatching { java.time.Instant.parse(value).toEpochMilli() }.getOrNull()
+            ?: runCatching {
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }
+                sdf.parse(value.substringBefore('.'))?.time
+            }.getOrNull()
             ?: Regex("^(\\d{1,2}):(\\d{2}):(\\d{2})$").matchEntire(value)?.let { match ->
                 now + (match.groupValues[1].toLong() * 3_600L +
                     match.groupValues[2].toLong() * 60L + match.groupValues[3].toLong()) * 1_000L
@@ -506,8 +511,17 @@ private fun openSubtitlesResetLabel(raw: String?): String {
 
     // OpenSubtitles may omit reset_time while the full daily quota is untouched. Its daily
     // allowance rolls at UTC midnight, so still show the next useful reset instead of "Not set".
-    val resetAt = target ?: java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC)
-        .toLocalDate().plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+    val resetAt = target ?: run {
+        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = now
+            add(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        cal.timeInMillis
+    }
     val totalMinutes = ((resetAt - now).coerceAtLeast(0L) / 60_000L).toInt()
     return stringResource(R.string.settings_open_subtitles_reset_in, totalMinutes / 60, totalMinutes % 60)
 }

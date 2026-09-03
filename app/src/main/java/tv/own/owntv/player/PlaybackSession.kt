@@ -184,24 +184,42 @@ class PlaybackSession(private val context: Context) {
         }
     }
 
-    private val focusRequest by lazy {
-        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-                    .build(),
-            )
-            // false = let the platform duck us automatically instead of handing us a callback to pause on.
-            .setWillPauseWhenDucked(false)
-            .setOnAudioFocusChangeListener(focusListener)
-            .build()
-    }
+    private var _focusRequest: Any? = null
+
+    @get:androidx.annotation.RequiresApi(android.os.Build.VERSION_CODES.O)
+    private val focusRequest: AudioFocusRequest
+        get() {
+            var req = _focusRequest as? AudioFocusRequest
+            if (req == null) {
+                req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                            .build(),
+                    )
+                    .setWillPauseWhenDucked(false)
+                    .setOnAudioFocusChangeListener(focusListener)
+                    .build()
+                _focusRequest = req
+            }
+            return req
+        }
 
     private fun requestFocus() {
         if (hasFocus) return
-        val granted = runCatching { audioManager.requestAudioFocus(focusRequest) }
-            .getOrDefault(AudioManager.AUDIOFOCUS_REQUEST_FAILED) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        val granted = runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    focusListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN
+                ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            }
+        }.getOrDefault(false)
         // A refusal is not a reason to refuse to play: some TV builds deny focus to background-capable
         // apps and playing silently-unmanaged is still better than not playing.
         hasFocus = granted
@@ -210,7 +228,14 @@ class PlaybackSession(private val context: Context) {
     private fun abandonFocus() {
         if (!hasFocus) return
         hasFocus = false
-        runCatching { audioManager.abandonAudioFocusRequest(focusRequest) }
+        runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                audioManager.abandonAudioFocusRequest(focusRequest)
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(focusListener)
+            }
+        }
     }
 
     // --- Ducking ----------------------------------------------------------------------------------
