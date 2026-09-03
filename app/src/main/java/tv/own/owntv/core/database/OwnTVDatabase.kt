@@ -19,6 +19,7 @@ import tv.own.owntv.core.database.dao.SeriesDao
 import tv.own.owntv.core.database.dao.SeriesSortOrderDao
 import tv.own.owntv.core.database.dao.TvProviderProgramDao
 import tv.own.owntv.core.database.dao.TrendingDao
+import tv.own.owntv.core.database.dao.ReminderDao
 import tv.own.owntv.core.database.dao.SourceDao
 import tv.own.owntv.core.database.entity.CategoryEntity
 import tv.own.owntv.core.database.entity.ChannelEntity
@@ -52,6 +53,7 @@ import tv.own.owntv.core.database.entity.WatchHistoryEntity
 import tv.own.owntv.core.database.entity.TvProviderProgramEntity
 import tv.own.owntv.core.database.entity.TrendingItemEntity
 import tv.own.owntv.core.database.entity.TrendingSnapshotEntity
+import tv.own.owntv.core.database.entity.ReminderEntity
 import tv.own.owntv.core.database.dao.CustomCategoryDao
 import tv.own.owntv.core.database.dao.SubtitleDao
 
@@ -103,8 +105,10 @@ import tv.own.owntv.core.database.dao.ProviderMetadataDao
         MovieFtsEntity::class,
         SeriesFtsEntity::class,
         EpisodeFtsEntity::class,
+        // Program Reminders
+        ReminderEntity::class,
     ],
-    version = 37, // v7: content_order (Move). v8: contentHash + browse/unique indexes. v9: EPG contentHash + natural key. v10: TMDB metadata cache. v11: movies/series rating-sort indexes. v12: metadata_cache trailerKey. v13: metadata_cache logoPath. v14: sources.mac (Stalker portal). v15: external-subtitle cache/selection/timing tables. v16: subtitle_link (downloaded-sub ↔ content). v17: sources.syncLive/Movies/Series (skip-sync enabledScope). v18: series.episodesSyncedAt (episode-cache freshness, S8). v19: epg_channels.iconUrl (XMLTV channel logos). v20: channels (sourceId, number) index for direct tune. v21: series.addedAt + date-added sort indexes. v22: series_sort_order (per-series season/episode order). v23: sources.hlsSupported and sources.preferHls. v24: custom_category_members (user custom categories, #87). v25: sources.livePrerollSecs (per-playlist "Pre-buffer"). v26: channels.catchupType + channels.httpHeaders (M3U catch-up styles + per-channel HTTP headers). v27: sources.maxConnections (Xtream session limit read at sync). v28: movies.httpHeaders + episodes.httpHeaders (per-item M3U HTTP headers). v29: optional Stalker serial/device IDs/signature. v30: source-scoped Now Trending snapshots. v31: indexed provider-title metadata and persistent Trending attempt state. v32: playback_prefs (per-item zoom + volume, keyed by the P6 stable content key). v33: channels/movies/episodes drmConfig (M3U Widevine/ClearKey licence details, #115). v34: sources.expiryMs/expiryDate (subscription expiration warning). v35: provider_metadata_cache (on-demand rich provider metadata). v36: episodes rating/releaseDate/stillUrl columns. v37: fix epg_programmes missing DEFAULT 0.
+    version = 38, // v7: content_order (Move). v8: contentHash + browse/unique indexes. v9: EPG contentHash + natural key. v10: TMDB metadata cache. v11: movies/series rating-sort indexes. v12: metadata_cache trailerKey. v13: metadata_cache logoPath. v14: sources.mac (Stalker portal). v15: external-subtitle cache/selection/timing tables. v16: subtitle_link (downloaded-sub ↔ content). v17: sources.syncLive/Movies/Series (skip-sync enabledScope). v18: series.episodesSyncedAt (episode-cache freshness, S8). v19: epg_channels.iconUrl (XMLTV channel logos). v20: channels (sourceId, number) index for direct tune. v21: series.addedAt + date-added sort indexes. v22: series_sort_order (per-series season/episode order). v23: sources.hlsSupported and sources.preferHls. v24: custom_category_members (user custom categories, #87). v25: sources.livePrerollSecs (per-playlist "Pre-buffer"). v26: channels.catchupType + channels.httpHeaders (M3U catch-up styles + per-channel HTTP headers). v27: sources.maxConnections (Xtream session limit read at sync). v28: movies.httpHeaders + episodes.httpHeaders (per-item M3U HTTP headers). v29: optional Stalker serial/device IDs/signature. v30: source-scoped Now Trending snapshots. v31: indexed provider-title metadata and persistent Trending attempt state. v32: playback_prefs (per-item zoom + volume, keyed by the P6 stable content key). v33: channels/movies/episodes drmConfig (M3U Widevine/ClearKey licence details, #115). v34: sources.expiryMs/expiryDate (subscription expiration warning). v35: provider_metadata_cache (on-demand rich provider metadata). v36: episodes rating/releaseDate/stillUrl columns. v37: fix epg_programmes missing DEFAULT 0. v38: reminders table.
 
     exportSchema = true,
 )
@@ -131,6 +135,7 @@ abstract class OwnTVDatabase : RoomDatabase() {
     abstract fun trendingDao(): TrendingDao
     abstract fun subtitleDao(): SubtitleDao
     abstract fun providerMetadataDao(): ProviderMetadataDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         const val NAME = "owntv.db"
@@ -144,7 +149,30 @@ abstract class OwnTVDatabase : RoomDatabase() {
             }
         }
 
-        /** v36 → v37: Fix epg_programmes schema drift (missing DEFAULT 0 on contentHash). */
+        /** v37 → v38: add reminders table for program reminders. */
+        val MIGRATION_37_38 = object : androidx.room.migration.Migration(37, 38) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reminders` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`profileId` INTEGER NOT NULL, " +
+                        "`sourceId` INTEGER NOT NULL, " +
+                        "`channelId` INTEGER NOT NULL, " +
+                        "`channelName` TEXT NOT NULL, " +
+                        "`channelNumber` INTEGER, " +
+                        "`programId` TEXT, " +
+                        "`programTitle` TEXT NOT NULL, " +
+                        "`programStartMs` INTEGER NOT NULL, " +
+                        "`programEndMs` INTEGER NOT NULL, " +
+                        "`triggerAtMs` INTEGER NOT NULL, " +
+                        "`createdAtMs` INTEGER NOT NULL" +
+                        ")",
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_reminders_channelId_programStartMs` ON `reminders` (`channelId`, `programStartMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_profileId` ON `reminders` (`profileId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_reminders_triggerAtMs` ON `reminders` (`triggerAtMs`)")
+            }
+        }
         val MIGRATION_36_37 = object : androidx.room.migration.Migration(36, 37) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("DROP TABLE IF EXISTS `epg_programmes`")

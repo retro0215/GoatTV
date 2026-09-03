@@ -1946,6 +1946,9 @@ class LiveViewModel(
      *  under the CursorWindow limit, so the detail popup fetches it on demand (same as the Guide). */
     suspend fun programmeDescription(programmeId: Long): String? = epgReader.programmeDescription(programmeId)
 
+    suspend fun loadScheduleWindow(ch: ChannelEntity, from: Long, to: Long): List<tv.own.owntv.core.database.entity.EpgProgrammeEntity> =
+        epgReader.scheduleWindowForChannel(ch, custom.value, epgOffset.value, ctx.value.sourceIds, from, to)
+
     /** True while a catch-up **archive programme** is what's on screen, rather than the live stream.
      *  The HUD keys off this: an archive is VOD-style playback, so it must offer the mpv/ExoPlayer VOD
      *  engine toggle (which reloads the SAME archive URL at the same position) instead of Live TV's

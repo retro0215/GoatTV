@@ -57,7 +57,24 @@ fun LiveEpgCard(
     // ARCHIVE only: the wall-clock instant on screen, which drives the progress bar and "x min left".
     atMs: Long? = null,
 ) {
-    if (epg == null || (epg.now == null && epg.next == null)) return
+    if (epg == null || (epg.now == null && epg.next == null)) {
+        Row(
+            modifier = modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(R.string.home_guide_unavailable),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.6f),
+                fontWeight = FontWeight.Medium,
+            )
+        }
+        return
+    }
     val archive = variant == EpgCardVariant.ARCHIVE
     val colors = OwnTVTheme.colors
     val formatTime = rememberSystemTimeFormatter()

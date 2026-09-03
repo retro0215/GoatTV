@@ -175,6 +175,8 @@ fun PlayerHud(
     // (the EPG data lives in LiveViewModel, not the player). Rendered on the right edge whenever the
     // controls are visible, like the top-bar channel card; informational only, never focusable.
     liveEpgCard: (@Composable () -> Unit)? = null,
+    // Open the full TV Guide overlay on Fullscreen Live TV.
+    onOpenGuide: (() -> Unit)? = null,
     // The archive's own wall-clock instant while catch-up/rewind is playing; null means the picture is
     // the present, and only the real clock shows. Drives the second, framed clock at top centre.
     watchingWallMs: Long? = null,
@@ -223,7 +225,7 @@ fun PlayerHud(
         msToAdvance in 0L..30_000L && !autoNextDismissed
     val nextCountdown = ((msToAdvance + 999L) / 1000L).toInt().coerceIn(0, 30)
 
-    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsVisible by remember { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) } // stream technical-info overlay
     // Used only by "Report this stream", which writes the current readout into the playback log (F18).
     val reportContext = androidx.compose.ui.platform.LocalContext.current
@@ -364,7 +366,7 @@ fun PlayerHud(
     }
     LaunchedEffect(controlsVisible, wakeTick, forceShow, inert) {
         // Don't auto-hide under an overlay — hiding is what triggers the catch-all focus grab below.
-        if (controlsVisible && !forceShow && !inert) { delay(4500); controlsVisible = false }
+        if (controlsVisible && !forceShow && !inert) { delay(6000); controlsVisible = false }
     }
     LaunchedEffect(controlsVisible, error, dialog, inert, showNextCard) {
         // Never steal focus while a dialog is open (its rows own it) or while a shell overlay is up
@@ -442,6 +444,10 @@ fun PlayerHud(
                     e.key.horizontalDirection(layoutDirection) == HorizontalDirection.START -> { onOpenChannelList(); true }
                 onOpenHistoryList != null && !controlsVisible &&
                     e.key.horizontalDirection(layoutDirection) == HorizontalDirection.END -> { onOpenHistoryList(); true }
+                !controlsVisible && (e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter) -> {
+                    controlsVisible = true
+                    true
+                }
                 controlsVisible -> { wakeTick++; false }
                 else -> false
             }
@@ -561,7 +567,7 @@ fun PlayerHud(
                         engineFlash++
                     },
                     favorite = favorite, onToggleFavorite = onToggleFavorite,
-                    onOpenDialog = { dialog = it }, onPip = onPip, onAudioMode = onAudioMode, onBack = onBack,
+                    onOpenDialog = { dialog = it }, onPip = onPip, onAudioMode = onAudioMode, onOpenGuide = onOpenGuide, onBack = onBack,
                     modifier = Modifier.align(Alignment.BottomStart),
                 )
             }

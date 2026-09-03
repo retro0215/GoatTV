@@ -53,6 +53,12 @@ class KoinWorkerFactory : WorkerFactory() {
                 koin.get(),
                 koin.get(),
             )
+            ReminderWorker::class.java.name -> ReminderWorker(
+                appContext,
+                workerParameters,
+                koin.get(),
+                koin.get(),
+            )
             else -> null
         }
     }

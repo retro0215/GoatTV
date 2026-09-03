@@ -660,6 +660,18 @@
     <string name="content_epg_offset_channel_description">Move the guide for “<xliff:g id="channel">%1$s</xliff:g>”. Use this when an East/West feed shares its guide with the other version — a negative offset pulls the guide earlier.</string>
     <string name="content_epg_offset_following_global">Following the global offset (<xliff:g id="offset">%1$s</xliff:g>)</string>
     <string name="content_epg_offset_channel_only">This channel only · global is <xliff:g id="offset">%1$s</xliff:g></string>
+    <string name="content_reminder_set">Set reminder</string>
+    <string name="content_reminder_cancel">Cancel reminder</string>
+    <string name="content_reminder_active">Reminder set</string>
+    <string name="content_reminder_title">PROGRAM STARTING SOON</string>
+    <string name="content_reminder_message">Starts in 1 minute on <xliff:g id="channel">%1$s</xliff:g></string>
+    <string name="content_reminder_watch">Watch channel</string>
+    <string name="content_reminder_dismiss">Dismiss</string>
+    <string name="content_channel_unavailable">Channel no longer available</string>
+    <string name="content_reminder_cancelled">Reminder Cancelled</string>
+    <string name="content_reminder_set_confirmation">Reminder Set\n\"%1$s\"\nThis program will automatically play when it starts.</string>
+    <string name="content_reminder_indicator">REMINDER SET</string>
+    <string name="content_reminder_already_set">REMINDER ALREADY SET</string>
     <string name="content_epg_offset_use_global">Use global</string>
     <string name="content_preview_single_stream">Preview off — your provider allows one stream at a time</string>
 </resources>

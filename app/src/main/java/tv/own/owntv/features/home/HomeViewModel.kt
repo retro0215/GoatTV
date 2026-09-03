@@ -265,6 +265,68 @@ class HomeViewModel(
     private val movieRepository: MovieRepository,
     private val seriesRepository: SeriesRepository,
 ) : ViewModel() {
+    private var cachedTop10ProfileId: Long? = null
+    private var lastTop10ComputeTimeMs: Long = 0L
+    private var cachedTopMovies: List<MovieEntity> = emptyList()
+    private var cachedTopSeries: List<SeriesEntity> = emptyList()
+
+    private suspend fun getDynamicTopMovies(profileId: Long, sourceIds: List<Long>): List<MovieEntity> {
+        if (sourceIds.isEmpty()) return emptyList()
+        val topRated = movieDao.topRated(sourceIds, 50)
+        val recentlyAdded = movieDao.recentlyAdded(sourceIds, 50)
+        val watched = movieDao.recentlyWatchedSnapshot(profileId, sourceIds, 50)
+        val watchedIds = watched.map { it.id }.toSet()
+        val candidates = (topRated + recentlyAdded + watched).distinctBy { it.id }
+
+        val now = System.currentTimeMillis()
+        return candidates.map { movie ->
+            val rating = movie.rating ?: 0.0
+            val ratingScore = if (rating > 0.0) rating * 1.2 else 6.0
+            
+            val addedAt = movie.addedAt ?: 0L
+            val ageDays = if (addedAt > 0L) (now - addedAt).coerceAtLeast(0L) / 86_400_000.0 else 30.0
+            val freshnessScore = maxOf(0.0, 4.0 * (1.0 - (ageDays / 30.0)))
+
+            val engagementScore = if (movie.id in watchedIds) 3.0 else 0.0
+
+            val totalScore = ratingScore + freshnessScore + engagementScore
+            Triple(movie, totalScore, addedAt)
+        }
+        .sortedWith(compareByDescending<Triple<MovieEntity, Double, Long>> { it.second }
+            .thenByDescending { it.third }
+            .thenByDescending { it.first.id })
+        .take(10)
+        .map { it.first }
+    }
+
+    private suspend fun getDynamicTopSeries(profileId: Long, sourceIds: List<Long>): List<SeriesEntity> {
+        if (sourceIds.isEmpty()) return emptyList()
+        val topRated = seriesDao.topRated(sourceIds, 50)
+        val recentlyAdded = seriesDao.recentlyAdded(sourceIds, 50)
+        val watched = seriesDao.recentlyWatchedSnapshot(profileId, sourceIds, 50)
+        val watchedIds = watched.map { it.id }.toSet()
+        val candidates = (topRated + recentlyAdded + watched).distinctBy { it.id }
+
+        val now = System.currentTimeMillis()
+        return candidates.map { series ->
+            val rating = series.rating ?: 0.0
+            val ratingScore = if (rating > 0.0) rating * 1.2 else 6.0
+            
+            val addedAt = series.addedAt ?: 0L
+            val ageDays = if (addedAt > 0L) (now - addedAt).coerceAtLeast(0L) / 86_400_000.0 else 30.0
+            val freshnessScore = maxOf(0.0, 4.0 * (1.0 - (ageDays / 30.0)))
+
+            val engagementScore = if (series.id in watchedIds) 3.0 else 0.0
+
+            val totalScore = ratingScore + freshnessScore + engagementScore
+            Triple(series, totalScore, addedAt)
+        }
+        .sortedWith(compareByDescending<Triple<SeriesEntity, Double, Long>> { it.second }
+            .thenByDescending { it.third }
+            .thenByDescending { it.first.id })
+        .take(10)
+        .map { it.first }
+    }
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -526,6 +588,7 @@ class HomeViewModel(
     fun refresh() {
         viewModelScope.launch {
             val pid = currentProfileId() ?: return@launch
+            lastTop10ComputeTimeMs = 0L
             loadHomeData(pid)
         }
     }
@@ -557,8 +620,22 @@ class HomeViewModel(
                 seriesDao.storedSeasonCounts(trendingSeriesIds).associate { it.seriesId to it.seasonCount }
             }
 
-            val topMovies = if (movieIds.isNotEmpty()) movieDao.topRated(movieIds.toList(), 10) else emptyList()
-            val topSeries = if (seriesIds.isNotEmpty()) seriesDao.topRated(seriesIds.toList(), 10) else emptyList()
+            val now = System.currentTimeMillis()
+            val cacheValid = cachedTop10ProfileId == profileId &&
+                (now - lastTop10ComputeTimeMs < 24 * 3600 * 1000L) &&
+                cachedTopMovies.isNotEmpty() && cachedTopSeries.isNotEmpty()
+
+            val (topMovies, topSeries) = if (cacheValid) {
+                Pair(cachedTopMovies, cachedTopSeries)
+            } else {
+                val computedMovies = getDynamicTopMovies(profileId, movieIds.toList())
+                val computedSeries = getDynamicTopSeries(profileId, seriesIds.toList())
+                cachedTop10ProfileId = profileId
+                lastTop10ComputeTimeMs = now
+                cachedTopMovies = computedMovies
+                cachedTopSeries = computedSeries
+                Pair(computedMovies, computedSeries)
+            }
             val recentMovies = if (movieIds.isNotEmpty()) movieDao.recentlyAdded(movieIds.toList(), 20) else emptyList()
             val recentSeries = if (seriesIds.isNotEmpty()) seriesDao.recentlyAdded(seriesIds.toList(), 20) else emptyList()
 

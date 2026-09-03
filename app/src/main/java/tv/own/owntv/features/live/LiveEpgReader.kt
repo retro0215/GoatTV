@@ -230,6 +230,32 @@ internal class LiveEpgReader(
     suspend fun programmeDescription(programmeId: Long): String? =
         withContext(Dispatchers.IO) { runCatching { epgDao.programmeDescription(programmeId) }.getOrNull() }
 
+    suspend fun scheduleWindowForChannel(
+        ch: ChannelEntity,
+        cust: SectionCustomizations,
+        globalShiftMinutes: Int,
+        liveSourceIds: List<Long>,
+        from: Long,
+        to: Long,
+    ): List<EpgProgrammeEntity> = withContext(Dispatchers.IO) {
+        val epgKey = (cust.epgMatches[CustomizeKeys.channel(ch)] ?: ch.epgChannelId)
+            ?.trim()?.lowercase()?.takeIf { it.isNotEmpty() } ?: ch.name.trim().lowercase()
+        val ids = liveSourceIds + epgSourceStore.getAll().map { it.id }
+        val shift = EpgShift.minutesFor(cust, ch, globalShiftMinutes)
+        val shiftedFrom = EpgShift.toStored(from, shift)
+        val shiftedTo = EpgShift.toStored(to, shift)
+
+        var stored = epgDao.programmesForChannel(ids, epgKey, shiftedFrom, shiftedTo)
+        if (stored.isEmpty()) {
+            val nameKey = ch.name.trim().lowercase()
+            stored = epgDao.programmesForChannel(ids, nameKey, shiftedFrom, shiftedTo)
+        }
+        if (tv.own.owntv.BuildConfig.DEBUG) {
+            Log.d("EPG_DIAGNOSTIC", "found epg entries")
+        }
+        stored.map { EpgShift.apply(it, shift) }
+    }
+
     /** Distinct EPG channels for the "Match EPG" picker (across the profile's playlists + EPG feeds),
      *  ranked so guide channels resembling [channelName] come first instead of a plain A-Z list. */
     suspend fun availableEpgChannels(

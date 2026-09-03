@@ -2,16 +2,23 @@ package tv.own.owntv.features.shell
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -28,10 +35,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -589,6 +608,39 @@ fun OwnTVShell(
                 tv.own.owntv.player.AutoFrameRatePrompt(fps = activeFps, afrEnabled = autoFrameRate, alreadyPrompted = afrPrompted, onEnable = { scope.launch { settingsRepo.setAutoFrameRate(true); settingsRepo.setAutoFrameRatePrompted() } }, onDismiss = { scope.launch { settingsRepo.setAutoFrameRatePrompted() } })
             }
             if (isFull) {
+                var showLiveGuide by remember { mutableStateOf(false) }
+                val reminderDao = koinInject<tv.own.owntv.core.database.dao.ReminderDao>()
+                val context = androidx.compose.ui.platform.LocalContext.current
+                var activeReminderBanner by remember { mutableStateOf<tv.own.owntv.core.database.entity.ReminderEntity?>(null) }
+                LaunchedEffect(Unit) {
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        val now = System.currentTimeMillis()
+                        val allReminders = reminderDao.getAll()
+                        for (reminder in allReminders) {
+                            if (reminder.programStartMs <= now) {
+                                reminderDao.delete(reminder.channelId, reminder.programStartMs)
+                            } else {
+                                tv.own.owntv.core.sync.work.ReminderScheduler.schedule(context, reminder)
+                            }
+                        }
+                    }
+                    launch {
+                        tv.own.owntv.core.notification.ReminderEventBus.reminderEvents.collect { reminder ->
+                            activeReminderBanner = reminder
+                        }
+                    }
+                    launch {
+                        tv.own.owntv.core.notification.ReminderEventBus.autotuneEvents.collect { reminder ->
+                            scope.launch {
+                                val success = liveVm.ensurePlayingByIdAsync(reminder.channelId)
+                                if (success) {
+                                    openFullscreen(MainSection.LIVE_TV)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 val isLiveStream = liveOnExo || player.isLiveContent
                 val zap: ((Int) -> Unit)? = when {
                     !isLiveStream -> null
@@ -608,40 +660,156 @@ fun OwnTVShell(
                     zapSource == MainSection.SERIES -> playingSeries?.let { seriesFavoriteIds.contains(it.id) } ?: false
                     else -> false
                 }
-                PlayerHud(
-                    player = if (liveOnExo) liveVm.previewEngine else mpvEngine, onBack = exitPlayer, onPip = dockPlayer, onAudioMode = toAudioMode,
-                    inert = showChannelList || showHistoryList || showCategoryBrowser || showSubtitleSearch || showLocalSubPicker,
-                    onChannelUp = zap?.let { z -> { z(-1) } }, onChannelDown = zap?.let { z -> { z(1) } },
-                    onOpenChannelList = if (isTunedLive && liveCanZap) { { showChannelList = true } } else null,
-                    onOpenHistoryList = if (isTunedLive) { { showHistoryList = true } } else null,
-                    onRewindLive = if (isTunedLive && canRewindLive) liveVm::rewindLive else null,
-                    onForwardLive = if (isTunedLive) liveVm::forwardLive else null,
-                    onGoToLive = if (isTunedLive) liveVm::goToLive else null,
-                    onScrubLive = if (isTunedLive && canRewindLive) liveVm::scrubLive else null,
-                    jumpBackOptions = if (isTunedLive && canRewindLive) liveVm::currentJumpOptions else null,
-                    onJumpBack = if (isTunedLive && canRewindLive) liveVm::jumpBackTo else null,
-                    jumpBackWindowSec = if (isTunedLive && canRewindLive) liveVm::currentCatchupWindowSec else null,
-                    watchingWallMs = liveVm.watchingWallMs.collectAsStateWithLifecycle().value,
-                    timeshiftOffsetSec = if (isTunedLive) timeshiftOffset else null,
-                    onTuneToNumber = if (directTuneEnabled && isTunedLive && isLiveStream && timeshiftOffset == null && previewChannel != null) liveVm::tuneByNumber else null,
-                    directTuneContextKey = previewChannel?.id ?: 0L, compatMode = if (isTunedLive) !liveOnExo else null,
-                    onToggleCompatMode = if (isTunedLive && timeshiftOffset == null && previewChannel?.drmConfig == null) liveVm::toggleForceMpv else null,
-                    vodOnExo = if (!isLiveStream && !isTunedLive) vodExoActive else null,
-                    onToggleVodEngine = if (!isLiveStream && !isTunedLive) player::toggleVodEngine else null,
-                    onSearchSubtitles = if (!isLiveStream && zapSource != MainSection.LIVE_TV && subtitleContext != null) { { showSubtitleSearch = true } } else null,
-                    onSelectLocalSubtitle = if (!isLiveStream && zapSource != MainSection.LIVE_TV && subtitleContext != null) { { showLocalSubPicker = true } } else null,
-                    favorite = favActive, onToggleFavorite = favToggle,
-                    liveEpgCard = if (zapSource == MainSection.LIVE_TV) { {
-                        val epg by liveVm.nowNext.collectAsStateWithLifecycle()
-                        val archiveEpg by liveVm.archiveNowNext.collectAsStateWithLifecycle()
-                        val watching by liveVm.watchingWallMs.collectAsStateWithLifecycle()
-                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                            if (watching != null) tv.own.owntv.features.shell.components.LiveEpgCard(epg = archiveEpg, variant = tv.own.owntv.features.shell.components.EpgCardVariant.ARCHIVE, atMs = watching)
-                            tv.own.owntv.features.shell.components.LiveEpgCard(epg = epg, modifier = if (watching == null) Modifier else Modifier.alpha(0.55f))
+                if (showLiveGuide && zapSource == MainSection.LIVE_TV) {
+                    tv.own.owntv.features.shell.components.BottomTvGuideOverlay(
+                        channel = previewChannel,
+                        visible = showLiveGuide,
+                        onDismiss = { showLiveGuide = false },
+                        loadScheduleWindow = liveVm::loadScheduleWindow,
+                        onChannelUp = zap?.let { z -> { z(-1) } },
+                        onChannelDown = zap?.let { z -> { z(1) } },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    PlayerHud(
+                        player = if (liveOnExo) liveVm.previewEngine else mpvEngine, onBack = exitPlayer, onPip = dockPlayer, onAudioMode = toAudioMode,
+                        inert = showChannelList || showHistoryList || showCategoryBrowser || showSubtitleSearch || showLocalSubPicker,
+                        onChannelUp = zap?.let { z -> { z(-1) } }, onChannelDown = zap?.let { z -> { z(1) } },
+                        onOpenChannelList = if (isTunedLive && liveCanZap) { { showChannelList = true } } else null,
+                        onOpenHistoryList = if (isTunedLive) { { showHistoryList = true } } else null,
+                        onRewindLive = if (isTunedLive && canRewindLive) liveVm::rewindLive else null,
+                        onForwardLive = if (isTunedLive) liveVm::forwardLive else null,
+                        onGoToLive = if (isTunedLive) liveVm::goToLive else null,
+                        onScrubLive = if (isTunedLive && canRewindLive) liveVm::scrubLive else null,
+                        jumpBackOptions = if (isTunedLive && canRewindLive) liveVm::currentJumpOptions else null,
+                        onJumpBack = if (isTunedLive && canRewindLive) liveVm::jumpBackTo else null,
+                        jumpBackWindowSec = if (isTunedLive && canRewindLive) liveVm::currentCatchupWindowSec else null,
+                        watchingWallMs = liveVm.watchingWallMs.collectAsStateWithLifecycle().value,
+                        timeshiftOffsetSec = if (isTunedLive) timeshiftOffset else null,
+                        onTuneToNumber = if (directTuneEnabled && isTunedLive && isLiveStream && timeshiftOffset == null && previewChannel != null) liveVm::tuneByNumber else null,
+                        directTuneContextKey = previewChannel?.id ?: 0L, compatMode = if (isTunedLive) !liveOnExo else null,
+                        onToggleCompatMode = if (isTunedLive && timeshiftOffset == null && previewChannel?.drmConfig == null) liveVm::toggleForceMpv else null,
+                        vodOnExo = if (!isLiveStream && !isTunedLive) vodExoActive else null,
+                        onToggleVodEngine = if (!isLiveStream && !isTunedLive) player::toggleVodEngine else null,
+                        onSearchSubtitles = if (!isLiveStream && zapSource != MainSection.LIVE_TV && subtitleContext != null) { { showSubtitleSearch = true } } else null,
+                        onSelectLocalSubtitle = if (!isLiveStream && zapSource != MainSection.LIVE_TV && subtitleContext != null) { { showLocalSubPicker = true } } else null,
+                        favorite = favActive, onToggleFavorite = favToggle,
+                        liveEpgCard = if (zapSource == MainSection.LIVE_TV) { {
+                            val epg by liveVm.nowNext.collectAsStateWithLifecycle()
+                            val archiveEpg by liveVm.archiveNowNext.collectAsStateWithLifecycle()
+                            val watching by liveVm.watchingWallMs.collectAsStateWithLifecycle()
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                if (watching != null) tv.own.owntv.features.shell.components.LiveEpgCard(epg = archiveEpg, variant = tv.own.owntv.features.shell.components.EpgCardVariant.ARCHIVE, atMs = watching)
+                                tv.own.owntv.features.shell.components.LiveEpgCard(epg = epg, modifier = if (watching == null) Modifier else Modifier.alpha(0.55f))
+                            }
+                        } } else null,
+                        onOpenGuide = if (zapSource == MainSection.LIVE_TV) { { showLiveGuide = true } } else null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                activeReminderBanner?.let { reminder ->
+                    val unavailableMsg = stringResource(R.string.content_channel_unavailable)
+                    val dismissLabel = stringResource(R.string.content_reminder_dismiss)
+                    val watchFocus = remember { FocusRequester() }
+                    val dismissFocus = remember { FocusRequester() }
+
+                    LaunchedEffect(reminder) {
+                        kotlinx.coroutines.android.awaitFrame()
+                        runCatching { watchFocus.requestFocus() }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.7f))
+                            .focusProperties {
+                                canFocus = activeReminderBanner != null
+                            }
+                            .focusable()
+                            .onPreviewKeyEvent { e ->
+                                if (e.type == KeyEventType.KeyDown) {
+                                    when (e.key) {
+                                        Key.Back -> {
+                                            activeReminderBanner = null // Dismiss warning only, does NOT delete reminder or cancel autotune
+                                            true
+                                        }
+                                        Key.DirectionUp, Key.DirectionDown -> {
+                                            true // block vertical D-pad in warning popup
+                                        }
+                                        else -> false // let Left, Right, OK reach buttons naturally
+                                    }
+                                } else false
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .width(440.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFF1E1E1E))
+                                .border(1.dp, OwnTVTheme.colors.primary.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                                .padding(28.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                stringResource(R.string.content_reminder_title),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = OwnTVTheme.colors.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                reminder.programTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                            )
+                            Text(
+                                stringResource(R.string.content_reminder_message, reminder.channelName),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = 0.7f),
+                                textAlign = TextAlign.Center,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                ReminderWarningButton(
+                                    label = stringResource(R.string.content_reminder_watch),
+                                    onClick = {
+                                        scope.launch {
+                                            val success = liveVm.ensurePlayingByIdAsync(reminder.channelId)
+                                            if (success) {
+                                                openFullscreen(MainSection.LIVE_TV)
+                                                activeReminderBanner = null
+                                                reminderDao.delete(reminder.channelId, reminder.programStartMs)
+                                                tv.own.owntv.core.sync.work.ReminderScheduler.cancel(context, reminder.channelId, reminder.programStartMs)
+                                            } else {
+                                                localSubToast.show(unavailableMsg)
+                                                activeReminderBanner = null
+                                            }
+                                        }
+                                    },
+                                    focusRequester = watchFocus,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                ReminderWarningButton(
+                                    label = dismissLabel,
+                                    onClick = {
+                                        activeReminderBanner = null // Dismiss warning only! Does NOT delete reminder or cancel autotune.
+                                    },
+                                    focusRequester = dismissFocus,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
                         }
-                    } } else null,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                    }
+                }
                 if (showSubtitleSearch) tv.own.owntv.features.subtitles.SubtitleSearchScreen(onDismiss = { showSubtitleSearch = false }, modifier = Modifier.fillMaxSize())
                 if (showLocalSubPicker) tv.own.owntv.ui.components.StorageBrowser(title = stringResource(R.string.content_subtitle_select_file), mode = tv.own.owntv.ui.components.BrowseMode.FILE, fileExtensions = setOf("srt", "ass", "ssa", "vtt", "webvtt"), onPick = { file -> showLocalSubPicker = false; scope.launch { runCatching { subtitleController.applyLocal(file) }.onFailure { e -> localSubToast.show(e.message ?: subtitleLoadFailed) } } }, onDismiss = { showLocalSubPicker = false })
                 tv.own.owntv.ui.components.InAppToast(localSubToast)
@@ -765,4 +933,49 @@ private fun placeholderCount(section: MainSection): String = when (section) {
     MainSection.MOVIES -> stringResource(R.string.content_zero_movies)
     MainSection.SERIES -> stringResource(R.string.content_zero_series)
     MainSection.DOWNLOADS -> stringResource(R.string.content_zero_downloads)
+}
+
+@Composable
+private fun ReminderWarningButton(
+    label: String,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    val colors = OwnTVTheme.colors
+    var isFocused by remember { mutableStateOf(false) }
+
+    val bg = if (isFocused) colors.primary else Color(0xFF2A2A2A)
+    val borderColor = if (isFocused) Color.White else Color.White.copy(alpha = 0.2f)
+    val borderWidth = if (isFocused) 4.dp else 1.dp
+    val textColor = if (isFocused) colors.onPrimary else Color.White
+
+    Box(
+        modifier = modifier
+            .focusRequester(focusRequester)
+            .onFocusChanged { isFocused = it.hasFocus }
+            .focusable()
+            .clickable { onClick() }
+            .graphicsLayer {
+                if (isFocused) {
+                    scaleX = 1.05f
+                    scaleY = 1.05f
+                }
+            }
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .border(borderWidth, borderColor, RoundedCornerShape(50))
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = textColor,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
 }

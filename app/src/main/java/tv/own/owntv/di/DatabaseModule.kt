@@ -55,6 +55,7 @@ val databaseModule = module {
                 OwnTVDatabase.MIGRATION_34_35,
                 OwnTVDatabase.MIGRATION_35_36,
                 OwnTVDatabase.MIGRATION_36_37,
+                OwnTVDatabase.MIGRATION_37_38,
             )
             .addCallback(object : RoomDatabase.Callback() {
                 // Self-heal index/FTS drift on every open (no-op when healthy): an interrupted bulk
@@ -94,4 +95,6 @@ val databaseModule = module {
     single { get<OwnTVDatabase>().trendingDao() }
     single { get<OwnTVDatabase>().subtitleDao() }
     single { get<OwnTVDatabase>().providerMetadataDao() }
+    single { get<OwnTVDatabase>().reminderDao() }
+    single { tv.own.owntv.core.notification.ReminderNotifier(androidContext()) }
 }

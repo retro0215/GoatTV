@@ -1059,6 +1059,12 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ProgressDao.kt	e.seasonNumber AS seasonNumber, e.episodeNumber AS episodeNumber,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ProgressDao.kt	episodeSeries.remoteId AS seriesRemoteId, episodeSeries.name AS seriesName,
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ProgressDao.kt	p.updatedAt AS at, p.positionMs AS positionMs, p.durationMs AS durationMs
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	DELETE FROM reminders WHERE channelId = :channelId AND programStartMs = :programStartMs
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	DELETE FROM reminders WHERE id = :id
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE profileId = :profileId
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE triggerAtMs <= :currentTimeMs
+2	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT EXISTS(SELECT 1 FROM reminders WHERE channelId = :channelId AND programStartMs = :programStartMs)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	(SELECT rowid FROM series_fts WHERE series_fts MATCH :ftsQuery)
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	AND (categoryId IS NULL OR categoryId NOT IN (:excludedCategoryIds))
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	AND id IN (SELECT rowid FROM series_fts WHERE series_fts MATCH :ftsQuery) ORDER BY name ASC LIMIT :limit
@@ -1255,6 +1261,11 @@
 3	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ProfileEntities.kt	sourceId
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ProfileEntities.kt	sources
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ProfileEntities.kt	type
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ReminderEntity.kt	channelId
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ReminderEntity.kt	profileId
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ReminderEntity.kt	programStartMs
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ReminderEntity.kt	reminders
+1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/ReminderEntity.kt	triggerAtMs
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/SubtitleEntities.kt	0
 5	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/SubtitleEntities.kt	cacheId
 3	room-schema	app/src/main/java/tv/own/owntv/core/database/entity/SubtitleEntities.kt	contentKey
@@ -1776,6 +1787,13 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/network/StreamHeaders.kt	transfer-encoding
 1	protocol	app/src/main/java/tv/own/owntv/core/network/StreamHeaders.kt	user-agent
 1	protocol	app/src/main/java/tv/own/owntv/core/network/StreamHeaders.kt	x-forwarded-for
+1	technical	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	MissingPermission
+1	technical	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	Program Reminders
+1	technical	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	Program reminders for live TV
+1	log	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	REMINDER_EVENT_BUS
+1	log	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	REMINDER_NOTIFIER
+1	preference-key	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	epg_program_reminders
+1	preference-key	app/src/main/java/tv/own/owntv/core/notification/ReminderNotifier.kt	extra_channel_id
 1	empty	app/src/main/java/tv/own/owntv/core/parser/M3uParser.kt	\0
 1	protocol	app/src/main/java/tv/own/owntv/core/parser/M3uParser.kt	#
 1	technical	app/src/main/java/tv/own/owntv/core/parser/M3uParser.kt	#EXTHTTP:
@@ -2564,6 +2582,23 @@
 1	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	reason
 1	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	sourceId
 1	technical	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	unknown
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	REMINDER_DEBUG_TIMING
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	REMINDER_SCHEDULER
+1	technical	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	autotune
+2	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	channel_id
+2	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	program_start_ms
+2	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	reminder_id
+1	technical	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	warning
+2	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	work_type
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	REMINDER_AUTOTUNE
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	REMINDER_WARNING
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	REMINDER_WORK
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	REMINDER_WORK_START
+1	technical	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	autotune
+1	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	channel_id
+1	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	program_start_ms
+1	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	reminder_id
+1	preference-key	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	work_type
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/TrendingRefreshWorker.kt	Finished sourceId=$sourceId outcome=${outcome.diagnosticName()}
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/TrendingRefreshWorker.kt	TrendingRefreshWorker
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/TrendingRefreshWorker.kt	Unexpected refresh failure sourceId=$sourceId; preserving snapshot
@@ -2902,11 +2937,13 @@
 1	technical	app/src/main/java/tv/own/owntv/features/live/CatchupManualTimeDialog.kt	EEEMMMd
 1	technical	app/src/main/java/tv/own/owntv/features/live/CatchupManualTimeDialog.kt	▲
 1	technical	app/src/main/java/tv/own/owntv/features/live/CatchupManualTimeDialog.kt	▼
+1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	EPG_DIAGNOSTIC
 1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	OwnTVHome
 1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	OwnTVPerf
 1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	Stalker catch-up resolve failed channelId=${ch.id}
 1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	Stalker rewind resolve failed channelId=${ch.id}
 1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	epg_picker scanned=${all.size} ranked=${ranked.size}
+1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	found epg entries
 1	log	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	queryMs=${fetchedAt - startedAt} rankMs=${done - fetchedAt} totalMs=${done - startedAt}
 1	protocol	app/src/main/java/tv/own/owntv/features/live/LiveEpgReader.kt	ts
 1	empty	app/src/main/java/tv/own/owntv/features/live/LiveQueries.kt	\0
@@ -3399,8 +3436,14 @@
 1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill check failed
 1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill sourceId=${src.id} — synced before but guide is empty, re-fetching
 1	technical	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	migration_refill
+1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	-
+1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	EEE MMM d
+1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	NOW ·
+1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	·
+1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	🔔
 2	empty	app/src/main/java/tv/own/owntv/features/shell/components/CategoryRail.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/CategoryRail.kt	__rail_search__
+1	technical	app/src/main/java/tv/own/owntv/features/shell/components/LiveTvGuideOverlay.kt	🔔
 1	empty	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	·
 7	empty	app/src/main/java/tv/own/owntv/features/shell/components/SettingsScreen.kt	\0
