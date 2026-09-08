@@ -5,8 +5,11 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import tv.own.owntv.core.customize.CustomizationStore
 import tv.own.owntv.core.customize.CustomizeKeys
 import tv.own.owntv.core.database.BulkInsertHelper
@@ -285,8 +288,11 @@ internal class SyncSupport(
 
     /**
      * Drives a push-stream [producer] that feeds items into [add]; flushes to the DB via [insert] in
-     * chunks of [BulkInsertHelper.CHUNK], reporting progress. Inserts are awaited to provide sequential back-pressure,
-     * and cancellation is checked each chunk.
+     * chunks of [BulkInsertHelper.CHUNK], reporting progress. Cancellation is checked each chunk.
+     *
+     * The database write runs in its own coroutine, fed batches over a channel, so downloading and
+     * parsing the provider's response OVERLAPS with writing the previous batch instead of the two
+     * taking turns.
      */
     suspend fun <T, R> chunked(
         ctx: CoroutineContext,
@@ -299,58 +305,66 @@ internal class SyncSupport(
         uniqueKey: ((T) -> String?)? = null,
         chunkSize: Int = BulkInsertHelper.CHUNK,
         producer: suspend (add: suspend (T) -> Unit) -> R,
-    ): R {
-        val buffer = ArrayList<T>(chunkSize)
+    ): R = coroutineScope {
         var chunkIndex = 0
         var skippedDuplicates = 0
         val chunkRunStart = SystemClock.elapsedRealtime()
-        suspend fun flush() {
-            if (buffer.isEmpty()) return
-            ctx.ensureActive()
-            chunkIndex++
-            val rawCount = buffer.size
-            val flushStart = SystemClock.elapsedRealtime()
-            val pendingKeys = ArrayList<String>()
-            val rows = buffer.toList().filterNewItems(seenKeys, uniqueKey, pendingKeys)
-            val filterMs = SystemClock.elapsedRealtime() - flushStart
-            buffer.clear()
-            val skipped = rawCount - rows.size
-            skippedDuplicates += skipped
-            if (rows.isEmpty()) {
-                Log.d(
-                    TAG,
-                    "$label chunk skipped phase=${phase.name} chunk=$chunkIndex raw=$rawCount skipped=$skipped " +
-                        "totalSkipped=$skippedDuplicates totalUnique=${total[0]} filterMs=$filterMs elapsedMs=${SystemClock.elapsedRealtime() - chunkRunStart}",
-                )
-                return
+        val batches = Channel<List<T>>(Channel.RENDEZVOUS)
+        // A single writer, so `seenKeys`, `total` and the counters stay confined to one coroutine and
+        // need no synchronisation; the `writer.join()` below happens-before the caller reads them.
+        val writer = launch {
+            for (batch in batches) {
+                ctx.ensureActive()
+                chunkIndex++
+                val rawCount = batch.size
+                val flushStart = SystemClock.elapsedRealtime()
+                val pendingKeys = ArrayList<String>()
+                val rows = batch.filterNewItems(seenKeys, uniqueKey, pendingKeys)
+                val filterMs = SystemClock.elapsedRealtime() - flushStart
+                val skipped = rawCount - rows.size
+                skippedDuplicates += skipped
+                if (rows.isEmpty()) {
+                    Log.d(
+                        TAG,
+                        "$label chunk skipped phase=${phase.name} chunk=$chunkIndex raw=$rawCount skipped=$skipped " +
+                            "totalSkipped=$skippedDuplicates totalUnique=${total[0]} filterMs=$filterMs elapsedMs=${SystemClock.elapsedRealtime() - chunkRunStart}",
+                    )
+                    continue
+                }
+                val insertStart = SystemClock.elapsedRealtime()
+                val upsertStats = insert(rows)
+                val insertMs = SystemClock.elapsedRealtime() - insertStart
+                seenKeys?.addAll(pendingKeys)
+                total[0] += rows.size
+                if (shouldLogChunk(chunkIndex, insertMs, skipped)) {
+                    Log.d(
+                        TAG,
+                        "$label chunk applied phase=${phase.name} chunk=$chunkIndex raw=$rawCount accepted=${rows.size} " +
+                            "dbInserted=${upsertStats.inserted} dbUpdated=${upsertStats.updated} dbSkipped=${upsertStats.skippedUnchanged} " +
+                            "dedupeSkipped=$skipped totalDedupeSkipped=$skippedDuplicates totalUnique=${total[0]} " +
+                            "filterMs=$filterMs applyMs=$insertMs elapsedMs=${SystemClock.elapsedRealtime() - chunkRunStart}",
+                    )
+                }
+                progress.update(phase, total[0])
             }
-            val insertStart = SystemClock.elapsedRealtime()
-            val upsertStats = insert(rows)
-            val insertMs = SystemClock.elapsedRealtime() - insertStart
-            seenKeys?.addAll(pendingKeys)
-            total[0] += rows.size
-            if (shouldLogChunk(chunkIndex, insertMs, skipped)) {
-                Log.d(
-                    TAG,
-                    "$label chunk applied phase=${phase.name} chunk=$chunkIndex raw=$rawCount accepted=${rows.size} " +
-                        "dbInserted=${upsertStats.inserted} dbUpdated=${upsertStats.updated} dbSkipped=${upsertStats.skippedUnchanged} " +
-                        "dedupeSkipped=$skipped totalDedupeSkipped=$skippedDuplicates totalUnique=${total[0]} " +
-                        "filterMs=$filterMs applyMs=$insertMs elapsedMs=${SystemClock.elapsedRealtime() - chunkRunStart}",
-                )
-            }
-            progress.update(phase, total[0])
         }
+        val buffer = ArrayList<T>(chunkSize)
         val result = producer { item ->
             buffer.add(item)
-            if (buffer.size >= chunkSize) flush()
+            if (buffer.size >= chunkSize) {
+                batches.send(ArrayList(buffer))
+                buffer.clear()
+            }
         }
-        flush()
+        if (buffer.isNotEmpty()) batches.send(buffer)
+        batches.close()
+        writer.join()
         Log.i(
             TAG,
             "$label stream done phase=${phase.name} chunks=$chunkIndex totalUnique=${total[0]} " +
                 "skippedDuplicates=$skippedDuplicates elapsedMs=${SystemClock.elapsedRealtime() - chunkRunStart}",
         )
-        return result
+        result
     }
 
     private fun shouldLogChunk(chunkIndex: Int, insertMs: Long, skipped: Int): Boolean =

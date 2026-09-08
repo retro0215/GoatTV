@@ -874,11 +874,15 @@ private fun GuideInfoStrip(
 ) {
     val colors = OwnTVTheme.colors
     val formatTime = rememberSystemTimeFormatter()
-    val programme = remember(focusedChannel?.id, cursorTime, inCellMode) {
-        if (!inCellMode || focusedChannel == null || cursorTime <= 0L) null
-        else vm.cachedProgrammes(focusedChannel)?.let { progs ->
-            progs.firstOrNull { cursorTime in it.startMs until it.stopMs }
-                ?: progs.lastOrNull { it.startMs <= cursorTime }
+    val programme = remember(focusedChannel?.id, cursorTime, inCellMode, now) {
+        if (focusedChannel == null) null
+        else {
+            val t = if (inCellMode && cursorTime > 0L) cursorTime else now
+            vm.cachedProgrammes(focusedChannel)?.let { progs ->
+                progs.firstOrNull { t in it.startMs until it.stopMs }
+                    ?: progs.lastOrNull { it.startMs <= t }
+                    ?: progs.firstOrNull()
+            }
         }
     }
     val synopsis by produceState<String?>(null, programme?.id) {
@@ -905,12 +909,13 @@ private fun GuideInfoStrip(
                 ).joinToString(stringResource(R.string.content_epg_bits_separator))
                 Text(bits, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 synopsis?.takeIf { it.isNotBlank() }?.let { s ->
-                    Text(s, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(4.dp))
+                    Text(s, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         } else {
             Text(
-                if (inCellMode) stringResource(R.string.content_epg_no_programme) else stringResource(R.string.content_epg_move_hint),
+                stringResource(R.string.content_epg_no_programme),
                 style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f),
             )
         }

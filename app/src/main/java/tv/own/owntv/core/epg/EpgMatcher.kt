@@ -244,6 +244,31 @@ object EpgMatcher {
     }
 
     /**
+     * [bestEpgMatchPrepared] over a list of channel names, scored across all cores.
+     */
+    suspend fun bestEpgMatchBulk(
+        channelNames: List<String>,
+        candidates: List<Prepared>,
+        minScore: Double = REVIEW_THRESHOLD,
+    ): List<Result?> {
+        if (channelNames.isEmpty() || candidates.isEmpty()) return channelNames.map { null }
+        if (channelNames.size < PARALLEL_MIN_ITEMS) {
+            return channelNames.map { bestEpgMatchPrepared(it, candidates, minScore) }
+        }
+        val workers = kotlin.math.max(2, Runtime.getRuntime().availableProcessors())
+        val chunkSize = (channelNames.size + workers - 1) / workers
+        return coroutineScope {
+            val parts = ArrayList<Deferred<List<Result?>>>()
+            for (chunk in channelNames.chunked(chunkSize)) {
+                parts += async(Dispatchers.Default) {
+                    chunk.map { bestEpgMatchPrepared(it, candidates, minScore) }
+                }
+            }
+            parts.flatMap { it.await() }
+        }
+    }
+
+    /**
      * Order picker entries for the manual "Match EPG" dialog: everything scoring at least
      * [PICKER_SUGGEST_THRESHOLD] against [channelName] floats to the top (best first), the rest keep
      * their incoming (alphabetical) order. Ranking only — nothing here applies a match.

@@ -67,10 +67,25 @@
     <string name="common_nav_series">Series</string>
     <!-- Translators: Navigation label for the Downloads screen in the sidebar. Also used in download notifications. -->
     <string name="common_nav_downloads">Downloads</string>
-    <!-- Translators: Navigation label for the TV Guide screen in the sidebar. -->
+    <!-- Translators: Navigation label for the Guide screen in the sidebar. -->
     <string name="common_nav_guide">Guide</string>
+    <!-- Translators: Navigation label for the Sports screen in the sidebar. -->
+    <string name="common_nav_sports">Sports</string>
     <!-- Translators: Navigation label for the Settings screen in the sidebar. -->
     <string name="common_nav_settings">Settings</string>
+    <!-- Translators: Empty state message when no sports channels are found in the playlist. -->
+    <string name="sports_empty_message">No sports channels were found in your current playlist.</string>
+    <string name="sports_section_nfl">NFL</string>
+    <string name="sports_section_nba">NBA</string>
+    <string name="sports_section_mlb">MLB</string>
+    <string name="sports_section_nhl">NHL</string>
+    <string name="sports_section_ncaaf">NCAAF</string>
+    <string name="sports_section_ncaab">NCAAB</string>
+    <string name="sports_section_wnba">WNBA</string>
+    <string name="sports_section_soccer">Soccer</string>
+    <string name="sports_section_boxing_mma">Boxing / MMA</string>
+    <string name="sports_section_ppv_special">PPV &amp; Special Events</string>
+    <string name="sports_live_badge">LIVE</string>
     <!-- Translators: Status text when no content source is configured. -->
     <string name="shell_no_source">No source</string>
     <!-- Translators: Generic error message for unexpected failures. -->

@@ -281,6 +281,16 @@ class EpgViewModel(
             .distinctUntilChanged()
             .onEach { load() }
             .launchIn(viewModelScope)
+        epgSourceStore.sources
+            .map { sources -> sources.map { it.id } }
+            .distinctUntilChanged()
+            .flatMapLatest { ids ->
+                if (ids.isEmpty()) flowOf(0) else combine(ids.map { epgDao.countForSource(it) }) { it.sum() }
+            }
+            .debounce(GUIDE_DATA_SETTLE_MS)
+            .drop(1)
+            .onEach { load() }
+            .launchIn(viewModelScope)
     }
 
     /** The Guide's current sort, for the header button. */
@@ -496,21 +506,23 @@ class EpgViewModel(
                     val prepared = tv.own.owntv.core.epg.EpgMatcher.prepare(
                         candidates.map { tv.own.owntv.core.epg.EpgMatcher.Candidate(it.epgChannelId, it.displayName) },
                     )
-                    val channels = channelDao.allForSources(playlistIds, MAX_CHANNELS)
+                    val unmatched = channelDao.allForSources(playlistIds, MAX_CHANNELS).filter { ch ->
+                        val key = CustomizeKeys.channel(ch)
+                        if (key in cust.epgMatches || key in cust.hiddenItems) return@filter false // already matched/hidden
+                        val tvg = ch.epgChannelId?.trim()?.lowercase()
+                        tvg.isNullOrEmpty() || tvg !in knownIds // anything else already has a working guide
+                    }
+                    val best = tv.own.owntv.core.epg.EpgMatcher.bestEpgMatchBulk(unmatched.map { it.name }, prepared)
                     var applied = 0
                     val toApply = mutableListOf<Pair<String, String>>() // key -> epgId
                     val review = mutableListOf<EpgMatchSuggestion>()
-                    for (ch in channels) {
-                        val key = CustomizeKeys.channel(ch)
-                        if (key in cust.epgMatches || key in cust.hiddenItems) continue // already matched/hidden
-                        val tvg = ch.epgChannelId?.trim()?.lowercase()
-                        if (!tvg.isNullOrEmpty() && tvg in knownIds) continue // already has a working guide
-                        val best = tv.own.owntv.core.epg.EpgMatcher.bestEpgMatchPrepared(ch.name, prepared) ?: continue
-                        if (best.score >= tv.own.owntv.core.epg.EpgMatcher.AUTO_THRESHOLD) {
-                            toApply.add(key to best.epgChannelId)
+                    for ((ch, match) in unmatched.zip(best)) {
+                        if (match == null) continue
+                        if (match.score >= tv.own.owntv.core.epg.EpgMatcher.AUTO_THRESHOLD) {
+                            toApply.add(CustomizeKeys.channel(ch) to match.epgChannelId)
                             applied++
                         } else {
-                            review.add(EpgMatchSuggestion(ch, best.epgChannelId, best.displayName, best.score))
+                            review.add(EpgMatchSuggestion(ch, match.epgChannelId, match.displayName, match.score))
                         }
                     }
                     // Persist the confident matches (DataStore writes are cheap but do them off the scan).
@@ -822,6 +834,7 @@ class EpgViewModel(
 
     companion object {
         const val GRID_HOURS = 24
+        private const val GUIDE_DATA_SETTLE_MS = 1_500L
         private const val HALF_HOUR_MS = 30L * 60 * 1000
         private const val DAY_MS = 24L * 60 * 60 * 1000
         // How far back the Guide may extend for catch-up (must stay within EpgRepository's retention).

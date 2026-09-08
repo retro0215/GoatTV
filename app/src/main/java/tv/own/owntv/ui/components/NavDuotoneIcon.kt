@@ -146,6 +146,25 @@ fun NavDuotoneIcon(
                 rect(15f, 53f, 32f, 32f, 6f, soft, stroke)
                 rect(53f, 53f, 32f, 32f, 6f, fill, stroke)
             }
+
+            // ---- Sports — star icon ----------------------------------------------
+            MainSection.SPORTS -> {
+                drawCircle(soft, radius = 30f * s, center = o(50f, 50f))
+                val starPath = Path().apply {
+                    moveTo(o(50f, 15f).x, o(50f, 15f).y)
+                    lineTo(o(61f, 38f).x, o(61f, 38f).y)
+                    lineTo(o(86f, 41f).x, o(86f, 41f).y)
+                    lineTo(o(68f, 58f).x, o(68f, 58f).y)
+                    lineTo(o(73f, 83f).x, o(73f, 83f).y)
+                    lineTo(o(50f, 70f).x, o(50f, 70f).y)
+                    lineTo(o(27f, 83f).x, o(27f, 83f).y)
+                    lineTo(o(32f, 58f).x, o(32f, 58f).y)
+                    lineTo(o(14f, 41f).x, o(14f, 41f).y)
+                    lineTo(o(39f, 38f).x, o(39f, 38f).y)
+                    close()
+                }
+                drawPath(starPath, fill, style = stroke)
+            }
         }
     }
 }
