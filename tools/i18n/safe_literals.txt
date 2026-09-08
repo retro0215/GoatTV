@@ -3437,7 +3437,6 @@
 1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill check failed
 1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill sourceId=${src.id} — synced before but guide is empty, re-fetching
 1	technical	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	migration_refill
-2	technical	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	tv.own.owntv
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	-
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	EEE MMM d
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	NOW ·

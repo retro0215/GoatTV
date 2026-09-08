@@ -64,9 +64,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
             add(LIVE_TV)
             add(MOVIES)
             add(SERIES)
-            if (tv.own.owntv.BuildConfig.APPLICATION_ID == "tv.own.owntv") {
-                add(SPORTS)
-            }
+            add(SPORTS)
             add(DOWNLOADS)
             add(EPG)
         }
@@ -87,9 +85,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
             if (hasLive) {
                 add(LIVE_TV)
                 add(EPG)
-                if (tv.own.owntv.BuildConfig.APPLICATION_ID == "tv.own.owntv") {
-                    add(SPORTS)
-                }
+                add(SPORTS)
             }
             if (hasMovies) add(MOVIES)
             if (hasSeries) add(SERIES)
