@@ -78,6 +78,7 @@ import tv.own.owntv.features.search.SearchViewModel
 import tv.own.owntv.features.home.TrendingHomeItem
 import tv.own.owntv.features.series.SeriesScreen
 import tv.own.owntv.features.series.SeriesViewModel
+import tv.own.owntv.features.sports.SportsScreen
 import tv.own.owntv.player.MiniPlayer
 import tv.own.owntv.player.MpvVideoSurface
 import tv.own.owntv.player.OwnTVPlayer
@@ -162,6 +163,14 @@ fun OwnTVShell(
     var restoreFocus by remember { mutableStateOf(false) }
     var restoreTrendingSearchFocus by remember { mutableStateOf(false) }
     var trendingSearchActive by remember { mutableStateOf(false) }
+    var fullscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
+    var multiscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
+
+    val exitMultiscreen = {
+        val sec = multiscreenReturnSection ?: MainSection.LIVE_TV
+        multiscreenReturnSection = null
+        onSelectSection(sec)
+    }
 
     val player = koinInject<OwnTVPlayer>()
     val settingsRepo = koinInject<tv.own.owntv.features.settings.data.SettingsRepository>()
@@ -296,6 +305,11 @@ fun OwnTVShell(
         player.stop()
         subtitleController.clear()
         if (selectedSection != MainSection.LIVE_TV) liveVm.clearLiveOnExo()
+        val returnSec = fullscreenReturnSection
+        if (returnSec != null) {
+            fullscreenReturnSection = null
+            onSelectSection(returnSec)
+        }
         restoreFocus = true
         runCatching { sidebarFocus.requestFocus() }
         Unit
@@ -377,7 +391,7 @@ fun OwnTVShell(
             showPlaylistPicker -> showPlaylistPicker = false
             showExit -> showExit = false
             focusedLayer == ShellLayer.SIDEBAR -> showExit = true
-            isMultiscreen -> onSelectSection(MainSection.LIVE_TV)
+            isMultiscreen -> exitMultiscreen()
             else -> runCatching { sidebarFocus.requestFocus() }
         }
     }
@@ -392,7 +406,7 @@ fun OwnTVShell(
       if (isMultiscreen) {
           // CLEAN SEPARATION: Multiscreen mode hides EVERYTHING else.
           MultiscreenScreen(
-              onBack = { onSelectSection(MainSection.LIVE_TV) },
+              onBack = exitMultiscreen,
               onChildFocused = { focusedLayer = ShellLayer.CONTENT },
               modifier = Modifier.fillMaxSize(),
           )
@@ -545,7 +559,7 @@ fun OwnTVShell(
                             onFullscreen = { openFullscreen() }, onChildFocused = { focusedLayer = ShellLayer.CONTENT },
                             previewEnabled = playerMode == PlayerMode.NONE, restoreFocus = restoreFocus,
                             onRestored = { restoreFocus = false }, onContentScrolled = { contentScrolled = it },
-                            onOpenMultiscreen = { liveVm.stopPreview(); onSelectSection(MainSection.MULTISCREEN) },
+                            onOpenMultiscreen = { liveVm.stopPreview(); multiscreenReturnSection = MainSection.LIVE_TV; onSelectSection(MainSection.MULTISCREEN) },
                             modifier = Modifier.fillMaxSize(),
                         )
                         selectedSection == MainSection.MOVIES -> MoviesScreen(
@@ -556,6 +570,21 @@ fun OwnTVShell(
                         selectedSection == MainSection.SERIES -> SeriesScreen(
                             onFullscreen = { openFullscreen() }, onChildFocused = { focusedLayer = ShellLayer.CONTENT },
                             restoreFocus = restoreFocus, onRestored = { restoreFocus = false }, modifier = Modifier.fillMaxSize(),
+                        )
+                        selectedSection == MainSection.SPORTS -> SportsScreen(
+                            onOpenChannel = { channel, sectionChannels ->
+                                liveVm.watchFullscreen(channel, sectionChannels)
+                                zapSource = MainSection.LIVE_TV
+                                homeVm.stopPreview()
+                                fullscreenReturnSection = MainSection.SPORTS
+                                if (playerMode != PlayerMode.MINI && !liveVm.externalPlayerOn.value) {
+                                    playerMode = PlayerMode.FULLSCREEN
+                                }
+                                onSelectSection(MainSection.LIVE_TV)
+                            },
+                            onOpenMultiscreen = { liveVm.previewEngine.stop(); multiscreenReturnSection = MainSection.SPORTS; onSelectSection(MainSection.MULTISCREEN) },
+                            onChildFocused = { focusedLayer = ShellLayer.CONTENT },
+                            modifier = Modifier.fillMaxSize(),
                         )
                         selectedSection == MainSection.DOWNLOADS -> DownloadsScreen(
                             onFullscreen = { openFullscreen() }, onChildFocused = { focusedLayer = ShellLayer.CONTENT },
@@ -884,6 +913,7 @@ private val MainSection.emptyIcon: OwnTVIcon
         MainSection.LIVE_TV -> OwnTVIcon.LIVE_TV
         MainSection.MOVIES -> OwnTVIcon.MOVIES
         MainSection.SERIES -> OwnTVIcon.SERIES
+        MainSection.SPORTS -> OwnTVIcon.STAR
         MainSection.DOWNLOADS -> OwnTVIcon.DOWNLOADS
         MainSection.EPG -> OwnTVIcon.EPG
         MainSection.MULTISCREEN -> OwnTVIcon.ZOOM
@@ -891,7 +921,7 @@ private val MainSection.emptyIcon: OwnTVIcon
     }
 
 private fun railCategoriesFor(section: MainSection): List<RailCategory> = when (section) {
-    MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN -> emptyList()
+    MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN, MainSection.SPORTS -> emptyList()
     MainSection.LIVE_TV -> listOf(
         RailCategory("Favorites", OwnTVIcon.FAVORITE, R.string.content_category_favorites),
         RailCategory("History", OwnTVIcon.HISTORY, R.string.content_category_history),
@@ -928,7 +958,7 @@ private fun railCategoriesFor(section: MainSection): List<RailCategory> = when (
 
 @Composable
 private fun placeholderCount(section: MainSection): String = when (section) {
-    MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN -> ""
+    MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN, MainSection.SPORTS -> ""
     MainSection.LIVE_TV -> stringResource(R.string.content_zero_channels)
     MainSection.MOVIES -> stringResource(R.string.content_zero_movies)
     MainSection.SERIES -> stringResource(R.string.content_zero_series)

@@ -172,6 +172,9 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY sortOrder ASC, name ASC")
     fun pagingByCategory(categoryId: Long): PagingSource<Int, ChannelEntity>
 
+    @Query("SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY sortOrder ASC, name ASC LIMIT :limit")
+    suspend fun getChannelsByCategory(categoryId: Long, limit: Int = 20): List<ChannelEntity>
+
     @Query("SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY name ASC")
     fun pagingByCategoryAlpha(categoryId: Long): PagingSource<Int, ChannelEntity>
 

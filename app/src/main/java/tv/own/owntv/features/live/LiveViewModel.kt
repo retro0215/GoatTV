@@ -555,6 +555,10 @@ class LiveViewModel(
         _selected.value = key
     }
 
+    fun selectCategory(categoryId: Long) {
+        select(LiveKey.Folder(categoryId))
+    }
+
     init {
         // Persist the selected category (debounced — the rail fires select() on focus as you scroll).
         viewModelScope.launch {

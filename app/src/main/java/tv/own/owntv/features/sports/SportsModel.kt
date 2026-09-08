@@ -1,18 +1,20 @@
 package tv.own.owntv.features.sports
 
+import androidx.annotation.StringRes
+import tv.own.owntv.R
 import tv.own.owntv.core.database.entity.ChannelEntity
 
-enum class SportsSection(val title: String, val sortOrder: Int) {
-    NFL("NFL", 1),
-    NBA("NBA", 2),
-    MLB("MLB", 3),
-    NHL("NHL", 4),
-    NCAAF("NCAAF", 5),
-    NCAAB("NCAAB", 6),
-    WNBA("WNBA", 7),
-    SOCCER("SOCCER", 8),
-    BOXING_MMA("BOXING / MMA", 9),
-    PPV_SPECIAL("PPV & SPECIAL EVENTS", 10)
+enum class SportsSection(@param:StringRes val labelRes: Int, val sortOrder: Int) {
+    NFL(R.string.sports_section_nfl, 1),
+    NBA(R.string.sports_section_nba, 2),
+    MLB(R.string.sports_section_mlb, 3),
+    NHL(R.string.sports_section_nhl, 4),
+    NCAAF(R.string.sports_section_ncaaf, 5),
+    NCAAB(R.string.sports_section_ncaab, 6),
+    WNBA(R.string.sports_section_wnba, 7),
+    SOCCER(R.string.sports_section_soccer, 8),
+    BOXING_MMA(R.string.sports_section_boxing_mma, 9),
+    PPV_SPECIAL(R.string.sports_section_ppv_special, 10)
 }
 
 data class SportsSectionData(

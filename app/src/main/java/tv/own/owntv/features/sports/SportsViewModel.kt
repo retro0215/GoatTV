@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import tv.own.owntv.core.database.dao.CategoryDao
 import tv.own.owntv.core.database.dao.ChannelDao
-import tv.own.owntv.core.database.dao.ProfileDao
+import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.model.MediaType
 import tv.own.owntv.core.repository.SourceRepository
 import tv.own.owntv.features.settings.data.SettingsRepository
@@ -21,11 +21,10 @@ class SportsViewModel(
     private val categoryDao: CategoryDao,
     private val channelDao: ChannelDao,
     private val sourceRepository: SourceRepository,
-    private val profileDao: ProfileDao,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
-    private val activeProfileId = profileDao.observeActiveId()
+    private val activeProfileId = settings.activeProfileId
     private val defaultSourceId = settings.defaultSourceId
 
     val sportsSections: StateFlow<List<SportsSectionData>> = activeProfileId
@@ -39,7 +38,7 @@ class SportsViewModel(
                         flow { emit(emptyList()) }
                     } else {
                         categoryDao.observe(sourceIds, MediaType.LIVE).map { categories ->
-                            val sectionMap = mutableMapOf<SportsSection, MutableList<tv.own.owntv.core.database.entity.ChannelEntity>>()
+                            val sectionMap = mutableMapOf<SportsSection, MutableList<ChannelEntity>>()
 
                             for (cat in categories) {
                                 val section = matchSportsSection(cat.name)

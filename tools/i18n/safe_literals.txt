@@ -761,6 +761,7 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId AND name LIKE '%' || :query || '%' ORDER BY sortOrder ASC, name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY sortOrder ASC, name ASC
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY sortOrder ASC, name ASC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE id = :id
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND (sortOrder < :beforeSortOrder OR (sortOrder = :beforeSortOrder AND id < :beforeId)) ORDER BY sortOrder DESC, id DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND (sortOrder > :afterSortOrder OR (sortOrder = :afterSortOrder AND id > :afterId)) ORDER BY sortOrder ASC, id ASC LIMIT :limit
@@ -3436,6 +3437,7 @@
 1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill check failed
 1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill sourceId=${src.id} — synced before but guide is empty, re-fetching
 1	technical	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	migration_refill
+2	technical	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	tv.own.owntv
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	-
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	EEE MMM d
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	NOW ·
@@ -3491,6 +3493,50 @@
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/TopBar.kt	snow
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/TopBar.kt	sunny
 1	technical	app/src/main/java/tv/own/owntv/features/shell/components/TopBar.kt	thunder
+2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	AMERICAN
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	BELLATOR
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	BOXING
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	BUNDESLIGA
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	CBB
+2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	CFB
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	CHAMPIONS LEAGUE
+3	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	COLLEGE
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	COLLEGE BASKETBALL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	COLLEGE FOOTBALL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	EPL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	EXTRA INNINGS
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	FOOTBALL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	LA LIGA
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	LEAGUE PASS
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	LIGUE 1
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	MLB
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	MLS
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	MMA
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NBA
+3	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NCAA
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NCAA BASKETBALL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NCAA FOOTBALL
+2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NCAAB
+2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NCAAF
+2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NFL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NFL GAME PASS
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NFL PACKAGE
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	NHL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	PAY PER VIEW
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	PAY-PER-VIEW
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	PFL
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	PPV
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	PREMIER LEAGUE
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	SERIE A
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	SOCCER
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	SPECIAL EVENT
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	SPECIAL EVENTS
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	SUNDAY TICKET
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	UFC
+1	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	W N B A
+2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	WNBA
+1	regex	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	[^A-Z0-9 ]
 1	json	app/src/main/java/tv/own/owntv/features/subtitles/SubtitleSearchViewModel.kt	ai_translated
 1	json	app/src/main/java/tv/own/owntv/features/subtitles/SubtitleSearchViewModel.kt	attributes
 1	json	app/src/main/java/tv/own/owntv/features/subtitles/SubtitleSearchViewModel.kt	data
