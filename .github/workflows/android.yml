@@ -67,21 +67,25 @@ jobs:
           if [ -n "$GOAT_JSON_B64" ]; then
             mkdir -p "app/src/goat"
             echo "$GOAT_JSON_B64" | base64 -d > "app/src/goat/google-services.json"
+            test -s "app/src/goat/google-services.json"
           fi
 
           if [ -n "$ALLACCESS_JSON_B64" ]; then
             mkdir -p "app/src/allaccess"
             echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/allaccess/google-services.json"
+            test -s "app/src/allaccess/google-services.json"
           fi
 
           if [ -n "$FIVESTAR_JSON_B64" ]; then
             mkdir -p "app/src/fivestar"
             echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/fivestar/google-services.json"
+            test -s "app/src/fivestar/google-services.json"
           fi
 
           if [ -n "$SUPREME_JSON_B64" ]; then
             mkdir -p "app/src/supreme"
             echo "$SUPREME_JSON_B64" | base64 -d > "app/src/supreme/google-services.json"
+            test -s "app/src/supreme/google-services.json"
           fi
 
       # One variant, not `test`/`lint` across every flavor: standard+debug is the variant the JVM
@@ -147,21 +151,25 @@ jobs:
           if [ -n "$GOAT_JSON_B64" ]; then
             mkdir -p "app/src/goat"
             echo "$GOAT_JSON_B64" | base64 -d > "app/src/goat/google-services.json"
+            test -s "app/src/goat/google-services.json"
           fi
 
           if [ -n "$ALLACCESS_JSON_B64" ]; then
             mkdir -p "app/src/allaccess"
             echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/allaccess/google-services.json"
+            test -s "app/src/allaccess/google-services.json"
           fi
 
           if [ -n "$FIVESTAR_JSON_B64" ]; then
             mkdir -p "app/src/fivestar"
             echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/fivestar/google-services.json"
+            test -s "app/src/fivestar/google-services.json"
           fi
 
           if [ -n "$SUPREME_JSON_B64" ]; then
             mkdir -p "app/src/supreme"
             echo "$SUPREME_JSON_B64" | base64 -d > "app/src/supreme/google-services.json"
+            test -s "app/src/supreme/google-services.json"
           fi
 
       - name: Compute version (from the git tag on releases)
