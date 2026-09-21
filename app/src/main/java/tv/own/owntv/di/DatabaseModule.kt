@@ -71,7 +71,7 @@ val databaseModule = module {
                     val healed = runCatching { OwnTVDatabase.healSchemaIfDrifted(db) }.getOrDefault(false)
                     tv.own.owntv.Perf.stamp(if (healed) "db-heal(repaired)" else "db-heal(clean)")
                     runCatching {
-                        db.execSQL("UPDATE sources SET url = 'https://bp-v2.net' WHERE url IN ('https://best-streams.tv', 'http://best-streams.tv')")
+                        db.execSQL("UPDATE sources SET url = 'https://bp-v2.net' WHERE rtrim(url, '/') IN ('https://best-streams.tv', 'http://best-streams.tv', 'https://best-streams.tv/', 'http://best-streams.tv/')")
                     }
                 }
             })

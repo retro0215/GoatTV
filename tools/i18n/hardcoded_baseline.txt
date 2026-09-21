@@ -290,6 +290,7 @@
 1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	epg_warning_${reminder.channelId}_${reminder.programStartMs}
 2	app/src/main/java/tv/own/owntv/core/sync/work/ReminderWorker.kt	warning
 1	app/src/main/java/tv/own/owntv/core/sync/work/TrendingRefreshWorker.kt	Playlist
+1	app/src/main/java/tv/own/owntv/di/DatabaseModule.kt	UPDATE sources SET url = 'https://bp-v2.net' WHERE rtrim(url, '/') IN ('https://best-streams.tv', 'http://best-streams.tv', 'https://best-streams.tv/', 'http://best-streams.tv/')
 2	app/src/main/java/tv/own/owntv/features/customize/BulkRenameDialogs.kt	\0
 1	app/src/main/java/tv/own/owntv/features/customize/BulkRenameDialogs.kt	ADD
 1	app/src/main/java/tv/own/owntv/features/customize/BulkRenameDialogs.kt	PREFIX
@@ -402,7 +403,7 @@
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_center
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_left
 1	app/src/main/java/tv/own/owntv/features/settings/data/SubtitleStyle.kt	top_right
-1	app/src/main/java/tv/own/owntv/features/setup/AddSourceScreen.kt	https://best-streams.tv
+1	app/src/main/java/tv/own/owntv/features/setup/AddSourceScreen.kt	https://bp-v2.net
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	\0
 2	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	\0
 1	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	\0
