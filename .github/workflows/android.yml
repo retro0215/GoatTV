@@ -57,36 +57,35 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Reconstruct Google Services JSON
+      - name: Reconstruct and Validate Goat Google Services JSON
         env:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
-          ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
-          FIVESTAR_JSON_B64: ${{ secrets.FIVESTAR_GOOGLE_SERVICES_JSON }}
-          SUPREME_JSON_B64: ${{ secrets.SUPREME_GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -n "$GOAT_JSON_B64" ]; then
-            mkdir -p "app/src/goat"
-            echo "$GOAT_JSON_B64" | base64 -d > "app/src/goat/google-services.json"
-            test -s "app/src/goat/google-services.json"
+          if [ -z "$GOAT_JSON_B64" ]; then
+            echo "::error::GOAT_GOOGLE_SERVICES_JSON is unavailable or empty"
+            exit 1
           fi
 
-          if [ -n "$ALLACCESS_JSON_B64" ]; then
-            mkdir -p "app/src/allaccess"
-            echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/allaccess/google-services.json"
-            test -s "app/src/allaccess/google-services.json"
+          mkdir -p "app/src/goat"
+          if ! printf '%s' "$GOAT_JSON_B64" | base64 -d > "app/src/goat/google-services.json"; then
+            echo "::error::GOAT_GOOGLE_SERVICES_JSON is not valid base64"
+            exit 1
           fi
 
-          if [ -n "$FIVESTAR_JSON_B64" ]; then
-            mkdir -p "app/src/fivestar"
-            echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/fivestar/google-services.json"
-            test -s "app/src/fivestar/google-services.json"
+          if [ ! -s "app/src/goat/google-services.json" ]; then
+            echo "::error::Goat google-services.json was not reconstructed"
+            exit 1
           fi
 
-          if [ -n "$SUPREME_JSON_B64" ]; then
-            mkdir -p "app/src/supreme"
-            echo "$SUPREME_JSON_B64" | base64 -d > "app/src/supreme/google-services.json"
-            test -s "app/src/supreme/google-services.json"
-          fi
+          python3 - <<'PY'
+          import json
+          with open("app/src/goat/google-services.json", encoding="utf-8") as f:
+              data = json.load(f)
+          assert isinstance(data, dict), "google-services.json root must be an object"
+          raw_str = json.dumps(data)
+          assert "tv.own.owntv" in raw_str, "Goat google-services.json does not contain package tv.own.owntv"
+          print("Goat Firebase config validated for tv.own.owntv")
+          PY
 
       # One variant, not `test`/`lint` across every flavor: standard+debug is the variant the JVM
       # tests are written against, and the ABI flavors differ only in the packaged native libs.
@@ -141,36 +140,70 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Reconstruct Google Services JSON
+      - name: Reconstruct and Validate Brand Google Services JSON
         env:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
           ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
           FIVESTAR_JSON_B64: ${{ secrets.FIVESTAR_GOOGLE_SERVICES_JSON }}
           SUPREME_JSON_B64: ${{ secrets.SUPREME_GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -n "$GOAT_JSON_B64" ]; then
-            mkdir -p "app/src/goat"
-            echo "$GOAT_JSON_B64" | base64 -d > "app/src/goat/google-services.json"
-            test -s "app/src/goat/google-services.json"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            BRAND="${{ github.event.inputs.brand }}"
+          elif [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
+            BRAND="allaccess"
+          elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
+            BRAND="fivestar"
+          elif [[ "$GITHUB_REF" == refs/tags/supreme-v* ]]; then
+            BRAND="supreme"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            BRAND="goat"
+          else
+            BRAND="goat"
           fi
 
-          if [ -n "$ALLACCESS_JSON_B64" ]; then
-            mkdir -p "app/src/allaccess"
-            echo "$ALLACCESS_JSON_B64" | base64 -d > "app/src/allaccess/google-services.json"
-            test -s "app/src/allaccess/google-services.json"
+          case "$BRAND" in
+            allaccess)
+              JSON_B64="$ALLACCESS_JSON_B64"
+              PKG="tv.allaccess.app"
+              ;;
+            fivestar)
+              JSON_B64="$FIVESTAR_JSON_B64"
+              PKG="tv.fivestar.ultra"
+              ;;
+            supreme)
+              JSON_B64="$SUPREME_JSON_B64"
+              PKG="tv.supreme.app"
+              ;;
+            *)
+              JSON_B64="$GOAT_JSON_B64"
+              PKG="tv.own.owntv"
+              ;;
+          esac
+
+          if [ -z "$JSON_B64" ]; then
+            echo "::error::Google Services JSON secret for brand $BRAND is unavailable or empty"
+            exit 1
           fi
 
-          if [ -n "$FIVESTAR_JSON_B64" ]; then
-            mkdir -p "app/src/fivestar"
-            echo "$FIVESTAR_JSON_B64" | base64 -d > "app/src/fivestar/google-services.json"
-            test -s "app/src/fivestar/google-services.json"
+          mkdir -p "app/src/$BRAND"
+          if ! printf '%s' "$JSON_B64" | base64 -d > "app/src/$BRAND/google-services.json"; then
+            echo "::error::Google Services JSON secret for brand $BRAND is not valid base64"
+            exit 1
           fi
 
-          if [ -n "$SUPREME_JSON_B64" ]; then
-            mkdir -p "app/src/supreme"
-            echo "$SUPREME_JSON_B64" | base64 -d > "app/src/supreme/google-services.json"
-            test -s "app/src/supreme/google-services.json"
+          if [ ! -s "app/src/$BRAND/google-services.json" ]; then
+            echo "::error::Google Services JSON for brand $BRAND was not reconstructed"
+            exit 1
           fi
+
+          python3 - <<PY
+          import json
+          with open("app/src/$BRAND/google-services.json", encoding="utf-8") as f:
+              data = json.load(f)
+          raw_str = json.dumps(data)
+          assert "$PKG" in raw_str, "Google Services JSON for brand $BRAND does not contain package $PKG"
+          print("Firebase config validated for $PKG")
+          PY
 
       - name: Compute version (from the git tag on releases)
         id: ver
