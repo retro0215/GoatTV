@@ -53,6 +53,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 platform-tools build-tools;36.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -90,13 +92,14 @@ jobs:
       # One variant, not `test`/`lint` across every flavor: standard+debug is the variant the JVM
       # tests are written against, and the ABI flavors differ only in the packaged native libs.
       - name: Unit tests
+        id: unit-tests
         run: |
           chmod +x ./gradlew
           ./gradlew testStandardGoatDebugUnitTest --stacktrace
 
       # abortOnError = true in app/build.gradle.kts, so this fails the job on a lint error.
       - name: Lint
-        if: always()   # report both verdicts in one run instead of one failure at a time
+        if: success() || failure()
         run: ./gradlew lintStandardGoatDebug --stacktrace
 
       - name: Upload test and lint reports
@@ -136,6 +139,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 platform-tools build-tools;36.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
