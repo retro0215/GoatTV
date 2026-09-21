@@ -169,7 +169,7 @@ fun AddSourceScreen(
     }
     val defaultName = stringResource(id = R.string.brand_full_name)
     var name by remember(initial, defaultName) { mutableStateOf(initial?.name ?: defaultName) }
-    var server by remember(initial) { mutableStateOf("https://best-streams.tv") }
+    var server by remember(initial) { mutableStateOf("https://bp-v2.net") }
     var username by remember(initial) { mutableStateOf(initial?.username ?: "") }
     var password by remember(initial) { mutableStateOf(initial?.password ?: "") }
     var m3uUrl by remember(initial) { mutableStateOf(if (initial != null && initial.type == SourceType.M3U) initial.url else "") }

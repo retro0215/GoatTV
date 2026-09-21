@@ -70,6 +70,9 @@ val databaseModule = module {
                 override fun onOpen(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     val healed = runCatching { OwnTVDatabase.healSchemaIfDrifted(db) }.getOrDefault(false)
                     tv.own.owntv.Perf.stamp(if (healed) "db-heal(repaired)" else "db-heal(clean)")
+                    runCatching {
+                        db.execSQL("UPDATE sources SET url = 'https://bp-v2.net' WHERE url IN ('https://best-streams.tv', 'http://best-streams.tv')")
+                    }
                 }
             })
             .build()
