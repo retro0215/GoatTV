@@ -73,19 +73,20 @@ jobs:
             echo "::error::GOAT_GOOGLE_SERVICES_JSON is not valid base64"
             exit 1
           fi
+          cp "app/src/goat/google-services.json" "app/google-services.json"
 
-          if [ ! -s "app/src/goat/google-services.json" ]; then
-            echo "::error::Goat google-services.json was not reconstructed"
+          if [ ! -s "app/google-services.json" ]; then
+            echo "::error::google-services.json was not reconstructed at root"
             exit 1
           fi
 
           python3 - <<'PY'
           import json
-          with open("app/src/goat/google-services.json", encoding="utf-8") as f:
+          with open("app/google-services.json", encoding="utf-8") as f:
               data = json.load(f)
           assert isinstance(data, dict), "google-services.json root must be an object"
           raw_str = json.dumps(data)
-          assert "tv.own.owntv" in raw_str, "Goat google-services.json does not contain package tv.own.owntv"
+          assert "tv.own.owntv" in raw_str, "google-services.json does not contain package tv.own.owntv"
           print("Goat Firebase config validated for tv.own.owntv")
           PY
 
@@ -94,13 +95,22 @@ jobs:
       - name: Unit tests
         id: unit-tests
         run: |
+          test -s app/google-services.json || {
+            echo "::error::google-services.json disappeared before unit tests"
+            exit 1
+          }
           chmod +x ./gradlew
-          ./gradlew testStandardGoatDebugUnitTest --stacktrace
+          ./gradlew testStandardGoatDebugUnitTest --no-configuration-cache --stacktrace
 
       # abortOnError = true in app/build.gradle.kts, so this fails the job on a lint error.
       - name: Lint
         if: success() || failure()
-        run: ./gradlew lintStandardGoatDebug --stacktrace
+        run: |
+          test -s app/google-services.json || {
+            echo "::error::google-services.json disappeared before lint"
+            exit 1
+          }
+          ./gradlew lintStandardGoatDebug --no-configuration-cache --stacktrace
 
       - name: Upload test and lint reports
         if: always()   # the reports matter most when the step above failed
@@ -195,18 +205,19 @@ jobs:
             echo "::error::Google Services JSON secret for brand $BRAND is not valid base64"
             exit 1
           fi
+          cp "app/src/$BRAND/google-services.json" "app/google-services.json"
 
-          if [ ! -s "app/src/$BRAND/google-services.json" ]; then
-            echo "::error::Google Services JSON for brand $BRAND was not reconstructed"
+          if [ ! -s "app/google-services.json" ]; then
+            echo "::error::google-services.json for brand $BRAND was not reconstructed at root"
             exit 1
           fi
 
           python3 - <<PY
           import json
-          with open("app/src/$BRAND/google-services.json", encoding="utf-8") as f:
+          with open("app/google-services.json", encoding="utf-8") as f:
               data = json.load(f)
           raw_str = json.dumps(data)
-          assert "$PKG" in raw_str, "Google Services JSON for brand $BRAND does not contain package $PKG"
+          assert "$PKG" in raw_str, "google-services.json for brand $BRAND does not contain package $PKG"
           print("Firebase config validated for $PKG")
           PY
 
@@ -296,6 +307,12 @@ jobs:
         run: |
           chmod +x ./gradlew
           
+          # Ensure google-services.json exists right before Gradle build
+          test -s app/google-services.json || {
+            echo "::error::google-services.json missing before gradle build"
+            exit 1
+          }
+
           # Determine brand flavor from tag or manual input
           IS_TAG="false"
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
@@ -344,7 +361,7 @@ jobs:
           if [ "$CAN_SIGN" = "true" ]; then
             echo "Building signed release APKs for brand: $BRAND"
             # Build both ABIs for the selected brand
-            ./gradlew "assembleStandard${BRAND^}Release" "assembleX86_64${BRAND^}Release" --stacktrace
+            ./gradlew "assembleStandard${BRAND^}Release" "assembleX86_64${BRAND^}Release" --no-configuration-cache --stacktrace
             
             # Paths follow the (abi, brand) dimension order: standard + goat -> standardGoat
             ARM_SRC=$(ls app/build/outputs/apk/standard${BRAND^}/release/*.apk | head -n1)
@@ -356,7 +373,7 @@ jobs:
             echo "X86_64_SRC=$X86_SRC" >> "$GITHUB_ENV"
           else
             echo "Building debug APK for brand: $BRAND (No signing secrets for this brand)"
-            ./gradlew "assembleStandard${BRAND^}Debug"
+            ./gradlew "assembleStandard${BRAND^}Debug" --no-configuration-cache
             SRC=$(ls app/build/outputs/apk/standard${BRAND^}/debug/*.apk | head -n1)
             echo "Built: $SRC"
             echo "ARM_SRC=$SRC" >> "$GITHUB_ENV"
@@ -441,7 +458,7 @@ jobs:
             echo "::warning::No CHANGELOG_APP.md section for $TAG â€” publishing a placeholder body."
             echo "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/$TAG/CHANGELOG.md) for details." \
               > dist/RELEASE_NOTES.md
-          fi
+            fi
           echo "--- Release notes ---"
           cat dist/RELEASE_NOTES.md
 
