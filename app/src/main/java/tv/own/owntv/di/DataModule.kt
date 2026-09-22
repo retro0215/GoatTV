@@ -121,6 +121,7 @@ val dataModule = module {
     single { tv.own.owntv.core.subtitles.SubtitleController(get(), get(), get(), get()) }
     single { WeatherRepository(get(), get()) }
     single { BulkInsertHelper(get()) }
+    single { tv.own.owntv.core.channelcatalog.ChannelCatalogRepository(androidContext(), get(), get(), get()) }
     single {
         tv.own.owntv.core.sync.ImportFinalizer(
             channelDao = get(),
@@ -129,6 +130,7 @@ val dataModule = module {
             db = get(),
             bulkInsertHelper = get(),
             metadataDao = get(),
+            channelCatalogRepository = get(),
         )
     }
     // context, channelDao, movieDao, seriesDao, profileDao, favoriteDao, historyDao, progressDao,
