@@ -53,14 +53,48 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-36 platform-tools build-tools;36.0.0'
-
-      - name: Accept Android SDK licenses
+      - name: Set up Android SDK and accept licenses
         run: |
-          yes | sdkmanager --licenses || true
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK_ROOT"
+          export ANDROID_HOME="$SDK_ROOT"
+          
+          SDKMANAGER=""
+          for candidate in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT/tools/bin/sdkmanager" \
+            "sdkmanager"; do
+            if command -v "$candidate" >/dev/null 2>&1 || [ -f "$candidate" ]; then
+              SDKMANAGER="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager executable not found on runner"
+            exit 1
+          fi
+
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+          if [ ! -d "$SDK_ROOT/platforms/android-36" ]; then
+            echo "::error::Android 36 platform missing after installation"
+            exit 1
+          fi
+          if [ ! -d "$SDK_ROOT/build-tools/36.0.0" ]; then
+            echo "::error::Build Tools 36.0.0 missing after installation"
+            exit 1
+          fi
+          if [ ! -d "$SDK_ROOT/platform-tools" ]; then
+            echo "::error::platform-tools missing after installation"
+            exit 1
+          fi
+
+          echo "$SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "Android SDK successfully bootstrapped and verified."
 
       - name: Validate Supabase Secrets Presence
         run: |
@@ -222,14 +256,48 @@ jobs:
           distribution: temurin
           java-version: '21'   # matches gradle/gradle-daemon-jvm.properties (toolchainVersion=21)
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-36 platform-tools build-tools;36.0.0'
-
-      - name: Accept Android SDK licenses
+      - name: Set up Android SDK and accept licenses
         run: |
-          yes | sdkmanager --licenses || true
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK_ROOT"
+          export ANDROID_HOME="$SDK_ROOT"
+          
+          SDKMANAGER=""
+          for candidate in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT/tools/bin/sdkmanager" \
+            "sdkmanager"; do
+            if command -v "$candidate" >/dev/null 2>&1 || [ -f "$candidate" ]; then
+              SDKMANAGER="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager executable not found on runner"
+            exit 1
+          fi
+
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+          if [ ! -d "$SDK_ROOT/platforms/android-36" ]; then
+            echo "::error::Android 36 platform missing after installation"
+            exit 1
+          fi
+          if [ ! -d "$SDK_ROOT/build-tools/36.0.0" ]; then
+            echo "::error::Build Tools 36.0.0 missing after installation"
+            exit 1
+          fi
+          if [ ! -d "$SDK_ROOT/platform-tools" ]; then
+            echo "::error::platform-tools missing after installation"
+            exit 1
+          fi
+
+          echo "$SDK_ROOT/platform-tools" >> $GITHUB_PATH
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "Android SDK successfully bootstrapped and verified."
 
       - name: Validate Supabase Secrets Presence
         run: |
