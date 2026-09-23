@@ -28,6 +28,16 @@ data class SyncedRoomReaction(
     val displayName: String? = null
 )
 
+data class DeliveredMessage(
+    val message: SyncedRoomMessage,
+    val decision: SyncDeliveryDecision
+)
+
+data class DeliveredReaction(
+    val reaction: SyncedRoomReaction,
+    val decision: SyncDeliveryDecision
+)
+
 data class RoomSyncStamp(
     val contentTimestampMs: Long?,
     val wallClockMs: Long,
