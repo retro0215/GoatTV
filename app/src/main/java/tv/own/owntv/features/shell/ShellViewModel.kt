@@ -49,6 +49,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
     MOVIES(tv.own.owntv.R.string.common_nav_movies),
     SERIES(tv.own.owntv.R.string.common_nav_series),
     SPORTS(tv.own.owntv.R.string.common_nav_sports),
+    SOCIAL_ROOMS(tv.own.owntv.R.string.common_nav_social_rooms),
     DOWNLOADS(tv.own.owntv.R.string.common_nav_downloads),
     EPG(tv.own.owntv.R.string.common_nav_guide),
     MULTISCREEN(tv.own.owntv.R.string.content_multiscreen),
@@ -65,6 +66,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
             add(MOVIES)
             add(SERIES)
             add(SPORTS)
+            add(SOCIAL_ROOMS)
             add(DOWNLOADS)
             add(EPG)
         }
@@ -82,6 +84,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
          */
         fun dynamicVisible(hasLive: Boolean, hasMovies: Boolean, hasSeries: Boolean): Set<MainSection> = buildSet {
             add(HOME)
+            add(SOCIAL_ROOMS)
             if (hasLive) {
                 add(LIVE_TV)
                 add(EPG)

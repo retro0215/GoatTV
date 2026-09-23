@@ -756,16 +756,13 @@
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	ORDER BY c.name ASC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	ORDER BY h.watchedAt DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	ORDER BY number ASC, name ASC LIMIT :limit
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name))
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId AND (sortOrder < :beforeSortOrder OR (sortOrder = :beforeSortOrder AND id < :beforeId)) ORDER BY sortOrder DESC, id DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId AND (sortOrder > :afterSortOrder OR (sortOrder = :afterSortOrder AND id > :afterId)) ORDER BY sortOrder ASC, id ASC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId AND name LIKE '%' || :query || '%' ORDER BY sortOrder ASC, name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY sortOrder ASC, name ASC
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE categoryId = :categoryId ORDER BY sortOrder ASC, name ASC LIMIT :limit
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE epgChannelId = :epgChannelId
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE id = :id
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE remoteId = :remoteId
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND (sortOrder < :beforeSortOrder OR (sortOrder = :beforeSortOrder AND id < :beforeId)) ORDER BY sortOrder DESC, id DESC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND (sortOrder > :afterSortOrder OR (sortOrder = :afterSortOrder AND id > :afterId)) ORDER BY sortOrder ASC, id ASC LIMIT :limit
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND name = :name LIMIT 1
@@ -783,7 +780,6 @@
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId IN (:sourceIds) ORDER BY name ASC
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId IN (:sourceIds) ORDER BY sourceId ASC, sortOrder ASC, name ASC
 2	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId IN (:sourceIds) ORDER BY sourceId ASC, sortOrder ASC, name ASC LIMIT :limit
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE streamUrl = :streamUrl
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COALESCE(MAX(catchupDays), 0) FROM channels WHERE sourceId IN (:sourceIds) AND catchup = 1
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE categoryId = :categoryId
 1	room-schema	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE sourceId = :sourceId
@@ -3033,75 +3029,12 @@
 1	technical	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	unknown
 1	technical	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenStore.kt	SHIELD
 1	empty	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenViewModel.kt	\0
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	${clean.substring(0, 3)} ${clean.substring(3, 6)}
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	5Star
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	AllAccess
-3	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Back
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	CONNECT YOUR PHONE
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Cancel
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Code expires in: %02d:%02d
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Connected to social room successfully.
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Done
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Error: ${state.message}
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Generate New Code
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	GoatTV
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Initializing secure pairing session...
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Instructions:
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Link your mobile device to control $brandName Social Rooms
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Or Enter Code
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	PHONE CONNECTED
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Pairing QR Code
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Pairing cancelled
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Pairing code expired
-1	log	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	ROOM_NAV done
-1	log	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	ROOM_NAV pairing-claimed
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Retry
-2	log	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	RoomNav
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Scan QR Code
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Supreme
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	Your phone is connected.
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	allaccess
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	fivestar
-1	technical	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	supreme
 4	empty	app/src/main/java/tv/own/owntv/features/profiles/ProfileComponents.kt	\0
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/RoomExoEngine.kt	User-Agent
-1	locale	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	$displayName reacted with ${react.emoji}
 2	technical	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Back
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	CHAT
 1	technical	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	EEE, MMM d • h:mm a
-2	locale	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	HH:mm
 1	locale	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Room is upcoming
 1	locale	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Room opens at
 1	locale	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	This room has ended or is closed
-2	locale	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Viewer
-1	empty	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	\0
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	$brandName Social Rooms
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	5Star
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	AVAILABLE ROOMS
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	AllAccess
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Back
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	EEE • h:mm a
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	ENDED
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	GoatTV
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	LIVE
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Loading rooms...
-1	locale	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Locked 🔒
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	No Social Rooms Available
-1	log	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	ROOM_NAV opening-room-experience
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Retry
-1	locale	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Room is not open
-1	locale	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Room opens at
-1	log	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	RoomNav
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	SOCIAL ROOMS
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Select →
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Supreme
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	UPCOMING
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	UPCOMING • Starts $timeStr
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	Unable to Load Social Rooms
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	allaccess
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	fivestar
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	h:mm a
-1	technical	app/src/main/java/tv/own/owntv/features/rooms/SocialRoomsScreen.kt	supreme
 1	empty	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	c${item.row.channel.id}
 1	technical	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	heading
@@ -4501,141 +4434,6 @@
 1	technical	app/src/main/java/tv/own/owntv/player/SubtitleShift.kt	webvtt
 1	log	app/src/main/java/tv/own/owntv/player/VolumeBoost.kt	volume boost failed: ${it.javaClass.simpleName}
 1	log	app/src/main/java/tv/own/owntv/player/VolumeBoost.kt	volume boost unavailable: ${it.javaClass.simpleName}
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	⚽️
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	⚾️
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	⛳️
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	✌️
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	⭐️
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🌟
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🎾
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🏀
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🏈
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🏒
-2	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🐏
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🐐
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	👹
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	👺
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	👻
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	👽
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	💪
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	💯
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	💰
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	💲
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	💸
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	😂
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	😅
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	😇
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	😎
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	😭
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	😱
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🙏
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤑
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤓
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤟
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤠
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤡
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤣
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤦
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤦🏻
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤦🏼
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤦🏽
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤦🏾
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤦🏿
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤩
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🤬
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🥅
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🥊
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🥵
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🥶
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🥸
-1	technical	app/src/main/java/tv/own/owntv/rooms/ApprovedReactions.kt	🦅
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	allaccess
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	fivestar
-2	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	goat
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	supreme
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.allaccess.app
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.fivestar.ultra
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.own.owntv
-1	technical	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.supreme.app
-1	url	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	$baseUrl$qrToken
-1	technical	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	CANCELLED
-1	technical	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	CLAIMED
-1	technical	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	EXPIRED
-1	technical	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	cancelled
-1	technical	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	claimed
-1	technical	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	expired
-1	url	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	https://connect.goattv.net
-1	json	app/src/main/java/tv/own/owntv/rooms/PairingModels.kt	paired_until
-1	technical	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	disabled
-1	technical	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	ended
-1	technical	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	live
-1	technical	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	scheduled
-2	json	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	deleted_at
-1	technical	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	2026-09-10T01:45:20.233Z
-1	log	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	Failed to parse room timestamp: $ts
-1	log	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	Missing message ID in DTO; generated fallback UUID
-1	log	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	Missing reaction ID in DTO; generated fallback UUID
-2	log	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	RoomMappers
-1	technical	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	UTC
-1	log	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	Failed to sign in anonymously
-1	sql	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	id
-1	sql	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	profiles
-1	technical	app/src/main/java/tv/own/owntv/rooms/SocialProfile.kt	goat
-1	assertion	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	SUPABASE_ANON_KEY is not configured
-1	assertion	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	SUPABASE_URL is not configured
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Error processing chat event: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Error processing reaction event: ${e.message}
-2	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch message history: ${e.message}
-2	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch reaction history: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch rooms for brand $brandId: ${e.message}
-1	technical	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Live Channel
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Message collector fatal error: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_PARSED: startsAtEpochMs=$parsedStarts, endsAtEpochMs=$parsedEnds, nowEpochMs=$nowMs
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_RAW: status=$status, starts_at=$starts_at, ends_at=$ends_at
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_STATE: computed RoomAccessState=$computedState
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Reaction collector fatal error: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Room Realtime subscription error: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Room Realtime subscription timeout for room $roomId
-11	log	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
-1	sql	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	discover_rooms_for_brand
-1	technical	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	id
-3	sql	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	messages
-1	json	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	p_brand_id
-1	technical	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	profiles
-3	sql	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	reactions
-2	sql	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id
-1	technical	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	social-room-$roomId
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Anonymous auth failure: ${authResult.exceptionOrNull()?.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Failed to cancel pairing: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Failed to create pairing session: ${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	No active pairing session
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT collector-started
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT connect-call
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT connect-returned
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT decode-error class=${e.javaClass.name} message=${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT filter=id=eq.$sessionId
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT reconcile status=${reconciledInfo.status}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT session-created sessionId=${response.id} status=${response.status}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT subscribe-call
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT subscribe-error class=${e.javaClass.name} message=${e.message}
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT subscribe-timeout
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT subscribed
-1	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_RT update-received status=${row.status}
-2	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	PAIRING_UI state=CLAIMED
-6	log	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	TvPairing
-1	sql	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	cancel_pairing_session
-1	sql	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	create_pairing_session
-1	sql	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	id
-1	sql	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	id=eq.$sessionId
-1	json	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	p_brand_id
-2	json	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	p_room_id
-1	json	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	p_session_id
-1	json	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	p_tv_session_id
-1	technical	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	pairing-$sessionId
-2	sql	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	pairing_sessions
-1	sql	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	public
-1	preference-key	app/src/main/java/tv/own/owntv/rooms/TvSessionManager.kt	owntv_tv_pairing_session
-2	preference-key	app/src/main/java/tv/own/owntv/rooms/TvSessionManager.kt	tv_session_uuid
 1	file-path	app/src/main/java/tv/own/owntv/ui/components/BackgroundImageChooserDialog.kt	background_${System.currentTimeMillis()}.$ext
 1	file-path	app/src/main/java/tv/own/owntv/ui/components/BackgroundImageChooserDialog.kt	png
 1	performance	app/src/main/java/tv/own/owntv/ui/components/FocusableSurface.kt	focusContainer

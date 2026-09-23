@@ -71,6 +71,8 @@
     <string name="common_nav_guide">Guide</string>
     <!-- Translators: Navigation label for the Sports screen in the sidebar. -->
     <string name="common_nav_sports">Sports</string>
+    <!-- Translators: Navigation label for the Social Rooms screen in the sidebar. -->
+    <string name="common_nav_social_rooms">Social Rooms</string>
     <!-- Translators: Navigation label for the Settings screen in the sidebar. -->
     <string name="common_nav_settings">Settings</string>
     <!-- Translators: Empty state message when no sports channels are found in the playlist. -->
@@ -278,4 +280,14 @@
     <string name="common_qr_code_companion_url">QR code for the companion URL</string>
 
     <!-- Display-only brand fragments. They intentionally live in donottranslate.xml instead. -->
+    <string name="room_channel_unavailable">● Channel unavailable</string>
+    <string name="room_live_channel">● LIVE: <xliff:g id="channel_name">%1$s</xliff:g></string>
+    <string name="room_chat_input_indicator">Chat sent from connected phone</string>
+    <string name="room_loading_channel">Loading channel...</string>
+    <string name="room_loading_feed">Loading live feed...</string>
+    <string name="room_no_messages">No messages yet.\nSend from connected phone.</string>
+    <string name="room_reactions_header">REACTIONS</string>
+    <string name="room_no_reactions">No reactions yet</string>
+    <string name="room_tap_emoji">Tap emoji\non phone</string>
+    <string name="room_channel_unresolved_desc">The linked live channel could not be resolved on this device.</string>
 </resources>

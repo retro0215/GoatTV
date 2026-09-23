@@ -147,6 +147,15 @@ fun NavDuotoneIcon(
                 rect(53f, 53f, 32f, 32f, 6f, fill, stroke)
             }
 
+            // ---- Social Rooms — speech bubble -----------------------------------
+            MainSection.SOCIAL_ROOMS -> {
+                rect(17f, 25f, 66f, 44f, 10f, fill, stroke)
+                drawPath(poly(33f,69f, 33f,77f, 43f,77f, 50f,85f, 57f,77f, 67f,77f, 67f,69f), fill, style = stroke)
+                dot(38f, 47f, 4f, soft)
+                dot(50f, 47f, 4f, soft)
+                dot(62f, 47f, 4f, soft)
+            }
+
             // ---- Sports — star icon ----------------------------------------------
             MainSection.SPORTS -> {
                 drawCircle(soft, radius = 30f * s, center = o(50f, 50f))

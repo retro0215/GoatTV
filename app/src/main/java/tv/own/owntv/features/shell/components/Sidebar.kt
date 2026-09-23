@@ -425,6 +425,7 @@ private val MainSection.navIcon: OwnTVIcon
         MainSection.MOVIES -> OwnTVIcon.MOVIES
         MainSection.SERIES -> OwnTVIcon.SERIES
         MainSection.SPORTS -> OwnTVIcon.STAR
+        MainSection.SOCIAL_ROOMS -> OwnTVIcon.PERSON
         MainSection.DOWNLOADS -> OwnTVIcon.DOWNLOADS
         MainSection.EPG -> OwnTVIcon.EPG
         MainSection.MULTISCREEN -> OwnTVIcon.ZOOM
