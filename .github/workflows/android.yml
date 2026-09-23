@@ -58,6 +58,10 @@ jobs:
         with:
           packages: 'platforms;android-36 platform-tools build-tools;36.0.0'
 
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: Validate Supabase Secrets Presence
         run: |
           if [ -z "$SUPABASE_URL" ]; then
@@ -74,6 +78,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Reconstruct and Validate Brand Google Services JSON
+        id: firebase-json
         env:
           GOAT_JSON_B64: ${{ secrets.GOAT_GOOGLE_SERVICES_JSON }}
           ALLACCESS_JSON_B64: ${{ secrets.ALLACCESS_GOOGLE_SERVICES_JSON }}
@@ -167,7 +172,7 @@ jobs:
 
       # abortOnError = true in app/build.gradle.kts, so this fails the job on a lint error.
       - name: Lint
-        if: success() || failure()
+        if: success() || (failure() && steps.firebase-json.outcome == 'success')
         run: |
           test -s app/google-services.json || {
             echo "::error::google-services.json disappeared before lint"
@@ -221,6 +226,10 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: 'platforms;android-36 platform-tools build-tools;36.0.0'
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses || true
 
       - name: Validate Supabase Secrets Presence
         run: |
@@ -304,10 +313,11 @@ jobs:
               data1 = json.load(f)
           with open("app/src/$BRAND/google-services.json", encoding="utf-8") as f:
               data2 = json.load(f)
+          assert isinstance(data1, dict) and isinstance(data2, dict), "google-services.json root must be an object"
           raw_str1 = json.dumps(data1)
           raw_str2 = json.dumps(data2)
-          assert "$PKG" in raw_str1, "google-services.json for brand $BRAND does not contain package $PKG"
-          assert "$PKG" in raw_str2, "flavor google-services.json for brand $BRAND does not contain package $PKG"
+          assert "$PKG" in raw_str1, "google-services.json does not contain package $PKG"
+          assert "$PKG" in raw_str2, "flavor google-services.json does not contain package $PKG"
           print("Firebase config validated for $PKG ($BRAND)")
           PY
 
