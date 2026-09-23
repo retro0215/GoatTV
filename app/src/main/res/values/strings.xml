@@ -289,5 +289,6 @@
     <string name="room_reactions_header">REACTIONS</string>
     <string name="room_no_reactions">No reactions yet</string>
     <string name="room_tap_emoji">Tap emoji\non phone</string>
+    <string name="room_reaction_format"><xliff:g id="user">%1$s</xliff:g> reacted with <xliff:g id="emoji">%2$s</xliff:g></string>
     <string name="room_channel_unresolved_desc">The linked live channel could not be resolved on this device.</string>
 </resources>
