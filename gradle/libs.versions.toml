@@ -51,6 +51,9 @@ uiautomator = "2.4.0"
 
 # --- Kotlin libs ---
 coroutines = "1.11.0"
+supabase = "3.8.0"
+ktor = "3.1.1"
+serialization = "1.11.0"
 
 # --- Third party ---
 pushwoosh = "6.8.12"
@@ -77,6 +80,13 @@ junitExt = "1.3.0"
 espressoCore = "3.7.0"
 
 [libraries]
+# Supabase
+supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
+supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
+supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+
 # Core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -121,6 +131,7 @@ androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscree
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
 # Image loading
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
@@ -168,6 +179,7 @@ androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiaut
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 # KSP 2.3.6+ supports AGP 9's built-in Kotlin.
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

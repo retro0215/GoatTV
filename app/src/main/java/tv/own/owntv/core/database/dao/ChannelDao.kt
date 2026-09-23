@@ -47,6 +47,18 @@ interface ChannelDao {
     @Query("DELETE FROM channels WHERE sourceId = :sourceId AND remoteId IS NULL")
     suspend fun deleteNullRemoteIds(sourceId: Long)
 
+    @Query("SELECT * FROM channels WHERE remoteId = :remoteId")
+    suspend fun findByRemoteId(remoteId: String): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE epgChannelId = :epgChannelId")
+    suspend fun findByEpgChannelId(epgChannelId: String): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE streamUrl = :streamUrl")
+    suspend fun findByStreamUrl(streamUrl: String): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name))")
+    suspend fun findByNameCaseInsensitive(name: String): List<ChannelEntity>
+
     @Query("SELECT * FROM channels WHERE id = :id")
     suspend fun getById(id: Long): ChannelEntity?
 

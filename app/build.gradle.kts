@@ -65,6 +65,7 @@ abstract class VerifyPushwooshToken : DefaultTask() {
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     // Kotlin is provided by AGP 9's built-in Kotlin support. KSP 2.3.6+ is compatible with it.
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
@@ -133,6 +134,31 @@ android {
             ?: localSigningProps.getProperty("owntv.edgeKey")
             ?: ""
         buildConfigField("String", "TMDB_EDGE_KEY", "\"${edgeKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+
+        val supabaseUrl = System.getenv("SUPABASE_URL")
+            ?: providers.gradleProperty("supabaseUrl").orNull
+            ?: localSigningProps.getProperty("supabaseUrl")
+            ?: localProperties.getProperty("SUPABASE_URL")
+            ?: localProperties.getProperty("supabaseUrl")
+            ?: ""
+        buildConfigField("String", "SUPABASE_URL", "\"${supabaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+
+        val supabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
+            ?: providers.gradleProperty("supabaseAnonKey").orNull
+            ?: localSigningProps.getProperty("supabaseAnonKey")
+            ?: localProperties.getProperty("SUPABASE_ANON_KEY")
+            ?: localProperties.getProperty("supabaseAnonKey")
+            ?: ""
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${supabaseAnonKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+
+        if (supabaseUrl.isBlank() || supabaseAnonKey.isBlank()) {
+            throw GradleException(
+                "\n\n  ERROR: SUPABASE_URL or SUPABASE_ANON_KEY is missing or blank.\n" +
+                "  Add them to local.properties in the project root:\n" +
+                "  SUPABASE_URL=<real project URL>\n" +
+                "  SUPABASE_ANON_KEY=<real anon/publishable key>\n"
+            )
+        }
 
         buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
         buildConfigField("String", "PUSHWOOSH_APP_ID", "\"\"")
@@ -511,6 +537,14 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
+
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.kotlinx.serialization.json)
 
     // Compose (BOM-managed)
     implementation(platform(libs.androidx.compose.bom))
