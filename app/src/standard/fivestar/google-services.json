@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1079894272618",
+    "project_id": "star-ultra-9a45e",
+    "storage_bucket": "star-ultra-9a45e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1079894272618:android:b49bb68b582b4d58713813",
+        "android_client_info": {
+          "package_name": "tv.fivestar.ultra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzvFzO3zx3WS_S--y_gNyC3TTxV7iff5k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

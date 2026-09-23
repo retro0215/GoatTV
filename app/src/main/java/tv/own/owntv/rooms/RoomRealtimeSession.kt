@@ -14,30 +14,16 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import tv.own.owntv.player.DeliveredMessage
 import tv.own.owntv.player.DeliveredReaction
-import tv.own.owntv.player.PlaybackSyncState
+import tv.own.owntv.player.PlayerType
+import tv.own.owntv.player.RoomSyncStamp
+import tv.own.owntv.player.SyncConfidence
 import tv.own.owntv.player.SyncDeliveryDecision
 import tv.own.owntv.player.SyncedRoomMessage
 import tv.own.owntv.player.SyncedRoomReaction
-import tv.own.owntv.player.buildSyncStamp
 import kotlin.coroutines.CoroutineContext
 
 class RoomRealtimeSession(
     private val repository: RoomRepository,
-    private val playbackSyncStateFlow: StateFlow<PlaybackSyncState> = MutableStateFlow(
-        PlaybackSyncState(
-            playerType = tv.own.owntv.player.PlayerType.EXOPLAYER,
-            channelKey = "default",
-            isLive = true,
-            isPlaying = true,
-            isBuffering = false,
-            positionMs = 0L,
-            durationMs = 0L,
-            liveOffsetMs = null,
-            contentTimestampMs = 0L,
-            wallClockSampleMs = System.currentTimeMillis(),
-            confidence = tv.own.owntv.player.SyncConfidence.FALLBACK
-        )
-    ),
     private val dispatcher: CoroutineContext = Dispatchers.Main.immediate
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -162,8 +148,13 @@ class RoomRealtimeSession(
         if (body.isBlank()) {
             return RoomResult.Error("Message body cannot be blank")
         }
-        val syncState = playbackSyncStateFlow.value
-        val stamp = buildSyncStamp(syncState)
+        val stamp = RoomSyncStamp(
+            contentTimestampMs = null,
+            wallClockMs = System.currentTimeMillis(),
+            liveOffsetMs = null,
+            confidence = SyncConfidence.FALLBACK,
+            playerType = PlayerType.EXOPLAYER
+        )
         val result = repository.insertMessage(roomId, body, displayName, stamp)
         if (result is RoomResult.Success) {
             if (activeRoomId == roomId) {
@@ -177,8 +168,13 @@ class RoomRealtimeSession(
         if (emoji.isBlank()) {
             return RoomResult.Error("Reaction emoji cannot be blank")
         }
-        val syncState = playbackSyncStateFlow.value
-        val stamp = buildSyncStamp(syncState)
+        val stamp = RoomSyncStamp(
+            contentTimestampMs = null,
+            wallClockMs = System.currentTimeMillis(),
+            liveOffsetMs = null,
+            confidence = SyncConfidence.FALLBACK,
+            playerType = PlayerType.EXOPLAYER
+        )
         val result = repository.insertReaction(roomId, emoji, stamp)
         if (result is RoomResult.Success) {
             if (activeRoomId == roomId) {

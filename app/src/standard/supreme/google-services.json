@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "349697010982",
+    "project_id": "supreme-tv-34969",
+    "storage_bucket": "supreme-tv-34969.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:349697010982:android:7f1b2c3d4e5f6a7b8c9d0e",
+        "android_client_info": {
+          "package_name": "tv.supreme.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_SupremeTvApiKeyPlaceholderHere123"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

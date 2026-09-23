@@ -33,10 +33,7 @@ import tv.own.owntv.core.database.dao.ChannelDao
 import tv.own.owntv.core.epg.displayLogoUrl
 import tv.own.owntv.player.DeliveredMessage
 import tv.own.owntv.player.DeliveredReaction
-import tv.own.owntv.player.MpvVideoSurface
-import tv.own.owntv.player.OwnTVPlayer
 import tv.own.owntv.rooms.ChannelResolutionResult
-import tv.own.owntv.rooms.PairingStatus
 import tv.own.owntv.rooms.RoomAccessPolicy
 import tv.own.owntv.rooms.RoomAccessState
 import tv.own.owntv.rooms.RoomChannelResolver
@@ -128,12 +125,10 @@ fun RoomExperienceScreen(
     val channelDao = koinInject<ChannelDao>()
     val sourceDao = koinInject<tv.own.owntv.core.database.dao.SourceDao>()
     val settingsRepo = koinInject<tv.own.owntv.features.settings.data.SettingsRepository>()
-    val playbackStateFlow = remember { roomExoEngine.playbackSyncState }
 
     val realtimeSession = remember {
         RoomRealtimeSession(
-            repository = roomRepository,
-            playbackSyncStateFlow = playbackStateFlow
+            repository = roomRepository
         )
     }
 
