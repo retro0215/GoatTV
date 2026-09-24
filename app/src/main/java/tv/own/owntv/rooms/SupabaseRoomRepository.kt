@@ -10,19 +10,12 @@ import io.github.jan.supabase.realtime.RealtimeChannel
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.channel
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -283,14 +276,6 @@ class SupabaseRoomRepository : RoomRepository {
         }
     }
 
-    private val roomPresenceFlows = mutableMapOf<String, MutableStateFlow<Boolean>>()
-
-    override fun observeRoomPhonePresence(roomId: String): Flow<Boolean> {
-        synchronized(roomPresenceFlows) {
-            return roomPresenceFlows.getOrPut(roomId) { MutableStateFlow(false) }
-        }
-    }
-
     override fun subscribeRoom(roomId: String): RoomRealtimeStream {
         val channel = getOrCreateRoomChannel(roomId)
 
@@ -304,43 +289,11 @@ class SupabaseRoomRepository : RoomRepository {
             filter = "room_id=eq.$roomId"
         }
 
-        val presenceStateFlow = synchronized(roomPresenceFlows) {
-            roomPresenceFlows.getOrPut(roomId) { MutableStateFlow(false) }
-        }
-
         val messageSharedFlow = MutableSharedFlow<SyncedRoomMessage>(replay = 0, extraBufferCapacity = 64)
         val reactionSharedFlow = MutableSharedFlow<SyncedRoomReaction>(replay = 0, extraBufferCapacity = 64)
 
         val job = serviceScope.launch {
-            val activePhones = mutableSetOf<String>()
-
-            fun updatePresence(present: Boolean) {
-                presenceStateFlow.value = present
-            }
-
-            // 1. Register presence listener BEFORE channel subscribe/join
-            launch {
-                try {
-                    channel.presenceChangeFlow().collect { action ->
-                        for ((ref, presence) in action.joins) {
-                            val payload = runCatching {
-                                jsonLenient.decodeFromJsonElement<DedicatedPhonePresencePayload>(presence.state)
-                            }.getOrNull()
-                            if (payload != null && payload.isMatchingPhone(roomId)) {
-                                activePhones.add(ref)
-                            }
-                        }
-                        for ((ref, _) in action.leaves) {
-                            activePhones.remove(ref)
-                        }
-                        updatePresence(activePhones.isNotEmpty())
-                    }
-                } catch (e: Exception) {
-                    Log.e("RoomRepo", "Presence flow error: ${e.message}", e)
-                }
-            }
-
-            // 2. Register postgres change collectors BEFORE channel subscribe/join
+            // 1. Register postgres change collectors BEFORE channel subscribe/join
             launch {
                 try {
                     messageFlow.collect { action ->
@@ -375,24 +328,9 @@ class SupabaseRoomRepository : RoomRepository {
                 }
             }
 
-            // 3. ONE canonical subscribe/join call
+            // 2. ONE canonical subscribe/join call
             ensureAndSubscribeChannel(roomId, channel)
             Log.d("RoomRepo", "TV_SOCIAL_REALTIME: roomId=$roomId, topic=social-room-$roomId, subscribed=true")
-
-            // Initial presence sync snapshot post-subscribe
-            @OptIn(io.github.jan.supabase.annotations.SupabaseInternal::class)
-            runCatching {
-                val initialStates = channel.callbackManager.presenceState()
-                for ((ref, presence) in initialStates) {
-                    val payload = runCatching {
-                        jsonLenient.decodeFromJsonElement<DedicatedPhonePresencePayload>(presence.state)
-                    }.getOrNull()
-                    if (payload != null && payload.isMatchingPhone(roomId)) {
-                        activePhones.add(ref)
-                    }
-                }
-                updatePresence(activePhones.isNotEmpty())
-            }
         }
 
         synchronized(activeRoomJobs) {
@@ -400,7 +338,7 @@ class SupabaseRoomRepository : RoomRepository {
             activeRoomJobs[roomId] = job
         }
 
-        return RoomRealtimeStream(messageSharedFlow, reactionSharedFlow, presenceStateFlow)
+        return RoomRealtimeStream(messageSharedFlow, reactionSharedFlow)
     }
 
     override fun subscribeMessages(roomId: String): Flow<SyncedRoomMessage> {
@@ -409,26 +347,5 @@ class SupabaseRoomRepository : RoomRepository {
 
     override fun subscribeReactions(roomId: String): Flow<SyncedRoomReaction> {
         return subscribeRoom(roomId).reactions
-    }
-
-    override suspend fun checkClaimedRoomAccess(roomId: String): Boolean {
-        val userId = client.auth.currentUserOrNull()?.id ?: return false
-        return runCatching {
-            val rows = client.postgrest["pairing_sessions"]
-                .select {
-                    filter {
-                        eq("room_id", roomId)
-                        eq("tv_auth_user_id", userId)
-                        eq("status", "claimed")
-                    }
-                }
-                .decodeList<PairingSessionRowDto>()
-            val result = rows.isNotEmpty()
-            Log.d("RoomRepo", "PHONE_STATUS_CHECK: roomId=$roomId, result=$result")
-            result
-        }.getOrElse { e ->
-            Log.e("RoomRepo", "PHONE_STATUS_CHECK: roomId=$roomId, error=${e.message}")
-            false
-        }
     }
 }
