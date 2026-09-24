@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -138,11 +139,17 @@ class SupabaseRoomRepository : RoomRepository {
         val id: String,
         val name: String,
         val status: String? = null,
+        @SerialName("starts_at")
         val starts_at: String? = null,
+        @SerialName("ends_at")
         val ends_at: String? = null,
+        @SerialName("channel_name")
         val channel_name: String? = null,
+        @SerialName("epg_channel_id")
         val epg_channel_id: String? = null,
+        @SerialName("remote_id")
         val remote_id: String? = null,
+        @SerialName("logo_url")
         val logo_url: String? = null
     ) {
         fun toDomain(): SocialRoom {

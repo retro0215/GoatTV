@@ -4792,7 +4792,18 @@
 1	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	ended
 1	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	live
 1	app/src/main/java/tv/own/owntv/rooms/RoomAccessPolicy.kt	scheduled
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	created_at
 2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	deleted_at
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	display_name
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	room_id
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	sender_confidence
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	sender_content_timestamp_ms
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	sender_id
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	sender_live_offset_ms
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	sender_player_type
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	sender_wall_clock_ms
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	updated_at
+2	app/src/main/java/tv/own/owntv/rooms/RoomDtos.kt	user_id
 1	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	2026-09-10T01:45:20.233Z
 1	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	Failed to parse room timestamp: $ts
 1	app/src/main/java/tv/own/owntv/rooms/RoomMappers.kt	Missing message ID in DTO; generated fallback UUID
@@ -4843,17 +4854,23 @@
 16	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	TV_SOCIAL_REALTIME: roomId=$roomId, topic=social-room-$roomId, subscribed=true
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	User not authenticated
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	channel_name
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	created_at
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	discover_rooms_for_brand
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ends_at
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	epg_channel_id
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	id
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	logo_url
 3	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	messages
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	p_brand_id
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	profiles
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	public
 3	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	reactions
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	remote_id
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id=eq.$roomId
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	social-room-$roomId
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	starts_at
 1	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Anonymous auth failure: ${authResult.exceptionOrNull()?.message}
 1	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Failed to cancel pairing: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Failed to create pairing session: ${e.message}

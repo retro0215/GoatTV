@@ -204,4 +204,35 @@ class RoomRealtimeTest {
 
         session.leaveRoom()
     }
+
+    @Test
+    fun `DiscoveredRoomDto R8 serialization contract decodes all snake_case fields correctly`() {
+        val jsonStr = """
+            {
+                "id": "room-abc-123",
+                "name": "Admin Social Room",
+                "status": "open",
+                "starts_at": "2026-09-24T18:00:00Z",
+                "ends_at": "2026-09-24T22:00:00Z",
+                "channel_name": "ESPN 2",
+                "epg_channel_id": "espn2.us",
+                "remote_id": "12345",
+                "logo_url": "https://example.com/logo.png"
+            }
+        """.trimIndent()
+
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+        val dto = json.decodeFromString<SupabaseRoomRepository.DiscoveredRoomDto>(jsonStr)
+        val domain = dto.toDomain()
+
+        assertEquals("room-abc-123", domain.id)
+        assertEquals("Admin Social Room", domain.name)
+        assertEquals("open", domain.status)
+        assertTrue((domain.startsAt ?: 0L) > 0L)
+        assertTrue((domain.endsAt ?: 0L) > 0L)
+        assertEquals("ESPN 2", domain.channelReference?.channelName)
+        assertEquals("espn2.us", domain.channelReference?.epgChannelId)
+        assertEquals("12345", domain.channelReference?.remoteId)
+        assertEquals("https://example.com/logo.png", domain.channelReference?.logoUrl)
+    }
 }
