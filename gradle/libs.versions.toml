@@ -145,6 +145,7 @@ juniversalchardet = { group = "com.github.albfernandez", name = "juniversalchard
 
 # Networking (M3U/Xtream fetch)
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttpSse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
 # In-app YouTube trailer playback (WebView IFrame wrapper) — plan §7.3; ToS-clean, exposes currentSecond/duration
 youtube-player = { group = "com.pierfrancescosoffritti.androidyoutubeplayer", name = "core", version.ref = "youtubePlayer" }
 

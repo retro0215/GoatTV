@@ -592,6 +592,7 @@ dependencies {
 
     // Networking
     implementation(libs.okhttp)
+    implementation(libs.okhttpSse)
     implementation(libs.zxing.core) // QR generation for the Remote (companion) add-source flow
     implementation(libs.juniversalchardet) // local subtitle charset detection (subtitle plan ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§7.2)
 
