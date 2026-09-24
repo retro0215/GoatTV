@@ -387,6 +387,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 }
 
@@ -535,6 +536,7 @@ apply(plugin = "com.google.gms.google-services")
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
 
