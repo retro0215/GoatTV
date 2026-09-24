@@ -16,6 +16,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -276,6 +278,14 @@ class SupabaseRoomRepository : RoomRepository {
         }
     }
 
+    private val roomPresenceFlows = mutableMapOf<String, MutableStateFlow<Boolean>>()
+
+    override fun observeRoomPhonePresence(roomId: String): Flow<Boolean> {
+        synchronized(roomPresenceFlows) {
+            return roomPresenceFlows.getOrPut(roomId) { MutableStateFlow(false) }
+        }
+    }
+
     override fun subscribeRoom(roomId: String): RoomRealtimeStream {
         val channel = getOrCreateRoomChannel(roomId)
 
@@ -289,11 +299,43 @@ class SupabaseRoomRepository : RoomRepository {
             filter = "room_id=eq.$roomId"
         }
 
+        val presenceStateFlow = synchronized(roomPresenceFlows) {
+            roomPresenceFlows.getOrPut(roomId) { MutableStateFlow(false) }
+        }
+
         val messageSharedFlow = MutableSharedFlow<SyncedRoomMessage>(replay = 0, extraBufferCapacity = 64)
         val reactionSharedFlow = MutableSharedFlow<SyncedRoomReaction>(replay = 0, extraBufferCapacity = 64)
 
         val job = serviceScope.launch {
-            // 1. Register postgres change collectors BEFORE channel subscribe/join
+            val activePhones = mutableSetOf<String>()
+
+            fun updatePresence(present: Boolean) {
+                presenceStateFlow.value = present
+            }
+
+            // 1. Register presence listener BEFORE channel subscribe/join
+            launch {
+                try {
+                    channel.presenceChangeFlow().collect { action ->
+                        for ((ref, presence) in action.joins) {
+                            val payload = runCatching {
+                                jsonLenient.decodeFromJsonElement<DedicatedPhonePresencePayload>(presence.state)
+                            }.getOrNull()
+                            if (payload != null && payload.isMatchingPhone(roomId)) {
+                                activePhones.add(ref)
+                            }
+                        }
+                        for ((ref, _) in action.leaves) {
+                            activePhones.remove(ref)
+                        }
+                        updatePresence(activePhones.isNotEmpty())
+                    }
+                } catch (e: Exception) {
+                    Log.e("RoomRepo", "Presence flow error: ${e.message}", e)
+                }
+            }
+
+            // 2. Register postgres change collectors BEFORE channel subscribe/join
             launch {
                 try {
                     messageFlow.collect { action ->
@@ -328,7 +370,7 @@ class SupabaseRoomRepository : RoomRepository {
                 }
             }
 
-            // 2. ONE canonical subscribe/join call
+            // 3. ONE canonical subscribe/join call
             ensureAndSubscribeChannel(roomId, channel)
             Log.d("RoomRepo", "TV_SOCIAL_REALTIME: roomId=$roomId, topic=social-room-$roomId, subscribed=true")
         }
@@ -338,7 +380,7 @@ class SupabaseRoomRepository : RoomRepository {
             activeRoomJobs[roomId] = job
         }
 
-        return RoomRealtimeStream(messageSharedFlow, reactionSharedFlow)
+        return RoomRealtimeStream(messageSharedFlow, reactionSharedFlow, presenceStateFlow)
     }
 
     override fun subscribeMessages(roomId: String): Flow<SyncedRoomMessage> {

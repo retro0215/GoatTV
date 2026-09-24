@@ -330,6 +330,10 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val promotionRepository = tv.own.owntv.core.promotions.HomePromotionRepository()
+    private val _promotions = MutableStateFlow<List<tv.own.owntv.core.promotions.HomePromotion>>(emptyList())
+    val promotions: StateFlow<List<tv.own.owntv.core.promotions.HomePromotion>> = _promotions.asStateFlow()
+
     init {
         // Room invalidates this after the worker atomically replaces a snapshot, so Home updates even
         // when the user stays on the screen throughout a background post-sync refresh.
@@ -337,6 +341,11 @@ class HomeViewModel(
             trendingDao.observeAllItems().collect {
                 currentProfileId()?.let { profileId -> loadHomeData(profileId) }
             }
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val list = promotionRepository.fetchEligiblePromotions()
+            _promotions.value = list
+            Log.d("HomeViewModel", "HOME_PROMO: viewmodel_received=${list.size}")
         }
     }
 

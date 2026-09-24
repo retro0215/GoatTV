@@ -1,5 +1,6 @@
 package tv.own.owntv.features.rooms
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import kotlinx.coroutines.launch
+import tv.own.owntv.features.pairing.ConnectPhoneScreen
 import tv.own.owntv.rooms.BrandResolver
 import tv.own.owntv.rooms.RoomAccessPolicy
 import tv.own.owntv.rooms.RoomAccessState
@@ -31,6 +33,7 @@ import tv.own.owntv.ui.theme.OwnTVTheme
 sealed interface SocialRoomsViewState {
     object Landing : SocialRoomsViewState
     data class RoomExperience(val room: SocialRoom) : SocialRoomsViewState
+    data class Pairing(val roomId: String?, val returnToRoom: SocialRoom?) : SocialRoomsViewState
 }
 
 @Composable
@@ -109,7 +112,23 @@ fun SocialRoomsScreen(
             RoomExperienceScreen(
                 room = state.room,
                 roomRepository = roomRepository,
-                onBack = { viewState = SocialRoomsViewState.Landing }
+                onBack = { viewState = SocialRoomsViewState.Landing },
+                onConnectPhone = {
+                    viewState = SocialRoomsViewState.Pairing(roomId = state.room.id, returnToRoom = state.room)
+                }
+            )
+        }
+        is SocialRoomsViewState.Pairing -> {
+            ConnectPhoneScreen(
+                roomId = state.roomId,
+                onBack = {
+                    if (state.returnToRoom != null) {
+                        Log.d("RoomNav", "ROOM_NAV opening-room-experience")
+                        viewState = SocialRoomsViewState.RoomExperience(state.returnToRoom)
+                    } else {
+                        viewState = SocialRoomsViewState.Landing
+                    }
+                }
             )
         }
         is SocialRoomsViewState.Landing -> {

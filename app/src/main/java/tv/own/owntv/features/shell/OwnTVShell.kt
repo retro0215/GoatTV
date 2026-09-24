@@ -542,6 +542,7 @@ fun OwnTVShell(
                                 }
                             },
                             onOpenTrendingSearch = { query -> searchVm.setQuery(query); trendingSearchActive = true; onSelectSection(MainSection.SEARCH) },
+                            onOpenRoom = { roomId -> onSelectSection(MainSection.SOCIAL_ROOMS) },
                             onChildFocused = { focusedLayer = ShellLayer.CONTENT },
                             restoreFocus = restoreFocus, restoreTrendingSearchFocus = restoreTrendingSearchFocus,
                             onRestored = { restoreFocus = false; restoreTrendingSearchFocus = false },

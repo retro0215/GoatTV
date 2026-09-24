@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -65,6 +67,7 @@ fun RoomExperienceScreen(
     modifier: Modifier = Modifier,
     roomRepository: RoomRepository = remember { SupabaseRoomRepository() },
     onBack: () -> Unit,
+    onConnectPhone: () -> Unit = {},
 ) {
     androidx.activity.compose.BackHandler {
         onBack()
@@ -179,6 +182,15 @@ fun RoomExperienceScreen(
 
     val feedListState = rememberLazyListState()
 
+    val isPhoneConnected by remember(room.id) {
+        roomRepository.observeRoomPhonePresence(room.id)
+    }.collectAsStateWithLifecycle(initialValue = false)
+
+    val connectFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        runCatching { connectFocus.requestFocus() }
+    }
+
     LaunchedEffect(socialFeed.lastOrNull()?.id) {
         if (socialFeed.isNotEmpty()) {
             runCatching { feedListState.animateScrollToItem(socialFeed.lastIndex) }
@@ -290,6 +302,16 @@ fun RoomExperienceScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    OwnTVButton(
+                        label = if (isPhoneConnected) "Phone Connected" else "Connect Phone",
+                        onClick = {
+                            if (!isPhoneConnected) {
+                                onConnectPhone()
+                            }
+                        },
+                        style = OwnTVButtonStyle.SECONDARY,
+                        modifier = Modifier.focusRequester(connectFocus)
+                    )
                     OwnTVButton(
                         label = "Back",
                         onClick = onBack,
