@@ -4735,12 +4735,6 @@
 1	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Message body cannot be blank
 1	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Reaction emoji cannot be blank
 1	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	RoomRealtimeSession
-1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	client_type
-1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	mobile
-1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	online_at
-2	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	phone
-1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	room_id
-1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	user_id
 1	app/src/main/java/tv/own/owntv/rooms/SocialProfile.kt	goat
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	SUPABASE_ANON_KEY is not configured
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	SUPABASE_URL is not configured
@@ -4756,33 +4750,26 @@
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to send reaction: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Live Channel
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Message collector fatal error: ${e.message}
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	PHONE_STATUS_CHECK: roomId=$roomId, error=${e.message}
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	PHONE_STATUS_CHECK: roomId=$roomId, result=$result
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Presence flow error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_PARSED: startsAtEpochMs=$parsedStarts, endsAtEpochMs=$parsedEnds, nowEpochMs=$nowMs
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_RAW: status=$status, starts_at=$starts_at, ends_at=$ends_at
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_STATE: computed RoomAccessState=$computedState
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Reaction collector fatal error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Room Realtime subscription error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Room Realtime subscription timeout for room $roomId
-18	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
+15	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	TV_SOCIAL_REALTIME: roomId=$roomId, topic=social-room-$roomId, subscribed=true
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	User not authenticated
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	claimed
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	created_at
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	discover_rooms_for_brand
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	id
 3	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	messages
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	p_brand_id
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	pairing_sessions
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	profiles
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	public
 3	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	reactions
-3	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id
+2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id=eq.$roomId
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	social-room-$roomId
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	status
-1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	tv_auth_user_id
 1	app/src/main/java/tv/own/owntv/rooms/TvSessionManager.kt	owntv_tv_pairing_session
 2	app/src/main/java/tv/own/owntv/rooms/TvSessionManager.kt	tv_session_uuid
 1	app/src/main/java/tv/own/owntv/ui/components/BackgroundImageChooserDialog.kt	background_${System.currentTimeMillis()}.$ext
