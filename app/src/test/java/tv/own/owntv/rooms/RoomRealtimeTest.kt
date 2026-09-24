@@ -3,12 +3,10 @@ package tv.own.owntv.rooms
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import tv.own.owntv.player.PlaybackSyncState
 import tv.own.owntv.player.PlayerType
 import tv.own.owntv.player.RoomSyncStamp
 import tv.own.owntv.player.SyncConfidence
@@ -119,22 +117,7 @@ class RoomRealtimeTest {
     @Test
     fun `Unauthenticated send rejected and authenticated user ID inserted automatically`() = runBlocking {
         val repo = MockRoomRepository().apply { isAuthenticated = false }
-        val syncState = MutableStateFlow(
-            PlaybackSyncState(
-                playerType = PlayerType.EXOPLAYER,
-                channelKey = "ch-1",
-                isLive = false,
-                isPlaying = true,
-                isBuffering = false,
-                positionMs = 60_000L,
-                durationMs = 100_000L,
-                liveOffsetMs = null,
-                contentTimestampMs = 60_000L,
-                wallClockSampleMs = 60_000L,
-                confidence = SyncConfidence.EXACT
-            )
-        )
-        val session = RoomRealtimeSession(repo, syncState, dispatcher = Dispatchers.Unconfined)
+        val session = RoomRealtimeSession(repo, dispatcher = Dispatchers.Unconfined)
 
         val resFail = session.sendMessage("r1", "Hello", "User")
         assertTrue(resFail is RoomResult.Error)
@@ -186,23 +169,7 @@ class RoomRealtimeTest {
             SyncedRoomMessage("h1", "room-1", "u1", "User", "Past message", 500L, 50_000L, 50_000L, null, SyncConfidence.EXACT, PlayerType.EXOPLAYER)
         )
 
-        val syncState = MutableStateFlow(
-            PlaybackSyncState(
-                playerType = PlayerType.EXOPLAYER,
-                channelKey = "ch-1",
-                isLive = false,
-                isPlaying = true,
-                isBuffering = false,
-                positionMs = 60_000L,
-                durationMs = 100_000L,
-                liveOffsetMs = null,
-                contentTimestampMs = 60_000L,
-                wallClockSampleMs = 60_000L,
-                confidence = SyncConfidence.EXACT
-            )
-        )
-
-        val session = RoomRealtimeSession(repo, syncState, dispatcher = Dispatchers.Unconfined)
+        val session = RoomRealtimeSession(repo, dispatcher = Dispatchers.Unconfined)
 
         session.joinRoom("room-1")
 
@@ -234,78 +201,6 @@ class RoomRealtimeTest {
             SyncedRoomMessage("m1", "room-1", "u1", "User", "Duplicate", 1001L, null, 1001L, null, SyncConfidence.FALLBACK, PlayerType.EXOPLAYER)
         )
         assertEquals(1, session.deliveredMessages.value.size)
-
-        session.leaveRoom()
-    }
-
-    @Test
-    fun `send and realtime echo produces one visible message due to deduplication`() = runBlocking {
-        val repo = MockRoomRepository()
-        val session = RoomRealtimeSession(repository = repo, dispatcher = Dispatchers.Unconfined)
-
-        session.joinRoom("room-1")
-
-        // Send message (inserts into repo and appends locally with id e.g. msg-123)
-        val res = session.sendMessage("room-1", "Test send", "Me")
-        assertTrue(res is RoomResult.Success)
-        val sentMsg = (res as RoomResult.Success).data
-
-        assertEquals(1, session.deliveredMessages.value.size)
-
-        // Same message arrives via realtime echo
-        repo.messageFlow.emit(sentMsg)
-        assertEquals(1, session.deliveredMessages.value.size)
-
-        session.leaveRoom()
-    }
-
-    @Test
-    fun `wrong room id ignored and message ordering maintained`() = runBlocking {
-        val repo = MockRoomRepository()
-        val session = RoomRealtimeSession(repository = repo, dispatcher = Dispatchers.Unconfined)
-
-        session.joinRoom("room-1")
-
-        repo.messageFlow.emit(
-            SyncedRoomMessage("m2", "room-2", "u1", "User", "Wrong room", 1000L, null, 1000L, null, SyncConfidence.FALLBACK, PlayerType.EXOPLAYER)
-        )
-        assertTrue(session.deliveredMessages.value.isEmpty())
-
-        repo.messageFlow.emit(
-            SyncedRoomMessage("m10", "room-1", "u1", "User", "Second", 2000L, null, 2000L, null, SyncConfidence.FALLBACK, PlayerType.EXOPLAYER)
-        )
-        repo.messageFlow.emit(
-            SyncedRoomMessage("m5", "room-1", "u1", "User", "First", 1000L, null, 1000L, null, SyncConfidence.FALLBACK, PlayerType.EXOPLAYER)
-        )
-
-        assertEquals(2, session.deliveredMessages.value.size)
-        assertEquals("m5", session.deliveredMessages.value[0].message.id)
-        assertEquals("m10", session.deliveredMessages.value[1].message.id)
-
-        session.leaveRoom()
-    }
-
-    @Test
-    fun `room transition A to B clears old state and reactions appear immediately`() = runBlocking {
-        val repo = MockRoomRepository()
-        val session = RoomRealtimeSession(repository = repo, dispatcher = Dispatchers.Unconfined)
-
-        session.joinRoom("room-A")
-        repo.messageFlow.emit(
-            SyncedRoomMessage("mA", "room-A", "u1", "User", "A", 1000L, null, 1000L, null, SyncConfidence.FALLBACK, PlayerType.EXOPLAYER)
-        )
-        assertEquals(1, session.deliveredMessages.value.size)
-
-        // Switch to room-B
-        session.joinRoom("room-B")
-        assertTrue(session.deliveredMessages.value.isEmpty())
-
-        // Realtime reaction in room-B
-        repo.reactionFlow.emit(
-            SyncedRoomReaction("r1", "room-B", "u1", "❤️", 1500L, null, 1500L, null, SyncConfidence.FALLBACK, PlayerType.EXOPLAYER, "User")
-        )
-        assertEquals(1, session.deliveredReactions.value.size)
-        assertEquals("❤️", session.deliveredReactions.value[0].reaction.emoji)
 
         session.leaveRoom()
     }

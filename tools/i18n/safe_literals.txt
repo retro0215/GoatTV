@@ -267,9 +267,7 @@
 1	file-path	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	remote-backup-export
 3	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionHtml.kt	\0
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	CHAT
-1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Connect Phone
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	LIVE
-1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Phone Connected
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Viewer
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Error processing realtime message: ${e.message}
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Error processing realtime reaction: ${e.message}
