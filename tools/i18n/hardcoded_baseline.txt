@@ -4839,12 +4839,13 @@
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Error processing reaction event: ${e.message}
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch message history: ${e.message}
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch reaction history: ${e.message}
-2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch rooms for brand $brandId: ${e.message}
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch rooms for brand $brandId: ${e.message}
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to send message: ${e.message}
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to send reaction: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Live Channel
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Message collector fatal error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Presence flow error: ${e.message}
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_DISCOVERY_ERROR: brand=$brandId exceptionClass=${e.javaClass.simpleName} message=${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_PARSED: startsAtEpochMs=$parsedStarts, endsAtEpochMs=$parsedEnds, nowEpochMs=$nowMs
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_RAW: status=$status, starts_at=$starts_at, ends_at=$ends_at
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_STATE: computed RoomAccessState=$computedState
@@ -4854,8 +4855,9 @@
 16	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	TV_SOCIAL_REALTIME: roomId=$roomId, topic=social-room-$roomId, subscribed=true
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	User not authenticated
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	brand_id
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	channel_name
-2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	created_at
+3	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	created_at
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	discover_rooms_for_brand
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ends_at
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	epg_channel_id
@@ -4871,6 +4873,7 @@
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	room_id=eq.$roomId
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	social-room-$roomId
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	starts_at
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	updated_at
 1	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Anonymous auth failure: ${authResult.exceptionOrNull()?.message}
 1	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Failed to cancel pairing: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/TvPairingService.kt	Failed to create pairing session: ${e.message}

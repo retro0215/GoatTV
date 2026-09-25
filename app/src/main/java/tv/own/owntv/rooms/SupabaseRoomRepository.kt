@@ -150,7 +150,14 @@ class SupabaseRoomRepository : RoomRepository {
         @SerialName("remote_id")
         val remote_id: String? = null,
         @SerialName("logo_url")
-        val logo_url: String? = null
+        val logo_url: String? = null,
+        @SerialName("brand_id")
+        val brand_id: String? = null,
+        @SerialName("created_at")
+        val created_at: String? = null,
+        @SerialName("updated_at")
+        val updated_at: String? = null,
+        val description: String? = null
     ) {
         fun toDomain(): SocialRoom {
             val parsedStarts = parseTimestamp(starts_at)
@@ -192,7 +199,7 @@ class SupabaseRoomRepository : RoomRepository {
 
             RoomResult.Success(dtos.map { it.toDomain() })
         }.getOrElse { e ->
-            Log.e("RoomRepo", "Failed to fetch rooms for brand $brandId: ${e.message}", e)
+            Log.e("RoomRepo", "ROOM_DISCOVERY_ERROR: brand=$brandId exceptionClass=${e.javaClass.simpleName} message=${e.message}", e)
             RoomResult.Error("Failed to fetch rooms for brand $brandId: ${e.message}", e)
         }
     }
