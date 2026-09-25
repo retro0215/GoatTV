@@ -121,6 +121,13 @@ fun RoomExperienceScreen(
 
     val streamingHttp = koinInject<StreamingHttpClient>()
     val context = LocalContext.current
+    DisposableEffect(Unit) {
+        val activity = context as? android.app.Activity
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
     val roomExoEngine = remember { RoomExoEngine(context, streamingHttp) }
     val channelDao = koinInject<ChannelDao>()
     val sourceDao = koinInject<tv.own.owntv.core.database.dao.SourceDao>()
