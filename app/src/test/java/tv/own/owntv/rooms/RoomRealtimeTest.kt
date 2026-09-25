@@ -3,6 +3,8 @@ package tv.own.owntv.rooms
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -234,5 +236,34 @@ class RoomRealtimeTest {
         assertEquals("espn2.us", domain.channelReference?.epgChannelId)
         assertEquals("12345", domain.channelReference?.remoteId)
         assertEquals("https://example.com/logo.png", domain.channelReference?.logoUrl)
+    }
+
+    class TestSocialAuthRepository : SocialAuthRepository {
+        var callCount = 0
+        var failAuth = false
+        override val currentUser: io.github.jan.supabase.auth.user.UserInfo? = null
+        override val currentProfile: StateFlow<SocialProfile?> = MutableStateFlow(null)
+        override val isAuthenticated: Boolean get() = callCount > 0
+
+        override suspend fun refreshProfile(): Result<SocialProfile?> = Result.success(null)
+        override suspend fun signOut(): Result<Unit> = Result.success(Unit)
+        override suspend fun ensureTvAuthenticated(): Result<io.github.jan.supabase.auth.user.UserInfo> {
+            callCount++
+            if (failAuth) return Result.failure(RuntimeException("Auth error"))
+            return Result.failure(RuntimeException("Auth required in test"))
+        }
+        override suspend fun currentUserId(): String? = "u1"
+        override suspend fun isAnonymous(): Boolean = true
+        override suspend fun signOutDeviceSession(): Result<Unit> = Result.success(Unit)
+    }
+
+    @Test
+    fun `fetchRoomsForBrand enforces authentication prior to discovery`() = runBlocking {
+        val authRepo = TestSocialAuthRepository().apply { failAuth = true }
+        val repo = SupabaseRoomRepository(socialAuthRepository = authRepo)
+
+        val res = repo.fetchRoomsForBrand("goat")
+        assertTrue(res is RoomResult.Error)
+        assertEquals(1, authRepo.callCount)
     }
 }

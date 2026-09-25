@@ -32,8 +32,11 @@ import tv.own.owntv.player.RoomSyncStamp
 import tv.own.owntv.player.SyncedRoomMessage
 import tv.own.owntv.player.SyncedRoomReaction
 
-class SupabaseRoomRepository : RoomRepository {
-    private val client = SupabaseClientProvider.client
+class SupabaseRoomRepository(
+    private val clientProvider: () -> io.github.jan.supabase.SupabaseClient = { SupabaseClientProvider.client },
+    private val socialAuthRepository: SocialAuthRepository = SupabaseSocialAuthRepository()
+) : RoomRepository {
+    private val client: io.github.jan.supabase.SupabaseClient by lazy { clientProvider() }
     private val channelMutex = Mutex()
     private val roomChannels = mutableMapOf<String, RealtimeChannel>()
     private val subscribedChannels = mutableSetOf<String>()
@@ -189,6 +192,15 @@ class SupabaseRoomRepository : RoomRepository {
     }
 
     override suspend fun fetchRoomsForBrand(brandId: String): RoomResult<List<SocialRoom>> {
+        Log.d("RoomRepo", "ROOM_AUTH_START: brand=$brandId")
+        val authResult = runCatching { socialAuthRepository.ensureTvAuthenticated().getOrThrow() }
+        if (authResult.isFailure) {
+            val e = authResult.exceptionOrNull()
+            Log.e("RoomRepo", "ROOM_AUTH_ERROR: brand=$brandId message=${e?.message}", e)
+            return RoomResult.Error("Authentication failure: ${e?.message}", e)
+        }
+        Log.d("RoomRepo", "ROOM_AUTH_READY: brand=$brandId")
+
         return runCatching {
             val dtos = client.postgrest.rpc(
                 "discover_rooms_for_brand",

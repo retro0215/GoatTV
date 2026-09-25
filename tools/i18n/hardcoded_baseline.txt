@@ -4835,6 +4835,7 @@
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	https://placeholder.supabase.co
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	placeholder-key
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	\0
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Authentication failure: ${e?.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Error processing chat event: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Error processing reaction event: ${e.message}
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Failed to fetch message history: ${e.message}
@@ -4845,6 +4846,9 @@
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Live Channel
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Message collector fatal error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Presence flow error: ${e.message}
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_AUTH_ERROR: brand=$brandId message=${e?.message}
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_AUTH_READY: brand=$brandId
+1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_AUTH_START: brand=$brandId
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_DISCOVERY_ERROR: brand=$brandId exceptionClass=${e.javaClass.simpleName} message=${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_PARSED: startsAtEpochMs=$parsedStarts, endsAtEpochMs=$parsedEnds, nowEpochMs=$nowMs
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	ROOM_TIME_RAW: status=$status, starts_at=$starts_at, ends_at=$ends_at
@@ -4852,7 +4856,7 @@
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Reaction collector fatal error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Room Realtime subscription error: ${e.message}
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	Room Realtime subscription timeout for room $roomId
-16	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
+19	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	RoomRepo
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	TV_SOCIAL_REALTIME: roomId=$roomId, topic=social-room-$roomId, subscribed=true
 2	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	User not authenticated
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseRoomRepository.kt	brand_id
