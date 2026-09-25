@@ -358,6 +358,7 @@ fun RoomExperienceScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 factory = { ctx ->
                                     android.view.SurfaceView(ctx).apply {
+                                        keepScreenOn = true
                                         holder.addCallback(object : android.view.SurfaceHolder.Callback {
                                             override fun surfaceCreated(holder: android.view.SurfaceHolder) {
                                                 roomExoEngine.setSurface(holder.surface)
@@ -368,6 +369,9 @@ fun RoomExperienceScreen(
                                             }
                                         })
                                     }
+                                },
+                                update = { view ->
+                                    view.keepScreenOn = true
                                 }
                             )
                         }
