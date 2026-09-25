@@ -4826,9 +4826,23 @@
 2	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	phone
 1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	room_id
 1	app/src/main/java/tv/own/owntv/rooms/RoomRepository.kt	user_id
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	\0
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	429
+2	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	Authentication rate limited. Cooldown active for ${remainingSec}s.
 1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	Failed to sign in anonymously
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_ERROR: anonymous sign-in failed: $msg
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_RATE_LIMITED: hit rate limit (429), set cooldown 60s: $msg
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_RATE_LIMITED: in cooldown for ${remainingSec}s
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_READY: anonymous sign-in successful userId=${user.id}
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_REUSE: acquired lock, session already established userId=${lockedExisting.id}
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_REUSE: existing session valid userId=${existing.id}
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	ROOM_AUTH_START: attempting anonymous sign-in
+7	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	SocialAuth
 1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	id
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	over_email_send_rate_limit
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	over_request_rate_limit
 1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	profiles
+1	app/src/main/java/tv/own/owntv/rooms/SocialAuthRepository.kt	rate limit
 1	app/src/main/java/tv/own/owntv/rooms/SocialProfile.kt	goat
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	SUPABASE_ANON_KEY is not configured
 1	app/src/main/java/tv/own/owntv/rooms/SupabaseClientProvider.kt	SUPABASE_URL is not configured
