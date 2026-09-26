@@ -4267,6 +4267,7 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	MONO
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	MPEG-TS
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	MPV
+1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	MPV_FALLBACK_TO_EXO: reason=$mpvError
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	No playable data received before timeout
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	OFF
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	OMX.google

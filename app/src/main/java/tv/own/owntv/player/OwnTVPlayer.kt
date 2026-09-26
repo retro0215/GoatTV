@@ -1822,6 +1822,7 @@ class OwnTVPlayer(
         triedExoVodFallback = true
         exoVodFallback = true
         mpvFailureBeforeFallback = mpvError
+        android.util.Log.i(TAG, "MPV_FALLBACK_TO_EXO: reason=$mpvError")
         android.util.Log.w(TAG, "VOD terminally failed on mpv ($mpvError) — falling back to ExoPlayer")
         // Resume where mpv got to only if the file actually opened; otherwise _position is stale from the
         // previous item — use the intended start position instead.
