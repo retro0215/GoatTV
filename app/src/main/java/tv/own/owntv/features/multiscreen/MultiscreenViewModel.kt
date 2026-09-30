@@ -28,7 +28,9 @@ class MultiscreenViewModel(
 ) : ViewModel() {
     val channels: StateFlow<List<ChannelEntity>> = store.channels
     val audioFocusIndex: StateFlow<Int> = store.audioFocusIndex
-    val tileEngines: StateFlow<Map<Long, Boolean>> = store.tileEngines
+
+    /** The device's tile limit — the same value the store enforces, so the UI can never disagree. */
+    val maxTiles: Int = store.maxTiles
 
     val favoriteIds: StateFlow<Set<Long>> = settings.activeProfileId
         .flatMapLatest { pid ->
@@ -91,12 +93,16 @@ class MultiscreenViewModel(
         store.moveChannel(fromIndex, toIndex)
     }
 
-    fun setChannels(list: List<ChannelEntity>) {
-        store.setChannels(list)
+    fun swapChannels(a: Int, b: Int) {
+        store.swapChannels(a, b)
     }
 
-    fun toggleEngine(channelId: Long) {
-        store.toggleEngine(channelId)
+    fun replaceChannel(index: Int, channel: ChannelEntity): Boolean {
+        return store.replaceChannel(index, channel)
+    }
+
+    fun setChannels(list: List<ChannelEntity>) {
+        store.setChannels(list)
     }
 
     fun toggleFavorite(channel: ChannelEntity) {

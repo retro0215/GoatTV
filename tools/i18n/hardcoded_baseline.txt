@@ -3118,7 +3118,6 @@
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MULTISCREEN_AUDIO channelId=$id ($name) enabled=$focused volume=${player.volume} handleFocus=$focused
 2	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Multiscreen
 5	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
-1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	SHIELD
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_DECODER channelId=${channel.id} name=${channel.name} decoder=$decoderName
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_DROPPED channelId=${channel.id} name=${channel.name} dropped=$droppedFrames over ${elapsedMs}ms
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_ERROR channelId=${channel.id} name=${channel.name} errorCode=${e.errorCode} message=${e.message}
@@ -3128,7 +3127,6 @@
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	channel
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	onn.
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	unknown
-1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenStore.kt	SHIELD
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenViewModel.kt	\0
 1	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	${clean.substring(0, 3)} ${clean.substring(3, 6)}
 1	app/src/main/java/tv/own/owntv/features/pairing/ConnectPhoneScreen.kt	1. Open connect.goattv.net/pair on your phone.

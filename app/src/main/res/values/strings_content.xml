@@ -24,11 +24,6 @@
     <string name="content_multiscreen_full">Multiscreen is full (max 4 channels)</string>
     <!-- Translators: Status text shown on a Multiscreen tile when it fails due to decoder exhaustion. -->
     <string name="content_multiscreen_decoder_error">Decoder error (too many streams?)</string>
-    <!-- Translators: Status message for limited hardware. "count" is the maximum number of streams. -->
-    <plurals name="content_multiscreen_device_limit">
-        <item quantity="one">This device can reliably play up to <xliff:g id="count">%1$d</xliff:g> Multiscreen channel at once.</item>
-        <item quantity="other">This device can reliably play up to <xliff:g id="count">%1$d</xliff:g> Multiscreen channels at once.</item>
-    </plurals>
     <!-- Translators: Menu item to open the full screen player for a specific tile. -->
     <string name="content_fullscreen">Full screen</string>
     <!-- Translators: Dialog title for the multiscreen channel picker. -->
@@ -46,6 +41,16 @@
     </plurals>
     <!-- Translators: Label for the Multiscreen feature. -->
     <string name="content_multiscreen">Multiscreen</string>
+    <!-- Translators: Button and menu item on the Multiscreen grid that opens the channel picker to add another tile. -->
+    <string name="content_multiscreen_add_channel">Add channel</string>
+    <!-- Translators: Menu item on a Multiscreen tile that opens the channel picker to show a different channel in that same tile. Also the picker's title in that mode. -->
+    <string name="content_multiscreen_replace_channel">Replace channel</string>
+    <!-- Translators: Tile counter on the Multiscreen control strip. "count" is how many channels are showing, "max" is how many this device allows. -->
+    <string name="content_multiscreen_count"><xliff:g id="count">%1$d</xliff:g> / <xliff:g id="max">%2$d</xliff:g></string>
+    <!-- Translators: Accessibility label for the speaker badge on the Multiscreen tile whose sound is playing. -->
+    <string name="content_multiscreen_audio_tile">Sound on this tile</string>
+    <!-- Translators: Hint bar shown while moving a Multiscreen tile. Arrows pick the tile to trade places with; OK swaps them; Back cancels. -->
+    <string name="content_multiscreen_swap_instructions">Arrows choose a tile · OK to swap · Back to cancel</string>
 
     <!-- Translators: Plural download status shown on the download progress chip. "count" is the number of items being downloaded. -->
     <plurals name="content_downloading_items">
