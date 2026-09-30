@@ -9,6 +9,62 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
+## allaccess-v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
+## 5star-v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
+## supreme-v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
 ## allaccess-v1.4.0 — 2026-09-01
 
 ### ✨ New features
