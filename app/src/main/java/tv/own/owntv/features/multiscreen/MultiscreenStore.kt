@@ -1,6 +1,5 @@
 package tv.own.owntv.features.multiscreen
 
-import android.os.Build
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,17 +10,17 @@ import tv.own.owntv.core.database.entity.ChannelEntity
  * Holds up to 4 selected channels and the current audio focus index.
  */
 class MultiscreenStore {
+    /**
+     * The same on every device: an application maximum, not a decoder promise. A box that cannot run
+     * that many streams shows the tile-level decoder error on the tile that failed.
+     */
+    val maxTiles: Int = MultiscreenLayout.MAX_TILES
+
     private val _channels = MutableStateFlow<List<ChannelEntity>>(emptyList())
     val channels: StateFlow<List<ChannelEntity>> = _channels.asStateFlow()
 
     private val _audioFocusIndex = MutableStateFlow(0)
     val audioFocusIndex: StateFlow<Int> = _audioFocusIndex.asStateFlow()
-
-    // Map of channel ID to whether it uses ExoPlayer (true) or mpv (false).
-    private val _tileEngines = MutableStateFlow<Map<Long, Boolean>>(emptyMap())
-    val tileEngines: StateFlow<Map<Long, Boolean>> = _tileEngines.asStateFlow()
-
-    val maxTiles: Int = if (Build.MODEL.contains("SHIELD", ignoreCase = true)) 4 else 2
 
     fun addChannel(channel: ChannelEntity): Boolean {
         val current = _channels.value
@@ -36,11 +35,6 @@ class MultiscreenStore {
         val index = current.indexOfFirst { it.id == channelId }
         if (index >= 0) {
             _channels.value = current.filterIndexed { i, _ -> i != index }
-            
-            // Clean up engine preference
-            val currentEngines = _tileEngines.value.toMutableMap()
-            currentEngines.remove(channelId)
-            _tileEngines.value = currentEngines
 
             // Adjust audio focus if needed
             if (_audioFocusIndex.value >= _channels.value.size) {
@@ -72,6 +66,40 @@ class MultiscreenStore {
         }
     }
 
+    /** Move Mode: the two tiles trade places; every other tile stays where it is. */
+    fun swapChannels(a: Int, b: Int) {
+        val current = _channels.value
+        if (a !in current.indices || b !in current.indices || a == b) return
+
+        val focusedId = current.getOrNull(_audioFocusIndex.value)?.id
+
+        val swapped = current.toMutableList()
+        swapped[a] = current[b]
+        swapped[b] = current[a]
+        _channels.value = swapped
+
+        // Audio stays with the same channel wherever it went.
+        if (focusedId != null) {
+            val newIndex = swapped.indexOfFirst { it.id == focusedId }
+            if (newIndex >= 0) _audioFocusIndex.value = newIndex
+        }
+    }
+
+    /**
+     * Replace Channel: the tile at [index] shows [channel] instead, keeping its place (and so the
+     * audio focus index). Picking what it already shows is a no-op success; a channel another tile
+     * already shows is refused, so a channel is never in two tiles.
+     */
+    fun replaceChannel(index: Int, channel: ChannelEntity): Boolean {
+        val current = _channels.value
+        val old = current.getOrNull(index) ?: return false
+        if (old.id == channel.id) return true
+        if (current.any { it.id == channel.id }) return false
+
+        _channels.value = current.toMutableList().also { it[index] = channel }
+        return true
+    }
+
     fun setChannels(list: List<ChannelEntity>) {
         _channels.value = list
         if (_audioFocusIndex.value >= list.size) {
@@ -81,22 +109,7 @@ class MultiscreenStore {
 
     fun clear() {
         _channels.value = emptyList()
-        _tileEngines.value = emptyMap()
         _audioFocusIndex.value = 0
-    }
-
-    fun toggleEngine(channelId: Long) {
-        val current = _tileEngines.value.toMutableMap()
-        val currentlyExo = current[channelId] ?: true
-        if (currentlyExo) {
-            // libmpv is a singleton, so only one tile can use it at a time.
-            // Reset all other tiles to Exo before enabling mpv for this one.
-            _tileEngines.value.keys.forEach { current[it] = true }
-            current[channelId] = false
-        } else {
-            current[channelId] = true
-        }
-        _tileEngines.value = current
     }
 
     fun isInMultiscreen(channelId: Long): Boolean {
