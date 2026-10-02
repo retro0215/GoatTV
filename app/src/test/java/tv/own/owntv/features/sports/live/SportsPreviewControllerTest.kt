@@ -31,6 +31,9 @@ class SportsPreviewControllerTest {
         }
     }
 
+    private fun ev(id: String, status: SportsEventStatus = SportsEventStatus.SCHEDULED) =
+        GameCenterTestData.game(id = id, status = status)
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     private val source = ManualSource()
     private val controller = SportsPreviewController(scope, source)
@@ -46,7 +49,7 @@ class SportsPreviewControllerTest {
 
     @Test
     fun `event focus shows Game Center immediately, before any detail`() {
-        controller.onEventFocused("evt_a")
+        controller.onEventFocused(ev("evt_a"))
         assertEquals(SportsPreviewMode.EventGameCenter("evt_a"), controller.mode.value)
         assertEquals(GameCenterDetailState.Pending("evt_a"), controller.detail.value)
         source.pending.getValue("evt_a").complete(detail("evt_a"))
@@ -55,7 +58,7 @@ class SportsPreviewControllerTest {
 
     @Test
     fun `channel focus returns to channel video`() {
-        controller.onEventFocused("evt_a")
+        controller.onEventFocused(ev("evt_a"))
         controller.onChannelFocused()
         assertEquals(SportsPreviewMode.ChannelVideo, controller.mode.value)
         assertEquals(listOf("evt_a"), source.cancelled) // obsolete detail work cancelled
@@ -64,7 +67,7 @@ class SportsPreviewControllerTest {
     @Test
     fun `rapid focus changes - only the last event's detail is shown, obsolete work cancelled`() {
         val ids = (1..12).map { "evt_$it" }
-        ids.forEach { controller.onEventFocused(it) }
+        ids.forEach { controller.onEventFocused(ev(it)) }
         assertEquals(SportsPreviewMode.EventGameCenter("evt_12"), controller.mode.value)
         assertEquals(ids.dropLast(1), source.cancelled)
         // A late response for an earlier card cannot overwrite the focused one.
@@ -77,29 +80,29 @@ class SportsPreviewControllerTest {
 
     @Test
     fun `refocusing the same event does no new work`() {
-        controller.onEventFocused("evt_a")
-        controller.onEventFocused("evt_a")
+        controller.onEventFocused(ev("evt_a"))
+        controller.onEventFocused(ev("evt_a"))
         assertEquals(listOf("evt_a"), source.requested)
     }
 
     @Test
     fun `returning to an event whose detail is held reuses it`() {
-        controller.onEventFocused("evt_a")
+        controller.onEventFocused(ev("evt_a"))
         source.pending.getValue("evt_a").complete(detail("evt_a"))
         controller.onChannelFocused()
-        controller.onEventFocused("evt_a")
+        controller.onEventFocused(ev("evt_a"))
         assertEquals(listOf("evt_a"), source.requested)
         assertTrue(controller.detail.value is GameCenterDetailState.Ready)
     }
 
     @Test
     fun `no detail or a failing source - unavailable, the matchup still renders`() {
-        controller.onEventFocused("evt_a")
+        controller.onEventFocused(ev("evt_a"))
         source.pending.getValue("evt_a").complete(null)
         assertEquals(GameCenterDetailState.Unavailable("evt_a"), controller.detail.value)
 
-        val failing = SportsPreviewController(scope) { error("boom") }
-        failing.onEventFocused("evt_b")
+        val failing = SportsPreviewController(scope, source = { error("boom") })
+        failing.onEventFocused(ev("evt_b"))
         assertEquals(GameCenterDetailState.Unavailable("evt_b"), failing.detail.value)
         assertEquals(SportsPreviewMode.EventGameCenter("evt_b"), failing.mode.value)
     }
@@ -107,16 +110,15 @@ class SportsPreviewControllerTest {
     @Test
     fun `production source does no work and yields unavailable`() {
         val prod = SportsPreviewController(scope, GameCenterDetailSource.None)
-        prod.onEventFocused("evt_a")
+        prod.onEventFocused(ev("evt_a"))
         assertEquals(GameCenterDetailState.Unavailable("evt_a"), prod.detail.value)
     }
 
     @Test
-    fun `event video is reserved and never produced in this phase`() {
-        controller.onEventFocused("evt_live")
-        controller.onChannelFocused()
-        controller.onEventFocused("evt_live2")
+    fun `without event channels the pane never leaves Game Center for video`() {
+        controller.onEventFocused(ev("evt_live", SportsEventStatus.LIVE))
+        controller.toggleEventVideo(ev("evt_live", SportsEventStatus.LIVE))
         assertFalse(controller.mode.value is SportsPreviewMode.EventVideo)
-        assertEquals(600L, SportsPreviewMode.EVENT_VIDEO_SETTLE_MS)
+        assertEquals(3000L, SportsPreviewMode.EVENT_VIDEO_SETTLE_MS)
     }
 }

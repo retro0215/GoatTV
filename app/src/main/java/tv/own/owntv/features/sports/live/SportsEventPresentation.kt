@@ -114,11 +114,18 @@ internal object SportsEventPresentation {
      * only valid action is Close — Watch / Select Channel / Multiscreen are never offered without a
      * resolved channel. C2 adds them here; the panel renders whatever this returns.
      */
-    fun detailActions(event: SportsEvent, channelsEnabled: Boolean = SportsChannelFeature.ENABLED): List<SportsEventAction> {
-        if (!channelsEnabled || event.channels.isEmpty()) return listOf(SportsEventAction.CLOSE)
+    fun detailActions(event: SportsEvent, channelsEnabled: Boolean = SportsChannelFeature.ENABLED): List<SportsEventAction> =
+        detailActions(verifiedChannelCount = event.channels.size, channelsEnabled = channelsEnabled)
+
+    /**
+     * Actions for [verifiedChannelCount] channels that passed LOCAL verification (never the raw backend
+     * count): none → Close only; one → Watch / Add to Multiscreen / Close; several → also Select Channel.
+     */
+    fun detailActions(verifiedChannelCount: Int, channelsEnabled: Boolean): List<SportsEventAction> {
+        if (!channelsEnabled || verifiedChannelCount <= 0) return listOf(SportsEventAction.CLOSE)
         return buildList {
             add(SportsEventAction.WATCH)
-            if (event.channels.size > 1) add(SportsEventAction.SELECT_CHANNEL)
+            if (verifiedChannelCount > 1) add(SportsEventAction.SELECT_CHANNEL)
             add(SportsEventAction.ADD_TO_MULTISCREEN)
             add(SportsEventAction.CLOSE)
         }

@@ -179,4 +179,64 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
         UFC_FINAL -> GameCenterDetail(eventId, GameCenterAvailability.NONE)
         else -> null
     }
+
+    // --- C2A channel scenarios -------------------------------------------------------------------
+    // Refs are built at runtime from the user's REAL local channels, found by display name on the
+    // active source, so they exercise the real SportsChannelResolver. Nothing here embeds a remote id,
+    // EPG id, URL or credential; a name missing from the playlist simply drops that ref.
+
+    private sealed interface Spec {
+        val name: String
+
+        /** A correct ref (remote id + EPG/name of the local channel). */
+        data class Valid(override val name: String, val networkKey: String? = null) : Spec
+
+        /** Remote id that does not exist on the source → NOT_FOUND. */
+        data class InvalidRemote(override val name: String) : Spec
+
+        /** Right remote id, wrong EPG id → IDENTITY_MISMATCH. */
+        data class EpgMismatch(override val name: String) : Spec
+
+        /** Right remote id, no EPG id, unrelated name → IDENTITY_MISMATCH. */
+        data class NameMismatch(override val name: String) : Spec
+    }
+
+    private val channelScenarios: Map<String, List<Spec>> = mapOf(
+        // 3 matched feeds, backend order preserved.
+        NFL_LIVE to listOf(Spec.Valid("US: NBC East", "nbc"), Spec.Valid("US: NFL Network"), Spec.Valid("US: NFL Redzone")),
+        // 1 matched feed.
+        NBA_LIVE to listOf(Spec.Valid("US: ESPN", "espn")),
+        // Primary + accepted 4K alternate (primary stays first).
+        NHL_LIVE to listOf(Spec.Valid("US: NHL Network"), Spec.Valid("CA: Sportsnet 4K")),
+        // Invalid remote id only → 0 matched: live, but Game Center stays.
+        MLB_LIVE to listOf(Spec.InvalidRemote("US: FOX Sports")),
+        // EPG mismatch + name mismatch rejected; the one valid feed survives.
+        SOCCER_LIVE to listOf(Spec.EpgMismatch("US: NBCSN"), Spec.NameMismatch("US: CBS Sports HQ"), Spec.Valid("US: NBC East", "nbc")),
+        // Upcoming / final with a valid channel: listed in Where to Watch, never auto-previewed.
+        NFL_UPCOMING to listOf(Spec.Valid("US: FOX East", "fox")),
+        NFL_FINAL to listOf(Spec.Valid("US: CBS East", "cbs")),
+        // Fight cards: 0 matched.
+        UFC_UPCOMING to emptyList(),
+        UFC_FINAL to emptyList(),
+    )
+
+    override suspend fun channelRefs(eventId: String): List<SportsChannelRef>? {
+        val specs = channelScenarios[eventId] ?: return null
+        if (specs.isEmpty()) return emptyList()
+        val koin = org.koin.core.context.GlobalContext.get()
+        val dao = koin.get<tv.own.owntv.core.database.dao.ChannelDao>()
+        val lookup = RoomSportsChannelLookup(koin.get(), koin.get(), dao)
+        val source = lookup.activeSource() ?: return emptyList()
+        return specs.mapIndexedNotNull { i, spec ->
+            val local = dao.findByName(source.id, spec.name) ?: return@mapIndexedNotNull null
+            val remote = local.remoteId ?: return@mapIndexedNotNull null
+            val id = "sch_fixture_" + eventId.removePrefix(FIXTURE_ID_PREFIX) + "_" + i
+            when (spec) {
+                is Spec.Valid -> SportsChannelRef(id, remote, local.epgChannelId, local.name, null, null, spec.networkKey, 90, "fixture")
+                is Spec.InvalidRemote -> SportsChannelRef(id, "0", local.epgChannelId, local.name, null, null, null, 90, "fixture")
+                is Spec.EpgMismatch -> SportsChannelRef(id, remote, "Mismatch.fixture", local.name, null, null, null, 90, "fixture")
+                is Spec.NameMismatch -> SportsChannelRef(id, remote, null, "Unrelated Fixture Channel", null, null, null, 90, "fixture")
+            }
+        }
+    }
 }

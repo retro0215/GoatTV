@@ -143,6 +143,28 @@
     <string name="sports_gc_winner">Winner: %1$s</string>
     <!-- Translators: Game Center: the network showing the event, e.g. "On ESPN". -->
     <string name="sports_gc_where_on">On %1$s</string>
+    <!-- Translators: Title of the dialog listing the TV channels an event can be watched on. -->
+    <string name="sports_watch_title">Where to watch</string>
+    <!-- Translators: Title of the same dialog when picking the channel to add to Multiscreen. -->
+    <string name="sports_watch_title_multiscreen">Add to Multiscreen</string>
+    <!-- Translators: Shown while the app checks which of the event's channels exist in the user's playlist. -->
+    <string name="sports_watch_checking">Checking your channels…</string>
+    <!-- Translators: No channel in the user's playlist can play this event. -->
+    <string name="sports_watch_none">No playable channel is available yet.</string>
+    <!-- Translators: Button that plays a channel in the small preview area instead of fullscreen. -->
+    <string name="sports_watch_preview">Preview</string>
+    <!-- Translators: Marks the channel the user already picked for this game. -->
+    <string name="sports_watch_selected">Selected</string>
+    <!-- Translators: Ultra HD / 4K badge on a channel. -->
+    <string name="sports_watch_uhd">4K</string>
+    <!-- Translators: Button that opens the game's details panel. -->
+    <string name="sports_watch_game_details">Game details</string>
+    <!-- Translators: Scoreboard over live video: away team, away score, home team, home score (e.g. "PHI 21 – DAL 17"). -->
+    <string name="sports_scoreboard_line">%1$s %2$s  –  %3$s %4$s</string>
+    <!-- Translators: Button that plays the game fullscreen. -->
+    <string name="sports_event_watch">Watch</string>
+    <!-- Translators: Button that opens the list of channels showing the game. -->
+    <string name="sports_event_select_channel">Select channel</string>
     <!-- Translators: Baseball outs in the current half-inning. -->
     <plurals name="sports_gc_outs">
         <item quantity="one">%d out</item>

@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -56,7 +57,11 @@ import tv.own.owntv.features.sports.live.SportsEvent
 import tv.own.owntv.features.sports.live.SportsEventDetails
 import tv.own.owntv.features.sports.live.SportsEventRow
 import tv.own.owntv.features.sports.live.SportsBrowseRestorer
+import tv.own.owntv.features.sports.live.SportsEventOkHandlers
+import tv.own.owntv.features.sports.live.SportsEventVideoPane
 import tv.own.owntv.features.sports.live.SportsEventsViewModel
+import tv.own.owntv.features.sports.live.SportsWhereToWatchDialog
+import tv.own.owntv.features.sports.live.SportsWhereToWatchPurpose
 import tv.own.owntv.features.sports.live.SportsRowFocusRestore
 import tv.own.owntv.features.sports.live.rememberSportsRowState
 import tv.own.owntv.features.sports.live.SportsGameCenterPreview
@@ -122,8 +127,11 @@ fun SportsScreen(
     val selectedEventId by eventsVm.selectedEventId.collectAsStateWithLifecycle()
     // The card that opened the details panel gets focus back when the panel closes.
     var eventReturnFocus by remember { mutableStateOf<androidx.compose.ui.focus.FocusRequester?>(null) }
-    androidx.compose.runtime.LaunchedEffect(selectedEventId) {
-        if (selectedEventId == null) {
+    val whereToWatch by eventsVm.whereToWatch.collectAsStateWithLifecycle()
+    var contextChannel by remember { mutableStateOf<ChannelEntity?>(null) }
+    val eventOverlayOpen = selectedEventId != null || whereToWatch != null || contextChannel != null
+    androidx.compose.runtime.LaunchedEffect(eventOverlayOpen) {
+        if (!eventOverlayOpen) {
             val target = eventReturnFocus ?: return@LaunchedEffect
             androidx.compose.runtime.withFrameNanos { } // let the panel leave composition first
             runCatching { target.requestFocus() }
@@ -139,10 +147,58 @@ fun SportsScreen(
 
     val toast = tv.own.owntv.ui.components.rememberInAppToast()
     val multiscreenFullMessage = stringResource(R.string.content_multiscreen_full)
-    var contextChannel by remember { mutableStateOf<ChannelEntity?>(null) }
 
-    SportsChannelPreviewDriver(eventsVm, liveVm, previewChannel, previewArmed)
-    val onEventFocused = remember(eventsVm) { { event: SportsEvent -> eventsVm.onEventFocused(event.id) } }
+    SportsPreviewDriver(eventsVm, liveVm, previewChannel, previewArmed)
+    val onEventFocused = remember(eventsVm) { { event: SportsEvent -> eventsVm.onEventFocused(event) } }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val slateNow = (eventsState as? SportsLiveState.Content)?.slate
+
+    // Event channel actions. Every play / add re-verifies the channel locally at action time.
+    fun watchEventChannel(event: SportsEvent, channelId: Long) {
+        scope.launch {
+            val verified = eventsVm.verifiedChannels(event)
+            val pick = verified.firstOrNull { it.channel.id == channelId } ?: return@launch
+            eventsVm.closeWhereToWatch()
+            eventsVm.closeEvent()
+            // The pane resumes this feed when fullscreen returns to Sports.
+            eventsVm.previewFeed(event, pick.channel)
+            onOpenChannel(pick.channel, verified.map { it.channel })
+        }
+    }
+    fun previewEventChannel(event: SportsEvent, channelId: Long) {
+        scope.launch {
+            val pick = eventsVm.reverify(event, channelId) ?: return@launch
+            eventsVm.closeWhereToWatch()
+            eventsVm.previewFeed(event, pick.channel)
+        }
+    }
+    fun addEventToMultiscreen(event: SportsEvent) {
+        scope.launch {
+            val verified = eventsVm.verifiedChannels(event)
+            if (verified.size == 1) {
+                contextChannel = verified.single().channel // the existing Multiscreen menu
+            } else {
+                eventsVm.openWhereToWatch(event, SportsWhereToWatchPurpose.MULTISCREEN) // 0 explains; 2+ pick first
+            }
+        }
+    }
+    val okGestures = remember(eventsVm) {
+        if (!eventsVm.eventChannelsEnabled) {
+            null
+        } else {
+            SportsEventOkHandlers(
+                onSingle = { event, requester ->
+                    eventReturnFocus = requester
+                    eventsVm.openWhereToWatch(event, SportsWhereToWatchPurpose.WATCH)
+                },
+                onDouble = { event -> eventsVm.toggleEventVideo(event) },
+                onLong = { event, requester ->
+                    eventReturnFocus = requester
+                    addEventToMultiscreen(event)
+                },
+            )
+        }
+    }
 
     val previewPlaying = previewState != LivePreviewEngine.State.ERROR &&
         previewState != LivePreviewEngine.State.IDLE
@@ -176,7 +232,7 @@ fun SportsScreen(
                     .background(colors.surfaceContainerLowest),
                 contentAlignment = Alignment.Center,
             ) {
-                SportsPreviewPane(eventsVm, eventsState) {
+                SportsPreviewPane(eventsVm, eventsState, liveVm, previewState) {
                     val currentChannel = previewChannel
                     if (currentChannel != null) {
                         if (!currentChannel.displayLogoUrl.isNullOrBlank()) {
@@ -283,6 +339,7 @@ fun SportsScreen(
                     onFocused = onChildFocused,
                     onEventFocused = onEventFocused,
                     restorer = restorer,
+                    okGestures = okGestures,
                 )
 
                 if (sections.isEmpty()) {
@@ -330,7 +387,62 @@ fun SportsScreen(
             if (tv.own.owntv.features.sports.live.SportsEventPresentation.isFightCard(selectedEvent, selectedLeague)) {
                 tv.own.owntv.features.sports.live.SportsFightDetails(event = selectedEvent, league = selectedLeague, onDismiss = { eventsVm.closeEvent() })
             } else {
-                SportsEventDetails(event = selectedEvent, league = selectedLeague, onDismiss = { eventsVm.closeEvent() })
+                // Actions over LOCALLY verified channels only (Close alone while event channels are off).
+                val verified by androidx.compose.runtime.produceState<List<tv.own.owntv.features.sports.live.ResolvedSportsChannel>>(emptyList(), selectedEvent.id) {
+                    value = eventsVm.verifiedChannels(selectedEvent)
+                }
+                SportsEventDetails(
+                    event = selectedEvent,
+                    league = selectedLeague,
+                    onDismiss = { eventsVm.closeEvent() },
+                    actions = tv.own.owntv.features.sports.live.SportsEventPresentation.detailActions(verified.size, eventsVm.eventChannelsEnabled),
+                    onAction = { action ->
+                        when (action) {
+                            tv.own.owntv.features.sports.live.SportsEventAction.WATCH ->
+                                verified.firstOrNull()?.let { watchEventChannel(selectedEvent, it.channel.id) }
+                            tv.own.owntv.features.sports.live.SportsEventAction.SELECT_CHANNEL -> {
+                                eventsVm.openWhereToWatch(selectedEvent, SportsWhereToWatchPurpose.WATCH)
+                                eventsVm.closeEvent()
+                            }
+                            tv.own.owntv.features.sports.live.SportsEventAction.ADD_TO_MULTISCREEN -> {
+                                eventsVm.closeEvent()
+                                addEventToMultiscreen(selectedEvent)
+                            }
+                            tv.own.owntv.features.sports.live.SportsEventAction.CLOSE -> eventsVm.closeEvent()
+                        }
+                    },
+                )
+            }
+        }
+
+        // Where to Watch (single OK on an event; long press picks the Multiscreen feed).
+        whereToWatch?.let { wtw ->
+            val wtwEvent = slateNow?.eventsById?.get(wtw.eventId)
+            if (wtwEvent == null) {
+                androidx.compose.runtime.LaunchedEffect(wtw.eventId) { eventsVm.closeWhereToWatch() }
+            } else {
+                SportsWhereToWatchDialog(
+                    event = wtwEvent,
+                    league = slateNow.leagues.firstOrNull { it.id == wtwEvent.leagueId },
+                    state = wtw,
+                    onPick = { channelId ->
+                        if (wtw.purpose == SportsWhereToWatchPurpose.MULTISCREEN) {
+                            scope.launch {
+                                val pick = eventsVm.reverify(wtwEvent, channelId) ?: return@launch
+                                contextChannel = pick.channel
+                                eventsVm.closeWhereToWatch()
+                            }
+                        } else {
+                            watchEventChannel(wtwEvent, channelId)
+                        }
+                    },
+                    onPreview = { channelId -> previewEventChannel(wtwEvent, channelId) },
+                    onGameDetails = {
+                        eventsVm.openEvent(wtwEvent.id)
+                        eventsVm.closeWhereToWatch()
+                    },
+                    onDismiss = { eventsVm.closeWhereToWatch() },
+                )
             }
         }
 
@@ -360,26 +472,32 @@ fun SportsScreen(
 }
 
 /**
- * Plays the in-pane channel preview after the 400ms focus debounce while the pane is in channel mode;
- * when an event card takes the pane (Game Center) it stops the pane video once. Reads the preview mode
- * here, not in [SportsScreen], so a card focus change never recomposes the rows.
+ * The ONE in-pane playback driver (one preview engine, one audio path):
+ *  - channel mode: the existing channel preview after the 400ms focus debounce;
+ *  - event Game Center: stops the pane video (crossing event cards stops nothing twice — no-op when idle);
+ *  - event video: tunes the event's locally verified channel (its dwell already happened).
+ * Reads the preview mode here, not in [SportsScreen], so a card focus change never recomposes the rows.
  */
 @Composable
-private fun SportsChannelPreviewDriver(
+private fun SportsPreviewDriver(
     eventsVm: SportsEventsViewModel,
     liveVm: LiveViewModel,
     previewChannel: ChannelEntity?,
     previewArmed: Boolean,
 ) {
     val previewMode by eventsVm.previewMode.collectAsStateWithLifecycle()
-    val channelPreviewActive = previewMode == SportsPreviewMode.ChannelVideo
-    androidx.compose.runtime.LaunchedEffect(previewChannel?.id, previewArmed, channelPreviewActive) {
-        // Game Center owns the pane: stop the in-pane video once (crossing event cards re-runs nothing).
-        if (!channelPreviewActive) { liveVm.stopPanePreview(); return@LaunchedEffect }
-        if (!previewArmed) return@LaunchedEffect
-        val ch = previewChannel ?: return@LaunchedEffect
-        delay(400L) // 400ms Sports focus debounce
-        liveVm.playPreview(ch)
+    val channelKey = if (previewMode == SportsPreviewMode.ChannelVideo) previewChannel?.id else null
+    androidx.compose.runtime.LaunchedEffect(previewMode, channelKey, previewArmed) {
+        when (val mode = previewMode) {
+            SportsPreviewMode.ChannelVideo -> {
+                if (!previewArmed) return@LaunchedEffect
+                val ch = previewChannel ?: return@LaunchedEffect
+                delay(400L) // 400ms Sports focus debounce
+                liveVm.playPreview(ch)
+            }
+            is SportsPreviewMode.EventGameCenter -> liveVm.stopPanePreview()
+            is SportsPreviewMode.EventVideo -> liveVm.playPreview(mode.channel)
+        }
     }
 }
 
@@ -391,6 +509,8 @@ private fun SportsChannelPreviewDriver(
 private fun androidx.compose.foundation.layout.BoxScope.SportsPreviewPane(
     eventsVm: SportsEventsViewModel,
     eventsState: SportsLiveState,
+    liveVm: LiveViewModel,
+    engineState: LivePreviewEngine.State,
     channelContent: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
 ) {
     val previewMode by eventsVm.previewMode.collectAsStateWithLifecycle()
@@ -398,11 +518,19 @@ private fun androidx.compose.foundation.layout.BoxScope.SportsPreviewPane(
     val slate = (eventsState as? SportsLiveState.Content)?.slate
     val focusedEvent = when (val mode = previewMode) {
         is SportsPreviewMode.EventGameCenter -> mode.eventId
-        // Reserved for C2; until then a live event's pane stays Game Center.
         is SportsPreviewMode.EventVideo -> mode.eventId
         SportsPreviewMode.ChannelVideo -> null
     }?.let { id -> slate?.eventsById?.get(id) }
-    if (focusedEvent != null) {
+    val videoMode = previewMode as? SportsPreviewMode.EventVideo
+    if (focusedEvent != null && videoMode != null) {
+        SportsEventVideoPane(
+            event = focusedEvent,
+            channel = videoMode.channel,
+            engine = liveVm.previewEngine,
+            engineState = engineState,
+            onFailed = { eventsVm.onEventVideoFailed(focusedEvent.id) },
+        )
+    } else if (focusedEvent != null) {
         SportsGameCenterPreview(
             event = focusedEvent,
             league = slate?.leagues?.firstOrNull { it.id == focusedEvent.leagueId },
@@ -426,6 +554,7 @@ private fun SportsEventsArea(
     onFocused: () -> Unit,
     onEventFocused: (SportsEvent) -> Unit,
     restorer: SportsBrowseRestorer,
+    okGestures: SportsEventOkHandlers?,
 ) {
     val colors = OwnTVTheme.colors
     when (state) {
@@ -479,6 +608,7 @@ private fun SportsEventsArea(
                         onFocused = onFocused,
                         onEventFocused = onEventFocused,
                         restorer = restorer,
+                        okGestures = okGestures,
                     )
                 }
             }

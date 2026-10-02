@@ -89,6 +89,11 @@ fun SportsEventRow(
     onEventFocused: (SportsEvent) -> Unit = {},
     /** Keeps / restores this row's position and focused card across fullscreen / Multiscreen. */
     restorer: SportsBrowseRestorer? = null,
+    /**
+     * Event OK gestures (single → Where to Watch, double → Game Center ↔ video, long → Multiscreen).
+     * Null while event channels are off: OK keeps opening Game Details via [onEventClick], undelayed.
+     */
+    okGestures: SportsEventOkHandlers? = null,
 ) {
     val featured = section.key == SportsSlateLogic.POPULAR_KEY
     val rowKey = "events:" + section.key
@@ -123,6 +128,17 @@ fun SportsEventRow(
                             onEventFocused(event)
                         }
                     }
+                    .then(
+                        if (okGestures != null) {
+                            Modifier.sportsOkGestures(
+                                onSingle = { okGestures.onSingle(event, requester) },
+                                onDouble = { okGestures.onDouble(event) },
+                                onLong = { okGestures.onLong(event, requester) },
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
                 if (SportsEventPresentation.isFightCard(event, league)) {
                     SportsFightCard(
                         event = event,
@@ -534,6 +550,9 @@ fun SportsEventDetails(
     event: SportsEvent,
     league: SportsLeague?,
     onDismiss: () -> Unit,
+    /** From [SportsEventPresentation.detailActions] over LOCALLY verified channels (Close only otherwise). */
+    actions: List<SportsEventAction> = SportsEventPresentation.detailActions(event),
+    onAction: (SportsEventAction) -> Unit = {},
 ) {
     val colors = OwnTVTheme.colors
     val firstAction = remember { FocusRequester() }
@@ -633,7 +652,7 @@ fun SportsEventDetails(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
                 ) {
-                    SportsEventPresentation.detailActions(event).forEachIndexed { index, action ->
+                    actions.forEachIndexed { index, action ->
                         val focusModifier = if (index == 0) Modifier.focusRequester(firstAction) else Modifier
                         when (action) {
                             SportsEventAction.CLOSE -> DetailActionButton(
@@ -642,8 +661,24 @@ fun SportsEventDetails(
                                 onClick = onDismiss,
                                 modifier = focusModifier,
                             )
-                            // Phase C2 (channels on): Watch / Select Channel / Add to Multiscreen.
-                            SportsEventAction.WATCH, SportsEventAction.SELECT_CHANNEL, SportsEventAction.ADD_TO_MULTISCREEN -> Unit
+                            SportsEventAction.WATCH -> DetailActionButton(
+                                icon = OwnTVIcon.PLAY,
+                                label = stringResource(R.string.sports_event_watch),
+                                onClick = { onAction(action) },
+                                modifier = focusModifier,
+                            )
+                            SportsEventAction.SELECT_CHANNEL -> DetailActionButton(
+                                icon = OwnTVIcon.LIVE_TV,
+                                label = stringResource(R.string.sports_event_select_channel),
+                                onClick = { onAction(action) },
+                                modifier = focusModifier,
+                            )
+                            SportsEventAction.ADD_TO_MULTISCREEN -> DetailActionButton(
+                                icon = OwnTVIcon.ADD,
+                                label = stringResource(R.string.content_multiscreen_add),
+                                onClick = { onAction(action) },
+                                modifier = focusModifier,
+                            )
                         }
                     }
                 }
@@ -704,3 +739,10 @@ private fun DetailActionButton(icon: OwnTVIcon, label: String, onClick: () -> Un
         }
     }
 }
+
+/** What single / double / long OK do on an event card (each receives the card's focus requester to return to). */
+class SportsEventOkHandlers(
+    val onSingle: (SportsEvent, FocusRequester) -> Unit,
+    val onDouble: (SportsEvent) -> Unit,
+    val onLong: (SportsEvent, FocusRequester) -> Unit,
+)

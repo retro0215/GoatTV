@@ -15,6 +15,12 @@ interface SportsGameCenterFixtures {
 
     fun detail(eventId: String): GameCenterDetail?
 
+    /**
+     * Matched-channel refs for a fixture event, built from the user's REAL local channels (so they run
+     * through the real [SportsChannelResolver]); null for events the fixtures don't cover.
+     */
+    suspend fun channelRefs(eventId: String): List<SportsChannelRef>? = null
+
     companion object {
         const val FIXTURE_ID_PREFIX = "evt_gcfixture_"
     }
@@ -30,20 +36,47 @@ object SportsGameCenterDevMode {
         if (isDebugBuild) installed?.invoke() else null
 }
 
-/** What the Sports events side is wired with: the detail source plus optional debug fixtures. */
+/**
+ * Where an event's matched-channel refs come from. Production reads the backend's `channels[]` only
+ * while [SportsChannelFeature.ENABLED] (still false: `SPORTS_API_CHANNELS` is off and no `?brand=` is
+ * sent), so release resolves nothing. Refs are never trusted as-is: [SportsChannelResolver] verifies
+ * each one against the local source before it can be shown or played.
+ */
+fun interface SportsEventChannelSource {
+    suspend fun refs(event: SportsEvent): List<SportsChannelRef>
+
+    companion object {
+        val Production = SportsEventChannelSource { event -> if (SportsChannelFeature.ENABLED) event.channels else emptyList() }
+    }
+}
+
+/** What the Sports events side is wired with: Game Center detail, event channels, optional debug fixtures. */
 class SportsGameCenterConfig(
     val detailSource: GameCenterDetailSource,
     val fixtures: SportsGameCenterFixtures?,
+    val channelSource: SportsEventChannelSource = SportsEventChannelSource.Production,
+    val resolver: SportsChannelResolver? = null,
+    /** Event channel actions (Where to Watch, event video, event Multiscreen). Off in release today. */
+    val channelsEnabled: Boolean = SportsChannelFeature.ENABLED,
 ) {
     companion object {
         /**
-         * Production: no Game Center endpoint yet (event focus does no I/O). Debug fixture mode: the
-         * fixture catalog answers detail requests for its own events only.
+         * Production: no Game Center endpoint and no event channels yet (event focus does no I/O).
+         * Debug fixture mode: the fixture catalog answers detail requests and supplies channel refs
+         * for its own events only; every other event keeps the production rules.
          */
-        fun create(fixtures: SportsGameCenterFixtures? = SportsGameCenterDevMode.active()): SportsGameCenterConfig =
+        fun create(
+            fixtures: SportsGameCenterFixtures? = SportsGameCenterDevMode.active(),
+            resolver: SportsChannelResolver? = null,
+        ): SportsGameCenterConfig =
             SportsGameCenterConfig(
                 detailSource = fixtures?.let { f -> GameCenterDetailSource { id -> f.detail(id) } } ?: GameCenterDetailSource.None,
                 fixtures = fixtures,
+                channelSource = fixtures?.let { f ->
+                    SportsEventChannelSource { e -> f.channelRefs(e.id) ?: SportsEventChannelSource.Production.refs(e) }
+                } ?: SportsEventChannelSource.Production,
+                resolver = resolver,
+                channelsEnabled = resolver != null && (SportsChannelFeature.ENABLED || fixtures != null),
             )
     }
 }
