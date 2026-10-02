@@ -94,7 +94,46 @@ internal object SportsApiParser {
             broadcasts = parseBroadcasts(o.optJSONArray("broadcasts")),
             updatedAtMs = parseIsoUtcMs(o.optStringOrNull("updatedAt")) ?: 0L,
             channels = parseChannels(o.optJSONArray("channels")),
+            fight = o.optJSONObject("fight")?.let(::parseFight),
         )
+    }
+
+    /** `fight: {bouts:[…]}` on fight cards. Malformed bouts are dropped individually; no bouts → null. */
+    internal fun parseFight(o: JSONObject): SportsFight? {
+        val arr = o.optJSONArray("bouts") ?: return null
+        val bouts = ArrayList<SportsBout>(arr.length())
+        for (i in 0 until arr.length()) {
+            val b = arr.optJSONObject(i) ?: continue
+            val fightersArr = b.optJSONArray("fighters") ?: continue
+            val fighters = (0 until fightersArr.length()).mapNotNull { idx ->
+                val f = fightersArr.optJSONObject(idx) ?: return@mapNotNull null
+                val name = f.optStringOrNull("name") ?: return@mapNotNull null
+                SportsFighter(
+                    id = f.optStringOrNull("id"),
+                    name = name,
+                    shortName = f.optStringOrNull("shortName"),
+                    record = f.optStringOrNull("record"),
+                    country = f.optStringOrNull("country"),
+                    flagUrl = f.optStringOrNull("flagUrl")?.takeIf { it.startsWith("https://") },
+                )
+            }
+            if (fighters.size != 2) continue
+            val winner = if (b.has("winner") && !b.isNull("winner")) b.optInt("winner", -1).takeIf { it == 0 || it == 1 } else null
+            bouts += SportsBout(
+                order = b.optInt("order", i + 1),
+                weightClass = b.optStringOrNull("weightClass"),
+                scheduledRounds = if (b.isNull("scheduledRounds")) null else b.optInt("scheduledRounds", 0).takeIf { it > 0 },
+                startTimeMs = parseIsoUtcMs(b.optStringOrNull("startTime")),
+                status = SportsEventStatus.parse(b.optStringOrNull("status")),
+                round = if (b.isNull("round")) null else b.optInt("round", 0).takeIf { it > 0 },
+                clock = b.optStringOrNull("clock"),
+                mainEvent = b.optBoolean("mainEvent", false),
+                fighters = fighters,
+                winner = winner,
+                method = b.optStringOrNull("method"),
+            )
+        }
+        return if (bouts.isEmpty()) null else SportsFight(bouts.sortedBy { it.order })
     }
 
     private fun parseTeam(o: JSONObject): SportsTeam? {

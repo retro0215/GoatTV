@@ -69,6 +69,31 @@ internal object SportsEventPresentation {
     fun competitionLabel(league: SportsLeague?): String? =
         league?.shortName?.takeIf { it.isNotBlank() } ?: league?.name?.takeIf { it.isNotBlank() }
 
+    /** Up to two initials for a fighter badge fallback ("Natalia Silva" → "NS"). */
+    fun initials(name: String): String =
+        name.split(Regex("\\s+")).filter { it.isNotEmpty() }.let { parts ->
+            (parts.firstOrNull()?.take(1).orEmpty() + (if (parts.size > 1) parts.last().take(1) else "")).uppercase()
+        }
+
+    /** Fight cards (MMA / boxing) render as fight cards, never as team matchups. */
+    fun isFightCard(event: SportsEvent, league: SportsLeague?): Boolean =
+        event.fight != null || league?.sport?.lowercase() in setOf("mma", "boxing")
+
+    /** Bouts for the details panel: main event first, then the rest of the card in reverse provider order. */
+    fun boutsForDetails(fight: SportsFight): List<SportsBout> {
+        val main = fight.mainEvent
+        return listOfNotNull(main) + fight.bouts.filter { it !== main }.sortedByDescending { it.order }
+    }
+
+    /**
+     * Groups of bouts sharing a provider start time (the provider's own card segments), latest first.
+     * Segment NAMES (main card / prelims) are not supplied by the provider, so groups are labelled by time.
+     */
+    fun boutGroups(fight: SportsFight): List<Pair<Long?, List<SportsBout>>> =
+        fight.bouts.groupBy { it.startTimeMs }.entries
+            .sortedByDescending { it.key ?: Long.MIN_VALUE }
+            .map { (time, bouts) -> time to bouts.sortedByDescending { it.order } }
+
     /** Which local backdrop a card uses. College football is distinct; everything else by sport. */
     fun visualKind(league: SportsLeague?, leagueId: String): SportsVisualKind {
         if (leagueId == "ncaaf") return SportsVisualKind.COLLEGE_FOOTBALL
@@ -78,6 +103,8 @@ internal object SportsEventPresentation {
             "baseball" -> SportsVisualKind.BASEBALL
             "hockey" -> SportsVisualKind.HOCKEY
             "soccer" -> SportsVisualKind.SOCCER
+            "mma" -> SportsVisualKind.MMA
+            "boxing" -> SportsVisualKind.BOXING
             else -> SportsVisualKind.GENERIC
         }
     }
@@ -98,6 +125,6 @@ internal object SportsEventPresentation {
     }
 }
 
-enum class SportsVisualKind { FOOTBALL, COLLEGE_FOOTBALL, BASKETBALL, BASEBALL, HOCKEY, SOCCER, GENERIC }
+enum class SportsVisualKind { FOOTBALL, COLLEGE_FOOTBALL, BASKETBALL, BASEBALL, HOCKEY, SOCCER, MMA, BOXING, GENERIC }
 
 enum class SportsEventAction { WATCH, SELECT_CHANNEL, ADD_TO_MULTISCREEN, CLOSE }

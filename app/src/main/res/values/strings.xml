@@ -112,6 +112,22 @@
     <string name="sports_final_penalties">Pens</string>
     <!-- Translators: Away score, then home score, e.g. "2 – 1". -->
     <string name="sports_score_line">%1$s – %2$s</string>
+    <string name="sports_section_mma">MMA</string>
+    <string name="sports_section_boxing">Boxing</string>
+    <!-- Translators: Label above the headline bout of a fight card. -->
+    <string name="sports_fight_main_event">Main event</string>
+    <!-- Translators: Between two fighter names, e.g. "Silva vs Wang". -->
+    <string name="sports_fight_vs">vs</string>
+    <string name="sports_fight_card">Fight card</string>
+    <!-- Translators: Group heading for bouts starting at a given time, e.g. "From 8:00 PM". -->
+    <string name="sports_fight_bouts_from">From %1$s</string>
+    <!-- Translators: Round and clock of a bout, e.g. "R2 3:12". -->
+    <string name="sports_fight_round_clock">R%1$d %2$s</string>
+    <!-- Translators: Scheduled number of rounds, e.g. "5 rounds". -->
+    <string name="sports_fight_rounds">%1$d rounds</string>
+    <string name="sports_fight_method_ko">KO/TKO</string>
+    <string name="sports_fight_method_submission">Submission</string>
+    <string name="sports_fight_method_decision">Decision</string>
     <!-- Translators: Status text when no content source is configured. -->
     <string name="shell_no_source">No source</string>
     <!-- Translators: Generic error message for unexpected failures. -->

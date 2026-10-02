@@ -91,6 +91,8 @@ data class SportsEvent(
     val updatedAtMs: Long,
     /** Backend-ranked channels; always empty while the channel feature is off. */
     val channels: List<SportsChannelRef> = emptyList(),
+    /** Fight cards (MMA / boxing) only: the card's bouts. Null for every other event. */
+    val fight: SportsFight? = null,
 ) {
     val isLive: Boolean get() = status == SportsEventStatus.LIVE
 
@@ -109,6 +111,44 @@ data class SportsEvent(
                 ?: visual.firstOrNull { it.type.equals("TV", ignoreCase = true) }
                 ?: visual.firstOrNull()
         }
+}
+
+/** A fighter as the API sends it (GoatTV id; provider ids never reach the app). */
+@Immutable
+data class SportsFighter(
+    val id: String?,
+    val name: String,
+    val shortName: String?,
+    /** Overall record as stated by the provider ("23-14-0"). */
+    val record: String?,
+    val country: String?,
+    /** Country flag image (optional presentation; initials fallback when null). */
+    val flagUrl: String?,
+)
+
+@Immutable
+data class SportsBout(
+    /** Provider order, 1-based: ascending start, main event last. */
+    val order: Int,
+    val weightClass: String?,
+    val scheduledRounds: Int?,
+    val startTimeMs: Long?,
+    val status: SportsEventStatus,
+    /** Current (live) or ending (final) round; null before the bout. */
+    val round: Int?,
+    val clock: String?,
+    val mainEvent: Boolean,
+    val fighters: List<SportsFighter>,
+    /** Index into [fighters] of the winner, when the provider states one. */
+    val winner: Int?,
+    /** "KO/TKO", "Submission" or "Decision" when the provider states it; null otherwise. */
+    val method: String?,
+)
+
+@Immutable
+data class SportsFight(val bouts: List<SportsBout>) {
+    /** The main event: flagged by the backend (provider order puts it last). */
+    val mainEvent: SportsBout? get() = bouts.firstOrNull { it.mainEvent } ?: bouts.lastOrNull()
 }
 
 /** GET /sports/home */

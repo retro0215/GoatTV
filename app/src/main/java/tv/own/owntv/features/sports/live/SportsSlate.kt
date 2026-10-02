@@ -18,6 +18,8 @@ data class SportsSlate(
     val homeLoadedAtMs: Long,
     /** Wall-clock time of the last successful fetch of any kind. */
     val lastSuccessMs: Long,
+    /** Ids supplied by extended per-sport fetches since the last /home load (carry-over candidates). */
+    val extendedIds: Set<String> = emptySet(),
 )
 
 /**
@@ -38,6 +40,7 @@ data class SportsEventSection(
 internal object SportsSlateLogic {
 
     /** Mirrors the backend /sports/home window (now-18h … now+48h, plus anything live). */
+    const val DAY_MS = 24 * 3_600_000L
     const val HOME_PAST_MS = 18 * 3_600_000L
     const val HOME_FUTURE_MS = 48 * 3_600_000L
 
@@ -46,18 +49,35 @@ internal object SportsSlateLogic {
      * leave the row nearly empty), and rendered as ONE row however many competitions are enabled.
      * Keyed by sport, never by competition: newly enabled competitions appear without an app update.
      */
-    val EXTENDED_SPORTS: Set<String> = setOf("soccer")
-    val GROUPED_SPORTS: Set<String> = setOf("soccer")
+    /**
+     * Extended windows per sport (look-ahead from now; the look-back is always [HOME_PAST_MS]).
+     *  - soccer 13 days: fixtures are days apart;
+     *  - football 7 days: complete weekly slates (Sunday NFL / Saturday NCAAF) even on a Friday,
+     *    when /sports/home's 48 h window would show only part of them;
+     *  - mma / boxing 13 days: fight cards are a week or more apart.
+     * Daily sports (NBA, NCAAB, WNBA, MLB, NHL) keep using /sports/home only.
+     * All within the API's 14-day range limit (which also allows the 18 h look-back).
+     */
+    val EXTENDED_WINDOWS: Map<String, Long> = mapOf(
+        "soccer" to 13 * DAY_MS,
+        "football" to 7 * DAY_MS,
+        "mma" to 13 * DAY_MS,
+        "boxing" to 13 * DAY_MS,
+    )
+    val EXTENDED_SPORTS: Set<String> get() = EXTENDED_WINDOWS.keys
 
-    /** now+13d: inside the API's 14-day range limit (which also allows the 18h look-back). */
-    const val EXTENDED_FUTURE_MS = 13 * 24 * 3_600_000L
+    /** Sports rendered as ONE row across all their competitions (each card keeps its competition label). */
+    val GROUPED_SPORTS: Set<String> = setOf("soccer", "mma", "boxing")
+
+    /** Soccer look-ahead (kept for existing callers/tests). */
+    const val EXTENDED_FUTURE_MS = 13 * DAY_MS
 
     /**
      * Preferred row order. Unlisted rows (other leagues/sports) follow in backend league order, so an
      * unknown future league still appears.
      */
     private val PREFERRED_ROW_ORDER = listOf(
-        "league:nfl", "league:ncaaf", "league:nba", "sport:soccer",
+        "league:nfl", "league:ncaaf", "league:nba", "sport:soccer", "sport:mma", "sport:boxing",
         "league:nhl", "league:mlb", "league:wnba", "league:ncaab",
     )
 
@@ -80,9 +100,20 @@ internal object SportsSlateLogic {
     fun carryOverSport(fresh: SportsSlate, previous: SportsSlate?, sport: String, nowMs: Long): SportsSlate {
         if (previous == null) return fresh
         val sportLeagues = (fresh.leagues + previous.leagues).filter { it.sport == sport }.map { it.id }.toSet()
-        val kept = previous.eventsById.values.filter { it.leagueId in sportLeagues && it.id !in fresh.eventsById }
-        return mergeEvents(fresh, kept, nowMs)
+        // Only what the previous EXTENDED fetch supplied: /home is authoritative for its own events, so an
+        // event it no longer lists is never resurrected by a failed extended fetch.
+        val kept = previous.eventsById.values.filter {
+            it.id in previous.extendedIds && it.leagueId in sportLeagues && it.id !in fresh.eventsById
+        }
+        return withExtended(mergeEvents(fresh, kept, nowMs), kept)
     }
+
+    /** Merge an extended per-sport page and remember its ids (for carry-over if a later fetch fails). */
+    fun mergeExtended(slate: SportsSlate, events: List<SportsEvent>, nowMs: Long): SportsSlate =
+        withExtended(mergeEvents(slate, events, nowMs), events)
+
+    private fun withExtended(slate: SportsSlate, events: List<SportsEvent>): SportsSlate =
+        if (events.isEmpty()) slate else slate.copy(extendedIds = slate.extendedIds + events.map { it.id }.filter { it in slate.eventsById })
 
     fun fromHome(home: SportsHomePayload, nowMs: Long): SportsSlate = SportsSlate(
         leagues = home.leagues,

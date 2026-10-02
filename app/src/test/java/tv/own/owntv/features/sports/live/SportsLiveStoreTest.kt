@@ -77,11 +77,11 @@ class SportsLiveStoreTest {
         clock += 60_000
         api.deltaResults += deltaOk()
         store.refresh()
-        assertEquals("since:2026-10-02T12:00:00.000Z", api.calls[1])
+        assertEquals(listOf("home", "sport:football", "since:2026-10-02T12:00:00.000Z"), api.calls.take(3))
         clock += SportsLiveStore.HOME_RELOAD_MS
         api.homeResults += homeOk("evt_a", "evt_z")
         store.refresh()
-        assertEquals("home", api.calls.last())
+        assertEquals(listOf("home", "sport:football"), api.calls.takeLast(2))
     }
 
     @Test
@@ -92,7 +92,7 @@ class SportsLiveStoreTest {
         api.deltaResults += SportsApiResult.Rejected(400, "since is too old; reload /home.")
         api.homeResults += homeOk("evt_b")
         store.refresh()
-        assertEquals(listOf("home", "since:2026-10-02T12:00:00.000Z", "home"), api.calls)
+        assertEquals(listOf("home", "sport:football", "since:2026-10-02T12:00:00.000Z", "home", "sport:football"), api.calls)
         assertEquals(setOf("evt_b"), (store.state.value as SportsLiveState.Content).slate.eventsById.keys)
     }
 

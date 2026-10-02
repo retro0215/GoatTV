@@ -105,7 +105,15 @@ fun SportsEventRow(
                 val league = leaguesById[event.leagueId]
                 // Mixed rows (Popular, sport groups) label each card with its competition.
                 val showCompetition = section.league == null
-                if (featured) {
+                if (SportsEventPresentation.isFightCard(event, league)) {
+                    SportsFightCard(
+                        event = event,
+                        league = league,
+                        featured = featured,
+                        onClick = { onEventClick(event, requester) },
+                        modifier = Modifier.focusRequester(requester),
+                    )
+                } else if (featured) {
                     SportsFeaturedCard(
                         event = event,
                         league = league,

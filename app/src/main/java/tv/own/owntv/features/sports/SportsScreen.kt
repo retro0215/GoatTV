@@ -296,11 +296,12 @@ fun SportsScreen(
         // Event details (OK on an event card) — information only in Phase C1.
         val selectedEvent = selectedEventId?.let { id -> (eventsState as? SportsLiveState.Content)?.slate?.eventsById?.get(id) }
         if (selectedEvent != null) {
-            SportsEventDetails(
-                event = selectedEvent,
-                league = (eventsState as? SportsLiveState.Content)?.slate?.leagues?.firstOrNull { it.id == selectedEvent.leagueId },
-                onDismiss = { eventsVm.closeEvent() },
-            )
+            val selectedLeague = (eventsState as? SportsLiveState.Content)?.slate?.leagues?.firstOrNull { it.id == selectedEvent.leagueId }
+            if (tv.own.owntv.features.sports.live.SportsEventPresentation.isFightCard(selectedEvent, selectedLeague)) {
+                tv.own.owntv.features.sports.live.SportsFightDetails(event = selectedEvent, league = selectedLeague, onDismiss = { eventsVm.closeEvent() })
+            } else {
+                SportsEventDetails(event = selectedEvent, league = selectedLeague, onDismiss = { eventsVm.closeEvent() })
+            }
         }
 
         // Long press context menu modal
@@ -359,8 +360,10 @@ private fun SportsEventsArea(
             val popularTitle = stringResource(R.string.sports_popular_events)
             // One row per grouped sport (Soccer = every enabled competition); titles localized here.
             val soccerTitle = stringResource(R.string.sports_section_soccer)
-            val eventSections = remember(state.slate, query, popularTitle, soccerTitle) {
-                SportsSlateLogic.sections(state.slate, query, popularTitle, mapOf("soccer" to soccerTitle))
+            val mmaTitle = stringResource(R.string.sports_section_mma)
+            val boxingTitle = stringResource(R.string.sports_section_boxing)
+            val eventSections = remember(state.slate, query, popularTitle, soccerTitle, mmaTitle, boxingTitle) {
+                SportsSlateLogic.sections(state.slate, query, popularTitle, mapOf("soccer" to soccerTitle, "mma" to mmaTitle, "boxing" to boxingTitle))
             }
             val leaguesById = remember(state.slate.leagues) { state.slate.leagues.associateBy { it.id } }
             if (state.stale) {

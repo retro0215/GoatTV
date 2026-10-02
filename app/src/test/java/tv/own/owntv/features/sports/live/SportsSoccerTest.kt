@@ -189,7 +189,10 @@ class SportsSoccerTest {
         override suspend fun home(): SportsApiResult<SportsHomePayload> { calls += "home"; return SportsApiResult.Success(SportsApiParser.parseHome(homeBody)!!) }
         override suspend fun eventsSince(cursor: String): SportsApiResult<SportsEventsPayload> { calls += "since"; return SportsApiResult.Unavailable(SportsApiResult.Reason.NETWORK) }
         override suspend fun eventsForSport(sport: String, fromMs: Long, toMs: Long): SportsApiResult<SportsEventsPayload> {
-            calls += "sport:$sport"; lastWindow = fromMs to toMs
+            calls += "sport:$sport"
+            // Only soccer is scripted here; other extended sports (football) answer with an empty page.
+            if (sport != "soccer") return SportsApiResult.Success(SportsEventsPayload("c", emptyList()))
+            lastWindow = fromMs to toMs
             return sportResults.removeFirst()
         }
     }
@@ -208,7 +211,7 @@ class SportsSoccerTest {
         )
         val store = SportsLiveStore(api) { clock }
         store.refresh()
-        assertEquals(listOf("home", "sport:soccer"), api.calls)
+        assertEquals(listOf("home", "sport:football", "sport:soccer"), api.calls)
         val (from, to) = api.lastWindow!!
         assertEquals(now - SportsSlateLogic.HOME_PAST_MS, from)
         assertTrue(to - from <= 14 * 24 * 3_600_000L + SportsSlateLogic.HOME_PAST_MS)
@@ -236,7 +239,8 @@ class SportsSoccerTest {
         val usOnly = JSONArray(listOf(JSONObject("""{"id":"nfl","name":"NFL","order":1,"sport":"football","shortName":"NFL"}""")))
         val api = SoccerApi(homeJson(listOf(event("evt_nfl")), leagueArr = usOnly))
         SportsLiveStore(api) { now }.refresh()
-        assertEquals(listOf("home"), api.calls)
+        assertEquals(listOf("home", "sport:football"), api.calls)
+        assertFalse("no soccer request", "sport:soccer" in api.calls)
     }
 
     @Test

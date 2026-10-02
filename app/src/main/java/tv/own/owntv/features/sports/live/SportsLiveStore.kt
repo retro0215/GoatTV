@@ -101,9 +101,9 @@ class SportsLiveStore(
         var result = fresh
         for (sport in SportsSlateLogic.extendedSports(fresh.leagues)) {
             val from = now - SportsSlateLogic.HOME_PAST_MS
-            val to = now + SportsSlateLogic.EXTENDED_FUTURE_MS
+            val to = now + (SportsSlateLogic.EXTENDED_WINDOWS[sport] ?: SportsSlateLogic.EXTENDED_FUTURE_MS)
             result = when (val r = api.eventsForSport(sport, from, to)) {
-                is SportsApiResult.Success -> SportsSlateLogic.mergeEvents(result, r.value.events, now)
+                is SportsApiResult.Success -> SportsSlateLogic.mergeExtended(result, r.value.events, now)
                 else -> SportsSlateLogic.carryOverSport(result, previous, sport, now)
             }
         }

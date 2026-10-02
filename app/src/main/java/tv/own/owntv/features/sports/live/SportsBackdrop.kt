@@ -57,6 +57,14 @@ internal fun backdropPalette(kind: SportsVisualKind): SportsBackdropPalette = wh
         top = Color(0xFF09140F), bottom = Color(0xFF06100A), surface = Color(0xFF2A8A47),
         light = Color(0xFFE6FFEF), line = Color(0xFFE8F5E9),
     )
+    SportsVisualKind.MMA -> SportsBackdropPalette(
+        top = Color(0xFF0D0B12), bottom = Color(0xFF07060A), surface = Color(0xFF6A1F2B),
+        light = Color(0xFFF2E6FF), line = Color(0xFFE8E0F0),
+    )
+    SportsVisualKind.BOXING -> SportsBackdropPalette(
+        top = Color(0xFF120A0A), bottom = Color(0xFF080506), surface = Color(0xFF7A1E1E),
+        light = Color(0xFFFFE8D6), line = Color(0xFFFFF0E6), secondary = Color(0xFFE53935),
+    )
     SportsVisualKind.GENERIC -> SportsBackdropPalette(
         top = Color(0xFF0E1416), bottom = Color(0xFF080B0C), surface = Color(0xFF2B5F63),
         light = Color(0xFFE0F2F1), line = Color(0xFFE0F2F1),
@@ -187,6 +195,31 @@ private fun motifPath(kind: SportsVisualKind, size: Size): Path? {
             moveTo(w * 0.06f, h * 0.56f); lineTo(w * 0.94f, h * 0.56f)
             moveTo(w * -0.05f, h * 0.90f); lineTo(w * 1.05f, h * 0.90f)
             addOval(Rect(Offset(w * 0.5f, h * 0.73f), Size(w * 0.26f, h * 0.18f)).translateCenter())
+        }
+        SportsVisualKind.MMA -> Path().apply {
+            // Octagon cage in perspective (flattened) + a centre mark.
+            val cx = w * 0.5f
+            val cy = h * 0.72f
+            val rx = w * 0.42f
+            val ry = h * 0.24f
+            for (i in 0..8) {
+                val a = Math.toRadians(22.5 + i * 45.0)
+                val x = cx + rx * kotlin.math.cos(a).toFloat()
+                val y = cy + ry * kotlin.math.sin(a).toFloat()
+                if (i == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            addOval(Rect(Offset(cx, cy), Size(w * 0.10f, h * 0.06f)).translateCenter())
+        }
+        SportsVisualKind.BOXING -> Path().apply {
+            // Ring: three ropes converging to corner posts in perspective.
+            val left = w * 0.08f
+            val right = w * 0.92f
+            for (k in 0..2) {
+                val y = h * (0.52f + k * 0.11f)
+                moveTo(left, y + h * 0.10f); lineTo(w * 0.22f, y - h * 0.06f); lineTo(w * 0.78f, y - h * 0.06f); lineTo(right, y + h * 0.10f)
+            }
+            moveTo(w * 0.22f, h * 0.36f); lineTo(w * 0.22f, h * 0.80f)
+            moveTo(w * 0.78f, h * 0.36f); lineTo(w * 0.78f, h * 0.80f)
         }
         SportsVisualKind.GENERIC -> null
     }
