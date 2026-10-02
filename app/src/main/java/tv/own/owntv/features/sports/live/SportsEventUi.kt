@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -87,8 +87,15 @@ fun SportsEventRow(
     modifier: Modifier = Modifier,
     /** A card gained focus (drives the sticky preview's Game Center; must stay cheap — no I/O). */
     onEventFocused: (SportsEvent) -> Unit = {},
+    /** Keeps / restores this row's position and focused card across fullscreen / Multiscreen. */
+    restorer: SportsBrowseRestorer? = null,
 ) {
     val featured = section.key == SportsSlateLogic.POPULAR_KEY
+    val rowKey = "events:" + section.key
+    val keys: List<Any> = remember(section.events) { section.events.map { it.id } }
+    val listState = rememberSportsRowState(restorer, rowKey, keys)
+    val requesters = remember(rowKey) { HashMap<Any, FocusRequester>() }
+    SportsRowFocusRestore(restorer, rowKey, keys, listState, requesters)
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SportsRowHeader(
             title = section.title,
@@ -97,19 +104,25 @@ fun SportsEventRow(
                 ?.joinToString(stringResource(R.string.sports_list_separator)),
         )
         LazyRow(
+            state = listState,
             modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus) onFocused() },
             // Vertical room for the focus scale + glow, so the focused card is never clipped.
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            items(section.events, key = { it.id }) { event ->
-                val requester = remember { FocusRequester() }
+            itemsIndexed(section.events, key = { _, e -> e.id }) { index, event ->
+                val requester = remember(event.id) { requesters.getOrPut(event.id) { FocusRequester() } }
                 val league = leaguesById[event.leagueId]
                 // Mixed rows (Popular, sport groups) label each card with its competition.
                 val showCompetition = section.league == null
                 val cardModifier = Modifier
                     .focusRequester(requester)
-                    .onFocusChanged { if (it.hasFocus) onEventFocused(event) }
+                    .onFocusChanged {
+                        if (it.hasFocus) {
+                            restorer?.onItemFocused(rowKey, event.id, index)
+                            onEventFocused(event)
+                        }
+                    }
                 if (SportsEventPresentation.isFightCard(event, league)) {
                     SportsFightCard(
                         event = event,

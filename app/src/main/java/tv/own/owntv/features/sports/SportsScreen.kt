@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -55,7 +55,10 @@ import tv.own.owntv.features.multiscreen.MultiscreenViewModel
 import tv.own.owntv.features.sports.live.SportsEvent
 import tv.own.owntv.features.sports.live.SportsEventDetails
 import tv.own.owntv.features.sports.live.SportsEventRow
+import tv.own.owntv.features.sports.live.SportsBrowseRestorer
 import tv.own.owntv.features.sports.live.SportsEventsViewModel
+import tv.own.owntv.features.sports.live.SportsRowFocusRestore
+import tv.own.owntv.features.sports.live.rememberSportsRowState
 import tv.own.owntv.features.sports.live.SportsGameCenterPreview
 import tv.own.owntv.features.sports.live.SportsPreviewMode
 import tv.own.owntv.features.sports.live.SportsLiveState
@@ -80,6 +83,9 @@ fun SportsScreen(
     onOpenMultiscreen: () -> Unit,
     onChildFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    /** True when coming back from fullscreen / Multiscreen: restore scroll, row positions and focus. */
+    restoreFocus: Boolean = false,
+    onRestored: () -> Unit = {},
 ) {
     val vm: SportsViewModel = koinViewModel()
     val liveVm: LiveViewModel = koinViewModel()
@@ -93,6 +99,26 @@ fun SportsScreen(
     val eventsVm: SportsEventsViewModel = koinViewModel()
     val eventsState by eventsVm.state.collectAsStateWithLifecycle()
     val eventsQuery by eventsVm.query.collectAsStateWithLifecycle()
+    // Fullscreen and Multiscreen replace Sports in the shell, so nothing remembered here survives them;
+    // the browsing position lives in the (activity-scoped) view model instead. Decided once per entry:
+    // returning restores it, entering from the menu starts at the top as before.
+    val currentOnRestored by androidx.compose.runtime.rememberUpdatedState(onRestored)
+    val restorer = remember {
+        if (!restoreFocus) eventsVm.browse.clear()
+        SportsBrowseRestorer(eventsVm.browse, restoring = restoreFocus) { currentOnRestored() }
+    }
+    val scroll = remember { ScrollState(eventsVm.browse.scrollY) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { eventsVm.browse.scrollY = scroll.value }
+    }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (!restorer.pending) return@LaunchedEffect
+        androidx.compose.runtime.withFrameNanos { }
+        // Content may have measured shorter on the first frame; re-apply the saved offset once, no animation.
+        if (scroll.value != eventsVm.browse.scrollY) scroll.scrollTo(eventsVm.browse.scrollY)
+        delay(600L)
+        restorer.finish() // the focused row (if any) normally finishes first; never leave the shell waiting
+    }
     val selectedEventId by eventsVm.selectedEventId.collectAsStateWithLifecycle()
     // The card that opened the details panel gets focus back when the panel closes.
     var eventReturnFocus by remember { mutableStateOf<androidx.compose.ui.focus.FocusRequester?>(null) }
@@ -244,7 +270,7 @@ fun SportsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 SportsEventsArea(
@@ -256,6 +282,7 @@ fun SportsScreen(
                     },
                     onFocused = onChildFocused,
                     onEventFocused = onEventFocused,
+                    restorer = restorer,
                 )
 
                 if (sections.isEmpty()) {
@@ -287,6 +314,7 @@ fun SportsScreen(
                                     liveVm.onChannelFocused(channel)
                                 },
                                 onFocused = onChildFocused,
+                                restorer = restorer,
                             )
                         }
                     }
@@ -397,6 +425,7 @@ private fun SportsEventsArea(
     onEventClick: (SportsEvent, androidx.compose.ui.focus.FocusRequester) -> Unit,
     onFocused: () -> Unit,
     onEventFocused: (SportsEvent) -> Unit,
+    restorer: SportsBrowseRestorer,
 ) {
     val colors = OwnTVTheme.colors
     when (state) {
@@ -449,6 +478,7 @@ private fun SportsEventsArea(
                         onEventClick = onEventClick,
                         onFocused = onFocused,
                         onEventFocused = onEventFocused,
+                        restorer = restorer,
                     )
                 }
             }
@@ -463,8 +493,15 @@ private fun SportsSectionRow(
     onChannelLongClick: (ChannelEntity) -> Unit,
     onChannelFocused: (ChannelEntity) -> Unit,
     onFocused: () -> Unit,
+    restorer: SportsBrowseRestorer,
 ) {
     val colors = OwnTVTheme.colors
+    // Stable identity: the channel id (same key the LazyRow uses).
+    val rowKey = "channels:" + sectionData.section.name
+    val keys: List<Any> = remember(sectionData.channels) { sectionData.channels.map { it.id } }
+    val listState = rememberSportsRowState(restorer, rowKey, keys)
+    val requesters = remember(rowKey) { HashMap<Any, androidx.compose.ui.focus.FocusRequester>() }
+    SportsRowFocusRestore(restorer, rowKey, keys, listState, requesters)
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -479,20 +516,24 @@ private fun SportsSectionRow(
         )
 
         LazyRow(
+            state = listState,
             modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.hasFocus) onFocused() },
             contentPadding = PaddingValues(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(sectionData.channels, key = { it.id }) { channel ->
+            itemsIndexed(sectionData.channels, key = { _, ch -> ch.id }) { index, channel ->
+                val requester = remember(channel.id) { requesters.getOrPut(channel.id) { androidx.compose.ui.focus.FocusRequester() } }
                 SportsChannelCard(
                     channel = channel,
                     onClick = { onChannelClick(channel) },
                     onLongClick = { onChannelLongClick(channel) },
                     onFocusChanged = { focused ->
                         if (focused) {
+                            restorer.onItemFocused(rowKey, channel.id, index)
                             onChannelFocused(channel)
                         }
                     },
+                    modifier = Modifier.focusRequester(requester),
                 )
             }
         }
@@ -505,13 +546,14 @@ private fun SportsChannelCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onFocusChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = OwnTVTheme.colors
 
     FocusableSurface(
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = Modifier
+        modifier = modifier
             .width(180.dp)
             .aspectRatio(16f / 10f)
             .onFocusChanged { onFocusChanged(it.hasFocus) },

@@ -35,6 +35,9 @@ class SportsEventsViewModel(
     /** Game Center detail for the focused event (guarded by event id). */
     val gameCenterDetail: StateFlow<GameCenterDetailState> = preview.detail
 
+    /** Sports browsing position, kept while fullscreen / Multiscreen replaces the Sports screen. */
+    val browse = SportsBrowseState()
+
     private val _query = MutableStateFlow("")
     /** Search across team names/abbreviations/titles (architecture for C2 search UI). */
     val query: StateFlow<String> = _query.asStateFlow()

@@ -3535,6 +3535,7 @@
 2	technical	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	WNBA
 1	regex	app/src/main/java/tv/own/owntv/features/sports/SportsModel.kt	[^A-Z0-9 ]
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	boxing
+1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	channels:
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	mma
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	soccer
 1	uri	app/src/main/java/tv/own/owntv/features/sports/live/SportsApiClient.kt	&from=
@@ -3654,6 +3655,7 @@
 1	locale	app/src/main/java/tv/own/owntv/features/sports/live/SportsEventUi.kt	EEEMMMd
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/live/SportsEventUi.kt	RADIO
 1	log	app/src/main/java/tv/own/owntv/features/sports/live/SportsEventUi.kt	cardFocus
+1	protocol	app/src/main/java/tv/own/owntv/features/sports/live/SportsEventUi.kt	events:
 1	log	app/src/main/java/tv/own/owntv/features/sports/live/SportsEventUi.kt	featuredFocus
 1	empty	app/src/main/java/tv/own/owntv/features/sports/live/SportsEventsViewModel.kt	\0
 4	empty	app/src/main/java/tv/own/owntv/features/sports/live/SportsFightUi.kt	\0

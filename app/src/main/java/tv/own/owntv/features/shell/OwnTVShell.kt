@@ -169,6 +169,8 @@ fun OwnTVShell(
     val exitMultiscreen = {
         val sec = multiscreenReturnSection ?: MainSection.LIVE_TV
         multiscreenReturnSection = null
+        // Sports restores its browsing position (scroll, row, card) from its shared restoration state.
+        if (sec == MainSection.SPORTS) restoreFocus = true
         onSelectSection(sec)
     }
 
@@ -584,6 +586,7 @@ fun OwnTVShell(
                             },
                             onOpenMultiscreen = { liveVm.previewEngine.stop(); multiscreenReturnSection = MainSection.SPORTS; onSelectSection(MainSection.MULTISCREEN) },
                             onChildFocused = { focusedLayer = ShellLayer.CONTENT },
+                            restoreFocus = restoreFocus, onRestored = { restoreFocus = false },
                             modifier = Modifier.fillMaxSize(),
                         )
                         selectedSection == MainSection.DOWNLOADS -> DownloadsScreen(
