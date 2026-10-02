@@ -59,26 +59,74 @@ class SportsPreviewController(
     /** Feed the user picked per event (this Sports session only; never persisted). */
     private val selectedFeed = HashMap<String, Long>()
 
-    /** Events whose video failed this session: no automatic retry (an explicit action may retry). */
+    /**
+     * Events whose video failed: no AUTOMATIC retry while the event stays focused (no retry loop).
+     * Cleared when focus leaves the event, or by a deliberate action (double OK / picking a feed).
+     */
     private val failedVideo = HashSet<String>()
 
+    /** True while an event modal (Where to Watch, Game Details, the event's Multiscreen menu) is open. */
+    private var modalOpen = false
+
+    /** The focused event when the modal opened: the only one whose dwell may restart on close. */
+    private var modalEventId: String? = null
+
+    /** The current [SportsPreviewMode.EventVideo] came from the dwell (not an explicit user choice). */
+    private var autoVideo = false
+
     fun onEventFocused(event: SportsEvent) {
-        if (focusedEventId() == event.id) return // same card (e.g. back from a dialog): keep its state
+        val previous = focusedEventId()
+        if (previous == event.id) return // same card (e.g. back from a dialog): keep its state
+        previous?.let { failedVideo -= it } // leaving a failed event re-allows it next time
         cancelVideoWork()
+        autoVideo = false
         _mode.value = SportsPreviewMode.EventGameCenter(event.id)
         loadDetail(event.id)
-        if (autoPreviewEligible(event)) {
-            videoJob = scope.launch {
-                dwell()
-                val channel = pick(event) ?: return@launch
-                if (_mode.value == SportsPreviewMode.EventGameCenter(event.id)) {
-                    _mode.value = SportsPreviewMode.EventVideo(event.id, channel)
-                }
+        startDwell(event)
+    }
+
+    /**
+     * An event modal opened or closed. Opening suspends automatic preview: the running dwell is
+     * cancelled and an auto-started video behind it returns to Game Center (an explicitly chosen feed
+     * keeps playing). Closing with the same event still focused, still existing and still eligible
+     * starts a FRESH dwell from zero — never the remainder of the old one. [latest] returns the event's
+     * current data (null if it no longer exists).
+     */
+    fun setModalOpen(open: Boolean, latest: (String) -> SportsEvent?) {
+        if (open == modalOpen) return
+        modalOpen = open
+        if (open) {
+            modalEventId = focusedEventId()
+            cancelVideoWork()
+            val current = _mode.value
+            if (current is SportsPreviewMode.EventVideo && autoVideo) {
+                autoVideo = false
+                _mode.value = SportsPreviewMode.EventGameCenter(current.eventId)
+            }
+            return
+        }
+        val id = modalEventId
+        modalEventId = null
+        if (id == null || focusedEventId() != id || _mode.value != SportsPreviewMode.EventGameCenter(id)) return
+        val event = latest(id) ?: return
+        startDwell(event)
+    }
+
+    private fun startDwell(event: SportsEvent) {
+        if (modalOpen || !autoPreviewEligible(event)) return
+        videoJob = scope.launch {
+            dwell()
+            val channel = pick(event) ?: return@launch
+            if (!modalOpen && _mode.value == SportsPreviewMode.EventGameCenter(event.id)) {
+                autoVideo = true
+                _mode.value = SportsPreviewMode.EventVideo(event.id, channel)
             }
         }
     }
 
     fun onChannelFocused() {
+        focusedEventId()?.let { failedVideo -= it }
+        autoVideo = false
         cancelVideoWork()
         detailJob?.cancel()
         detailJob = null
@@ -93,6 +141,7 @@ class SportsPreviewController(
         val current = _mode.value
         if (current is SportsPreviewMode.EventVideo && current.eventId == event.id) {
             cancelVideoWork()
+            autoVideo = false
             _mode.value = SportsPreviewMode.EventGameCenter(event.id)
             return
         }
@@ -102,6 +151,7 @@ class SportsPreviewController(
             val channel = pick(event) ?: return@launch
             if (focusedEventId() != event.id) return@launch
             failedVideo -= event.id
+            autoVideo = false
             _mode.value = SportsPreviewMode.EventVideo(event.id, channel)
         }
     }
@@ -111,6 +161,7 @@ class SportsPreviewController(
         cancelVideoWork()
         selectedFeed[event.id] = channel.id
         failedVideo -= event.id
+        autoVideo = false
         _mode.value = SportsPreviewMode.EventVideo(event.id, channel)
     }
 
@@ -119,11 +170,16 @@ class SportsPreviewController(
         selectedFeed[eventId] = channelId
     }
 
-    /** The event's video could not be played: back to Game Center, and no automatic retry. */
+    /**
+     * The event's video (automatic or explicit) could not be played: back to Game Center, and no
+     * automatic dwell retries it until focus leaves the event or the user acts deliberately.
+     */
     fun onEventVideoFailed(eventId: String) {
         val current = _mode.value
         if (current !is SportsPreviewMode.EventVideo || current.eventId != eventId) return
+        cancelVideoWork()
         failedVideo += eventId
+        autoVideo = false
         _mode.value = SportsPreviewMode.EventGameCenter(eventId)
     }
 

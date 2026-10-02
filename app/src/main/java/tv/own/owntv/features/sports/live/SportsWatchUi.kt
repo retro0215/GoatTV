@@ -72,7 +72,7 @@ fun SportsWhereToWatchDialog(
     val firstFocus = remember { FocusRequester() }
     BackHandler { onDismiss() }
     val rows = remember(event, state) { state.channels?.let { SportsWatchPresentation.rows(event, it, state.selectedChannelId) } }
-    LaunchedEffect(rows != null) { runCatching { firstFocus.requestFocus() } }
+    LaunchedEffect(rows == null, rows.isNullOrEmpty()) { runCatching { firstFocus.requestFocus() } }
     val sep = stringResource(R.string.sports_list_separator)
     val matchup = if (event.isTeamEvent) {
         listOfNotNull(event.away?.shortName ?: event.away?.name, stringResource(R.string.sports_event_at), event.home?.shortName ?: event.home?.name).joinToString(" ")
@@ -146,7 +146,9 @@ fun SportsWhereToWatchDialog(
                     icon = OwnTVIcon.CLOSE,
                     label = stringResource(R.string.content_close),
                     onClick = onDismiss,
-                    modifier = if (rows != null && rows.isEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
+                    // The dialog always owns focus — also while channels are still being checked — so no
+                    // OK press can reach the event card behind it.
+                    modifier = if (rows.isNullOrEmpty()) Modifier.focusRequester(firstFocus) else Modifier,
                 )
             }
         }

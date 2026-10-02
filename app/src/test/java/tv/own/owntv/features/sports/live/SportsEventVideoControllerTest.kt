@@ -163,18 +163,177 @@ class SportsEventVideoControllerTest {
     }
 
     @Test
-    fun `tune failure returns to Game Center and is not retried automatically`() {
+    fun `tune failure returns to Game Center - no automatic retry while focused, re-entry or a deliberate action may retry`() {
         channelsByEvent["live"] = resolved(espn)
         val e = ev("live", SportsEventStatus.LIVE)
         controller.onEventFocused(e)
         dwells.single().complete(Unit)
         controller.onEventVideoFailed("live")
         assertEquals(gc("live"), controller.mode.value)
-        controller.onChannelFocused()
-        controller.onEventFocused(e)
-        assertEquals(1, dwells.size) // no new automatic dwell for a failed event
-        controller.toggleEventVideo(e) // an explicit action may retry
+        controller.toggleEventVideo(e) // an explicit action may retry at once
         assertEquals(video("live", espn), controller.mode.value)
+        controller.onEventVideoFailed("live")
+        controller.onChannelFocused()
+        controller.onEventFocused(e) // focus left and came back: a fresh dwell is allowed again
+        assertEquals(2, dwells.size)
+    }
+
+    // --- modal suspension (Where to Watch / Game Details / event Multiscreen menu) ------------------
+
+    private fun latest(vararg events: SportsEvent): (String) -> SportsEvent? = { id -> events.firstOrNull { it.id == id } }
+
+    @Test
+    fun `modal opened before the dwell - no auto tune, even if the old dwell completes`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        dwells.single().complete(Unit) // cancelled: completing it does nothing
+        assertEquals(gc("live"), controller.mode.value)
+        assertTrue(resolutions.isEmpty())
+    }
+
+    @Test
+    fun `modal open beyond the dwell - never tunes behind it, and refocus while open starts no dwell`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        controller.onEventFocused(e) // focus returns to the card under the modal: still suspended
+        assertEquals(1, dwells.size)
+        assertEquals(gc("live"), controller.mode.value)
+    }
+
+    @Test
+    fun `modal closes - a FRESH dwell from zero, not the old timer`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        controller.setModalOpen(false, latest(e))
+        assertEquals(gc("live"), controller.mode.value) // Game Center at once
+        assertEquals(2, dwells.size) // a new dwell; the first one was cancelled
+        dwells[0].complete(Unit)
+        assertEquals(gc("live"), controller.mode.value) // the old timer never fires
+        dwells[1].complete(Unit)
+        assertEquals(video("live", espn), controller.mode.value)
+    }
+
+    @Test
+    fun `auto video playing when the modal opens returns to Game Center behind it`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        dwells.single().complete(Unit)
+        controller.setModalOpen(true, latest(e))
+        assertEquals(gc("live"), controller.mode.value)
+    }
+
+    @Test
+    fun `explicit Preview from the modal plays at once and closing keeps it (no dwell)`() {
+        channelsByEvent["live"] = resolved(espn, backup)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        controller.selectFeed(e, backup)
+        assertEquals(video("live", backup), controller.mode.value)
+        controller.setModalOpen(false, latest(e))
+        assertEquals(video("live", backup), controller.mode.value)
+        assertEquals(1, dwells.size)
+    }
+
+    @Test
+    fun `explicit fullscreen choice - the chosen feed is the event video (pane resumes it on return)`() {
+        channelsByEvent["live"] = resolved(espn, backup)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        controller.selectFeed(e, backup) // Watch: feed chosen, then fullscreen opens
+        controller.setModalOpen(false, latest(e))
+        assertEquals(video("live", backup), controller.mode.value)
+    }
+
+    @Test
+    fun `explicitly chosen video keeps playing when a modal opens over it`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.selectFeed(e, espn)
+        controller.setModalOpen(true, latest(e))
+        assertEquals(video("live", espn), controller.mode.value)
+    }
+
+    @Test
+    fun `failed explicit preview - Game Center, and closing the modal does not auto-retry it`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        controller.selectFeed(e, espn)
+        controller.setModalOpen(false, latest(e))
+        controller.onEventVideoFailed("live")
+        assertEquals(gc("live"), controller.mode.value)
+        controller.setModalOpen(true, latest(e))
+        controller.setModalOpen(false, latest(e))
+        assertEquals(1, dwells.size) // no dwell: the failed feed is not retried automatically
+    }
+
+    @Test
+    fun `focus changed before the modal closed - no stale dwell restart`() {
+        channelsByEvent["a"] = resolved(espn)
+        channelsByEvent["b"] = resolved(backup)
+        val a = ev("a", SportsEventStatus.LIVE)
+        val b = ev("b", SportsEventStatus.LIVE)
+        controller.onEventFocused(a)
+        controller.setModalOpen(true, latest(a, b))
+        controller.onEventFocused(b)
+        controller.setModalOpen(false, latest(a, b))
+        assertEquals(gc("b"), controller.mode.value)
+        assertEquals(1, dwells.size) // no stale restart for the old event, no stray dwell
+    }
+
+    @Test
+    fun `event gone or no longer live when the modal closes - no restart`() {
+        channelsByEvent["live"] = resolved(espn)
+        val e = ev("live", SportsEventStatus.LIVE)
+        controller.onEventFocused(e)
+        controller.setModalOpen(true, latest(e))
+        controller.setModalOpen(false, latest()) // removed by a refresh
+        assertEquals(1, dwells.size)
+        controller.setModalOpen(true, latest(e))
+        controller.setModalOpen(false, latest(ev("live", SportsEventStatus.FINAL))) // ended meanwhile
+        assertEquals(1, dwells.size)
+    }
+
+    @Test
+    fun `upcoming and final are unchanged - closing a modal never starts a dwell`() {
+        for (status in listOf(SportsEventStatus.SCHEDULED, SportsEventStatus.FINAL, SportsEventStatus.POSTPONED)) {
+            val e = ev("x_$status", status)
+            channelsByEvent[e.id] = resolved(espn)
+            controller.onEventFocused(e)
+            controller.setModalOpen(true, latest(e))
+            controller.setModalOpen(false, latest(e))
+        }
+        assertTrue(dwells.isEmpty())
+    }
+
+    @Test
+    fun `background card gestures are blocked while an event modal is open`() {
+        var modal = true
+        val fired = ArrayList<String>()
+        val handlers = SportsEventOkHandlers(
+            blocked = { modal },
+            onSingle = { _, _ -> fired += "single" },
+            onDouble = { fired += "double" },
+            onLong = { _, _ -> fired += "long" },
+        )
+        val e = ev("live", SportsEventStatus.LIVE)
+        val r = androidx.compose.ui.focus.FocusRequester()
+        handlers.onSingle(e, r); handlers.onDouble(e); handlers.onLong(e, r)
+        assertTrue("no double toggle, long-press Multiscreen or single through a modal", fired.isEmpty())
+        modal = false
+        handlers.onSingle(e, r); handlers.onDouble(e); handlers.onLong(e, r)
+        assertEquals(listOf("single", "double", "long"), fired)
     }
 
     @Test

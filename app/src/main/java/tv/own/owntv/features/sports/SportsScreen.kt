@@ -130,6 +130,8 @@ fun SportsScreen(
     val whereToWatch by eventsVm.whereToWatch.collectAsStateWithLifecycle()
     var contextChannel by remember { mutableStateOf<ChannelEntity?>(null) }
     val eventOverlayOpen = selectedEventId != null || whereToWatch != null || contextChannel != null
+    // The long-press Multiscreen menu is an event modal too: no automatic preview behind it.
+    androidx.compose.runtime.LaunchedEffect(contextChannel != null) { eventsVm.setEventMenuOpen(contextChannel != null) }
     androidx.compose.runtime.LaunchedEffect(eventOverlayOpen) {
         if (!eventOverlayOpen) {
             val target = eventReturnFocus ?: return@LaunchedEffect
@@ -158,18 +160,19 @@ fun SportsScreen(
         scope.launch {
             val verified = eventsVm.verifiedChannels(event)
             val pick = verified.firstOrNull { it.channel.id == channelId } ?: return@launch
+            // Explicit choice first (the pane resumes this feed when fullscreen returns), then close:
+            // closing a modal with an explicit feed playing never restarts the automatic dwell.
+            eventsVm.previewFeed(event, pick.channel)
             eventsVm.closeWhereToWatch()
             eventsVm.closeEvent()
-            // The pane resumes this feed when fullscreen returns to Sports.
-            eventsVm.previewFeed(event, pick.channel)
             onOpenChannel(pick.channel, verified.map { it.channel })
         }
     }
     fun previewEventChannel(event: SportsEvent, channelId: Long) {
         scope.launch {
             val pick = eventsVm.reverify(event, channelId) ?: return@launch
+            eventsVm.previewFeed(event, pick.channel) // intentional: plays now, no dwell
             eventsVm.closeWhereToWatch()
-            eventsVm.previewFeed(event, pick.channel)
         }
     }
     fun addEventToMultiscreen(event: SportsEvent) {
@@ -186,7 +189,9 @@ fun SportsScreen(
         if (!eventsVm.eventChannelsEnabled) {
             null
         } else {
+            // An open event modal owns input: nothing fires through it from a background card.
             SportsEventOkHandlers(
+                blocked = { eventsVm.isEventModalOpen },
                 onSingle = { event, requester ->
                     eventReturnFocus = requester
                     eventsVm.openWhereToWatch(event, SportsWhereToWatchPurpose.WATCH)

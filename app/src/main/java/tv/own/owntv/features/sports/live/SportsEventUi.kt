@@ -740,9 +740,17 @@ private fun DetailActionButton(icon: OwnTVIcon, label: String, onClick: () -> Un
     }
 }
 
-/** What single / double / long OK do on an event card (each receives the card's focus requester to return to). */
+/**
+ * What single / double / long OK do on an event card (each receives the card's focus requester to
+ * return to). While [blocked] is true (an event modal owns input) none of them fires.
+ */
 class SportsEventOkHandlers(
-    val onSingle: (SportsEvent, FocusRequester) -> Unit,
-    val onDouble: (SportsEvent) -> Unit,
-    val onLong: (SportsEvent, FocusRequester) -> Unit,
-)
+    private val blocked: () -> Boolean = { false },
+    onSingle: (SportsEvent, FocusRequester) -> Unit,
+    onDouble: (SportsEvent) -> Unit,
+    onLong: (SportsEvent, FocusRequester) -> Unit,
+) {
+    val onSingle: (SportsEvent, FocusRequester) -> Unit = { e, r -> if (!blocked()) onSingle(e, r) }
+    val onDouble: (SportsEvent) -> Unit = { e -> if (!blocked()) onDouble(e) }
+    val onLong: (SportsEvent, FocusRequester) -> Unit = { e, r -> if (!blocked()) onLong(e, r) }
+}

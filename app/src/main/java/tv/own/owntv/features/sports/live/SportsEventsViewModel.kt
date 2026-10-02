@@ -83,6 +83,7 @@ class SportsEventsViewModel(
         if (!eventChannelsEnabled) return
         whereToWatchJob?.cancel()
         _whereToWatch.value = SportsWhereToWatchState(event.id, purpose, channels = null)
+        syncEventModal()
         whereToWatchJob = viewModelScope.launch {
             val list = verifiedChannels(event)
             if (_whereToWatch.value?.eventId == event.id) {
@@ -94,6 +95,7 @@ class SportsEventsViewModel(
     fun closeWhereToWatch() {
         whereToWatchJob?.cancel()
         _whereToWatch.value = null
+        syncEventModal()
     }
 
     /** Double OK on an event card. */
@@ -108,8 +110,24 @@ class SportsEventsViewModel(
     fun onEventVideoFailed(eventId: String) = preview.onEventVideoFailed(eventId)
 
     fun setQuery(value: String) { _query.value = value }
-    fun openEvent(id: String) { _selectedEventId.value = id }
-    fun closeEvent() { _selectedEventId.value = null }
+    fun openEvent(id: String) { _selectedEventId.value = id; syncEventModal() }
+    fun closeEvent() { _selectedEventId.value = null; syncEventModal() }
+
+    private var eventMenuOpen = false
+
+    /** The event's Multiscreen menu (long press) is showing — an event modal like the others. */
+    fun setEventMenuOpen(open: Boolean) { eventMenuOpen = open; syncEventModal() }
+
+    /**
+     * True while any event modal owns input (Where to Watch, Game Details, the event Multiscreen menu):
+     * automatic preview is suspended and event-card OK gestures are ignored.
+     */
+    val isEventModalOpen: Boolean
+        get() = _whereToWatch.value != null || _selectedEventId.value != null || eventMenuOpen
+
+    private fun syncEventModal() {
+        preview.setModalOpen(isEventModalOpen) { id -> (state.value as? SportsLiveState.Content)?.slate?.eventsById?.get(id) }
+    }
 
     /** An event card gained focus: Game Center immediately; a LIVE event with a verified channel may
      *  hand over to video after the stable-focus dwell. No player work and no I/O happen here. */
