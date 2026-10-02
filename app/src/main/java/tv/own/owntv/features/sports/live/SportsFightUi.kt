@@ -30,6 +30,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -170,7 +171,7 @@ fun FighterBadge(fighter: SportsFighter, size: Dp) {
 
 /** Result line for a completed bout ("KO/TKO · R1 1:02") or null; only provider-stated parts. */
 @Composable
-private fun boutResult(bout: SportsBout): String? {
+internal fun boutResult(bout: SportsBout): String? {
     if (bout.status != SportsEventStatus.FINAL) return null
     val method = when (bout.method) {
         "KO/TKO" -> stringResource(R.string.sports_fight_method_ko)
@@ -224,7 +225,7 @@ fun SportsFightDetails(event: SportsEvent, league: SportsLeague?, onDismiss: () 
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(min = 120.dp)) {
                                 Text(stringResource(R.string.sports_fight_vs).uppercase(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = FightTextMuted)
                                 Text(
-                                    text = listOfNotNull(main.weightClass, main.scheduledRounds?.let { stringResource(R.string.sports_fight_rounds, it) }).joinToString(sep),
+                                    text = listOfNotNull(main.weightClass, main.scheduledRounds?.let { pluralStringResource(R.plurals.sports_fight_rounds, it, it) }).joinToString(sep),
                                     style = MaterialTheme.typography.labelMedium, color = FightTextMuted, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
                                 )
                                 boutResult(main)?.let { Text(it, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = FightText, maxLines = 1, overflow = TextOverflow.Ellipsis) }

@@ -124,10 +124,30 @@
     <!-- Translators: Round and clock of a bout, e.g. "R2 3:12". -->
     <string name="sports_fight_round_clock">R%1$d %2$s</string>
     <!-- Translators: Scheduled number of rounds, e.g. "5 rounds". -->
-    <string name="sports_fight_rounds">%1$d rounds</string>
+    <plurals name="sports_fight_rounds">
+        <item quantity="one">%1$d round</item>
+        <item quantity="other">%1$d rounds</item>
+    </plurals>
     <string name="sports_fight_method_ko">KO/TKO</string>
     <string name="sports_fight_method_submission">Submission</string>
     <string name="sports_fight_method_decision">Decision</string>
+    <!-- Translators: Game Center preview heading above away-vs-home team stat comparisons (e.g. Total Yards 327 — 281). -->
+    <string name="sports_gc_team_stats">Team stats</string>
+    <!-- Translators: Game Center preview heading above the top players (passing, points, goals…). -->
+    <string name="sports_gc_leaders">Leaders</string>
+    <!-- Translators: Small Game Center notice when the stats shown are a cached copy. -->
+    <string name="sports_gc_stale">Stats may be delayed</string>
+    <!-- Translators: Baseball pitch count, balls then strikes (e.g. "Count 2-1"). -->
+    <string name="sports_gc_count">Count %1$d-%2$d</string>
+    <!-- Translators: Fight Game Center: the bout winner's name. -->
+    <string name="sports_gc_winner">Winner: %1$s</string>
+    <!-- Translators: Game Center: the network showing the event, e.g. "On ESPN". -->
+    <string name="sports_gc_where_on">On %1$s</string>
+    <!-- Translators: Baseball outs in the current half-inning. -->
+    <plurals name="sports_gc_outs">
+        <item quantity="one">%d out</item>
+        <item quantity="other">%d outs</item>
+    </plurals>
     <!-- Translators: Status text when no content source is configured. -->
     <string name="shell_no_source">No source</string>
     <!-- Translators: Generic error message for unexpected failures. -->

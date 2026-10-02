@@ -56,6 +56,8 @@ import tv.own.owntv.features.sports.live.SportsEvent
 import tv.own.owntv.features.sports.live.SportsEventDetails
 import tv.own.owntv.features.sports.live.SportsEventRow
 import tv.own.owntv.features.sports.live.SportsEventsViewModel
+import tv.own.owntv.features.sports.live.SportsGameCenterPreview
+import tv.own.owntv.features.sports.live.SportsPreviewMode
 import tv.own.owntv.features.sports.live.SportsLiveState
 import tv.own.owntv.features.sports.live.SportsRowHeader
 import tv.own.owntv.features.sports.live.SportsSlateLogic
@@ -113,12 +115,8 @@ fun SportsScreen(
     val multiscreenFullMessage = stringResource(R.string.content_multiscreen_full)
     var contextChannel by remember { mutableStateOf<ChannelEntity?>(null) }
 
-    androidx.compose.runtime.LaunchedEffect(previewChannel?.id, previewArmed) {
-        if (!previewArmed) return@LaunchedEffect
-        val ch = previewChannel ?: return@LaunchedEffect
-        delay(400L) // 400ms Sports focus debounce
-        liveVm.playPreview(ch)
-    }
+    SportsChannelPreviewDriver(eventsVm, liveVm, previewChannel, previewArmed)
+    val onEventFocused = remember(eventsVm) { { event: SportsEvent -> eventsVm.onEventFocused(event.id) } }
 
     val previewPlaying = previewState != LivePreviewEngine.State.ERROR &&
         previewState != LivePreviewEngine.State.IDLE
@@ -152,84 +150,86 @@ fun SportsScreen(
                     .background(colors.surfaceContainerLowest),
                 contentAlignment = Alignment.Center,
             ) {
-                val currentChannel = previewChannel
-                if (currentChannel != null) {
-                    if (!currentChannel.displayLogoUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = currentChannel.displayLogoUrl,
-                            contentDescription = null,
-                            modifier = Modifier.size(90.dp),
-                        )
-                    } else {
-                        OwnTVIcon(
-                            icon = OwnTVIcon.LIVE_TV,
-                            tint = colors.onSurfaceVariant,
-                            modifier = Modifier.size(48.dp),
-                        )
-                    }
-                    if (previewPlaying) {
-                        ExoPreviewSurface(
-                            engine = liveVm.previewEngine,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                    if (previewLoading) {
-                        OwnTVSpinner(sizeDp = 32)
-                    }
-                    // Overlay info bar at bottom of preview
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = currentChannel.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
+                SportsPreviewPane(eventsVm, eventsState) {
+                    val currentChannel = previewChannel
+                    if (currentChannel != null) {
+                        if (!currentChannel.displayLogoUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = currentChannel.displayLogoUrl,
+                                contentDescription = null,
+                                modifier = Modifier.size(90.dp),
                             )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(colors.primary)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                        } else {
+                            OwnTVIcon(
+                                icon = OwnTVIcon.LIVE_TV,
+                                tint = colors.onSurfaceVariant,
+                                modifier = Modifier.size(48.dp),
+                            )
+                        }
+                        if (previewPlaying) {
+                            ExoPreviewSurface(
+                                engine = liveVm.previewEngine,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                        if (previewLoading) {
+                            OwnTVSpinner(sizeDp = 32)
+                        }
+                        // Overlay info bar at bottom of preview
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.7f))
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = stringResource(R.string.sports_live_badge),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = colors.onPrimary,
-                                    fontWeight = FontWeight.Bold,
+                                    text = currentChannel.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
                                 )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(colors.primary)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.sports_live_badge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = colors.onPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
                             }
                         }
-                    }
-                } else {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(24.dp),
-                    ) {
-                        OwnTVIcon(
-                            icon = OwnTVIcon.LIVE_TV,
-                            tint = colors.onSurfaceVariant,
-                            modifier = Modifier.size(40.dp),
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.content_focus_channel),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = colors.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(24.dp),
+                        ) {
+                            OwnTVIcon(
+                                icon = OwnTVIcon.LIVE_TV,
+                                tint = colors.onSurfaceVariant,
+                                modifier = Modifier.size(40.dp),
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(R.string.content_focus_channel),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = colors.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
             }
@@ -255,6 +255,7 @@ fun SportsScreen(
                         eventsVm.openEvent(event.id)
                     },
                     onFocused = onChildFocused,
+                    onEventFocused = onEventFocused,
                 )
 
                 if (sections.isEmpty()) {
@@ -282,6 +283,7 @@ fun SportsScreen(
                                     contextChannel = channel
                                 },
                                 onChannelFocused = { channel ->
+                                    eventsVm.onChannelFocused()
                                     liveVm.onChannelFocused(channel)
                                 },
                                 onFocused = onChildFocused,
@@ -330,6 +332,61 @@ fun SportsScreen(
 }
 
 /**
+ * Plays the in-pane channel preview after the 400ms focus debounce while the pane is in channel mode;
+ * when an event card takes the pane (Game Center) it stops the pane video once. Reads the preview mode
+ * here, not in [SportsScreen], so a card focus change never recomposes the rows.
+ */
+@Composable
+private fun SportsChannelPreviewDriver(
+    eventsVm: SportsEventsViewModel,
+    liveVm: LiveViewModel,
+    previewChannel: ChannelEntity?,
+    previewArmed: Boolean,
+) {
+    val previewMode by eventsVm.previewMode.collectAsStateWithLifecycle()
+    val channelPreviewActive = previewMode == SportsPreviewMode.ChannelVideo
+    androidx.compose.runtime.LaunchedEffect(previewChannel?.id, previewArmed, channelPreviewActive) {
+        // Game Center owns the pane: stop the in-pane video once (crossing event cards re-runs nothing).
+        if (!channelPreviewActive) { liveVm.stopPanePreview(); return@LaunchedEffect }
+        if (!previewArmed) return@LaunchedEffect
+        val ch = previewChannel ?: return@LaunchedEffect
+        delay(400L) // 400ms Sports focus debounce
+        liveVm.playPreview(ch)
+    }
+}
+
+/**
+ * Sticky preview content: the focused event's Game Center, otherwise [channelContent] (the existing
+ * channel video preview). The only place that observes focus-driven preview state.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.SportsPreviewPane(
+    eventsVm: SportsEventsViewModel,
+    eventsState: SportsLiveState,
+    channelContent: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+) {
+    val previewMode by eventsVm.previewMode.collectAsStateWithLifecycle()
+    val gameCenterDetail by eventsVm.gameCenterDetail.collectAsStateWithLifecycle()
+    val slate = (eventsState as? SportsLiveState.Content)?.slate
+    val focusedEvent = when (val mode = previewMode) {
+        is SportsPreviewMode.EventGameCenter -> mode.eventId
+        // Reserved for C2; until then a live event's pane stays Game Center.
+        is SportsPreviewMode.EventVideo -> mode.eventId
+        SportsPreviewMode.ChannelVideo -> null
+    }?.let { id -> slate?.eventsById?.get(id) }
+    if (focusedEvent != null) {
+        SportsGameCenterPreview(
+            event = focusedEvent,
+            league = slate?.leagues?.firstOrNull { it.id == focusedEvent.leagueId },
+            detailState = gameCenterDetail,
+            modifier = Modifier.fillMaxSize(),
+        )
+    } else {
+        channelContent()
+    }
+}
+
+/**
  * Popular Events + league rows from the Sports API. Loading / unavailable states render inline and
  * never displace the channel rows below; once a slate exists it stays visible through failed refreshes.
  */
@@ -339,6 +396,7 @@ private fun SportsEventsArea(
     query: String,
     onEventClick: (SportsEvent, androidx.compose.ui.focus.FocusRequester) -> Unit,
     onFocused: () -> Unit,
+    onEventFocused: (SportsEvent) -> Unit,
 ) {
     val colors = OwnTVTheme.colors
     when (state) {
@@ -390,6 +448,7 @@ private fun SportsEventsArea(
                         leaguesById = leaguesById,
                         onEventClick = onEventClick,
                         onFocused = onFocused,
+                        onEventFocused = onEventFocused,
                     )
                 }
             }

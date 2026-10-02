@@ -58,14 +58,14 @@ import tv.own.owntv.ui.theme.GlassSurface
 import tv.own.owntv.ui.theme.OwnTVTheme
 
 /** Broadcast-style live red (the theme has no error role); used only for LIVE indicators. */
-private val LiveRed = Color(0xFFE53935)
+internal val LiveRed = Color(0xFFE53935)
 
 /** Near-white disc behind team logos (contrast for navy/black marks on dark cards). */
-private val LogoDisc = Color(0xFFF2F4F5)
+internal val LogoDisc = Color(0xFFF2F4F5)
 
 /** Cards sit on their own dark backdrop, so their text is always light regardless of theme. */
-private val CardText = Color(0xFFF5F7F8)
-private val CardTextMuted = Color(0xFFB9C3C7)
+internal val CardText = Color(0xFFF5F7F8)
+internal val CardTextMuted = Color(0xFFB9C3C7)
 
 private val FeaturedCardWidth = 400.dp
 private val FeaturedCardHeight = 204.dp
@@ -85,6 +85,8 @@ fun SportsEventRow(
     onEventClick: (SportsEvent, FocusRequester) -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A card gained focus (drives the sticky preview's Game Center; must stay cheap — no I/O). */
+    onEventFocused: (SportsEvent) -> Unit = {},
 ) {
     val featured = section.key == SportsSlateLogic.POPULAR_KEY
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -105,20 +107,23 @@ fun SportsEventRow(
                 val league = leaguesById[event.leagueId]
                 // Mixed rows (Popular, sport groups) label each card with its competition.
                 val showCompetition = section.league == null
+                val cardModifier = Modifier
+                    .focusRequester(requester)
+                    .onFocusChanged { if (it.hasFocus) onEventFocused(event) }
                 if (SportsEventPresentation.isFightCard(event, league)) {
                     SportsFightCard(
                         event = event,
                         league = league,
                         featured = featured,
                         onClick = { onEventClick(event, requester) },
-                        modifier = Modifier.focusRequester(requester),
+                        modifier = cardModifier,
                     )
                 } else if (featured) {
                     SportsFeaturedCard(
                         event = event,
                         league = league,
                         onClick = { onEventClick(event, requester) },
-                        modifier = Modifier.focusRequester(requester),
+                        modifier = cardModifier,
                     )
                 } else {
                     SportsEventCard(
@@ -126,7 +131,7 @@ fun SportsEventRow(
                         league = league,
                         showCompetition = showCompetition,
                         onClick = { onEventClick(event, requester) },
-                        modifier = Modifier.focusRequester(requester),
+                        modifier = cardModifier,
                     )
                 }
             }
@@ -479,7 +484,7 @@ fun EventStatusChip(event: SportsEvent) {
 }
 
 @Composable
-private fun Pill(text: String, background: Color, content: Color) {
+internal fun Pill(text: String, background: Color, content: Color) {
     Box(
         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(background).padding(horizontal = 7.dp, vertical = 2.dp),
     ) {
