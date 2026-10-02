@@ -86,6 +86,32 @@
     <string name="sports_section_boxing_mma">Boxing / MMA</string>
     <string name="sports_section_ppv_special">PPV &amp; Special Events</string>
     <string name="sports_live_badge">LIVE</string>
+    <string name="sports_popular_events">Popular Events</string>
+    <string name="sports_channels_heading">Sports Channels</string>
+    <string name="sports_status_final">FINAL</string>
+    <string name="sports_status_delayed">DELAYED</string>
+    <string name="sports_status_postponed">POSTPONED</string>
+    <string name="sports_status_canceled">CANCELED</string>
+    <string name="sports_day_today">Today</string>
+    <string name="sports_day_tomorrow">Tomorrow</string>
+    <string name="sports_events_loading">Loading games…</string>
+    <string name="sports_events_unavailable">Live scores are temporarily unavailable. Retrying automatically.</string>
+    <string name="sports_events_stale">Scores may be out of date. Retrying automatically.</string>
+    <string name="sports_events_empty">No games are scheduled right now.</string>
+    <string name="sports_event_broadcasts">Where it’s on</string>
+    <string name="sports_event_no_broadcasts">No broadcast information yet.</string>
+    <string name="sports_event_starts">Starts %1$s</string>
+    <string name="sports_event_at">at</string>
+    <string name="sports_score_unknown">–</string>
+    <string name="sports_list_separator">"  ·  "</string>
+    <string name="sports_day_time">%1$s %2$s</string>
+    <string name="sports_status_halftime">Halftime</string>
+    <!-- Translators: Soccer result decided after extra time (shown after FINAL, e.g. "FINAL · AET"). -->
+    <string name="sports_final_extra_time">AET</string>
+    <!-- Translators: Soccer result decided on a penalty shootout (shown after FINAL, e.g. "FINAL · Pens"). -->
+    <string name="sports_final_penalties">Pens</string>
+    <!-- Translators: Away score, then home score, e.g. "2 – 1". -->
+    <string name="sports_score_line">%1$s – %2$s</string>
     <!-- Translators: Status text when no content source is configured. -->
     <string name="shell_no_source">No source</string>
     <!-- Translators: Generic error message for unexpected failures. -->

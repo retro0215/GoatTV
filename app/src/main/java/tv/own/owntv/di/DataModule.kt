@@ -26,6 +26,7 @@ import tv.own.owntv.core.sync.SyncManager
 import tv.own.owntv.core.sync.work.CatalogSyncScheduler
 import tv.own.owntv.core.sync.work.EpgSyncScheduler
 import tv.own.owntv.core.weather.WeatherRepository
+import tv.own.owntv.features.sports.live.asSportsApi
 import java.util.concurrent.TimeUnit
 
 /** Networking, parsers, sync engine, and repositories (Phase 5). */
@@ -108,6 +109,16 @@ val dataModule = module {
     // candidate list; deliberately DataStore, not Room (derived state, no migration, no backup).
     single { tv.own.owntv.core.trending.TrendingScheduleStore(androidContext()) }
     single { tv.own.owntv.core.trending.TrendingRepository(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    // GoatTV Sports Live (Phase C1): public read-only DigitalOcean Sports API + app-scoped in-memory
+    // slate cache (survives navigation; last-known-good kept through failures). The channel resolver is
+    // registered for Phase C2 but unused while SportsChannelFeature.ENABLED is false.
+    single { tv.own.owntv.features.sports.live.SportsApiClient(get()) }
+    single { tv.own.owntv.features.sports.live.SportsLiveStore(get<tv.own.owntv.features.sports.live.SportsApiClient>().asSportsApi()) }
+    single {
+        tv.own.owntv.features.sports.live.SportsChannelResolver(
+            tv.own.owntv.features.sports.live.RoomSportsChannelLookup(get(), get(), get()),
+        )
+    }
     // Per-content TMDB name overrides (plan §11.2 U5b): DataStore side-store, no Room schema change.
     single { tv.own.owntv.core.metadata.MetadataOverrideStore(androidContext()) }
     // OpenSubtitles (subtitle plan Phase 1): Worker-proxied REST client + Keystore-sealed

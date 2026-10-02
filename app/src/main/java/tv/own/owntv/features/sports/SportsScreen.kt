@@ -22,6 +22,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +52,13 @@ import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.epg.displayLogoUrl
 import tv.own.owntv.features.live.LiveViewModel
 import tv.own.owntv.features.multiscreen.MultiscreenViewModel
+import tv.own.owntv.features.sports.live.SportsEvent
+import tv.own.owntv.features.sports.live.SportsEventDetails
+import tv.own.owntv.features.sports.live.SportsEventRow
+import tv.own.owntv.features.sports.live.SportsEventsViewModel
+import tv.own.owntv.features.sports.live.SportsLiveState
+import tv.own.owntv.features.sports.live.SportsRowHeader
+import tv.own.owntv.features.sports.live.SportsSlateLogic
 import tv.own.owntv.player.ExoPreviewSurface
 import tv.own.owntv.player.LivePreviewEngine
 import tv.own.owntv.ui.components.FocusableSurface
@@ -76,6 +87,27 @@ fun SportsScreen(
     val previewArmed by liveVm.previewArmed.collectAsStateWithLifecycle()
     val previewState by liveVm.previewEngine.state.collectAsStateWithLifecycle()
     val colors = OwnTVTheme.colors
+
+    val eventsVm: SportsEventsViewModel = koinViewModel()
+    val eventsState by eventsVm.state.collectAsStateWithLifecycle()
+    val eventsQuery by eventsVm.query.collectAsStateWithLifecycle()
+    val selectedEventId by eventsVm.selectedEventId.collectAsStateWithLifecycle()
+    // The card that opened the details panel gets focus back when the panel closes.
+    var eventReturnFocus by remember { mutableStateOf<androidx.compose.ui.focus.FocusRequester?>(null) }
+    androidx.compose.runtime.LaunchedEffect(selectedEventId) {
+        if (selectedEventId == null) {
+            val target = eventReturnFocus ?: return@LaunchedEffect
+            androidx.compose.runtime.withFrameNanos { } // let the panel leave composition first
+            runCatching { target.requestFocus() }
+            eventReturnFocus = null
+        }
+    }
+    // One refresh loop, alive only while Sports is composed AND the app is started: leaving Sports or
+    // backgrounding the app cancels it, so nothing polls off-screen and navigation never duplicates it.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    androidx.compose.runtime.LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) { eventsVm.runWhileVisible() }
+    }
 
     val toast = tv.own.owntv.ui.components.rememberInAppToast()
     val multiscreenFullMessage = stringResource(R.string.content_multiscreen_full)
@@ -205,45 +237,70 @@ fun SportsScreen(
             Spacer(Modifier.height(16.dp))
 
             // --- SCROLLABLE LOWER AREA ---
-            if (sections.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
+            // Sports Live event rows (DigitalOcean Sports API) first, then the existing sports channel
+            // rows unchanged — they still drive the sticky preview, OK → fullscreen and long-press →
+            // Multiscreen. Event cards never start playback (no channels are exposed in Phase C1).
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                SportsEventsArea(
+                    state = eventsState,
+                    query = eventsQuery,
+                    onEventClick = { event, requester ->
+                        eventReturnFocus = requester
+                        eventsVm.openEvent(event.id)
+                    },
+                    onFocused = onChildFocused,
+                )
+
+                if (sections.isEmpty()) {
                     Text(
                         text = stringResource(R.string.sports_empty_message),
                         style = MaterialTheme.typography.titleMedium,
                         color = colors.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
                     )
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                ) {
+                } else {
+                    // Traditional live sports channels: a complementary browsing mode, kept below the
+                    // event rows (focus → sticky preview, OK → fullscreen, long-press → Multiscreen).
+                    SportsRowHeader(
+                        title = stringResource(R.string.sports_channels_heading).uppercase(),
+                        prominent = true,
+                    )
                     sections.forEach { sectionData ->
-                        SportsSectionRow(
-                            sectionData = sectionData,
-                            onChannelClick = { channel ->
-                                onOpenChannel(channel, sectionData.channels)
-                            },
-                            onChannelLongClick = { channel ->
-                                contextChannel = channel
-                            },
-                            onChannelFocused = { channel ->
-                                liveVm.onChannelFocused(channel)
-                            },
-                            onFocused = onChildFocused,
-                        )
+                        key(sectionData.section) {
+                            SportsSectionRow(
+                                sectionData = sectionData,
+                                onChannelClick = { channel ->
+                                    onOpenChannel(channel, sectionData.channels)
+                                },
+                                onChannelLongClick = { channel ->
+                                    contextChannel = channel
+                                },
+                                onChannelFocused = { channel ->
+                                    liveVm.onChannelFocused(channel)
+                                },
+                                onFocused = onChildFocused,
+                            )
+                        }
                     }
-                    Spacer(Modifier.height(32.dp))
                 }
+                Spacer(Modifier.height(32.dp))
             }
+        }
+
+        // Event details (OK on an event card) — information only in Phase C1.
+        val selectedEvent = selectedEventId?.let { id -> (eventsState as? SportsLiveState.Content)?.slate?.eventsById?.get(id) }
+        if (selectedEvent != null) {
+            SportsEventDetails(
+                event = selectedEvent,
+                league = (eventsState as? SportsLiveState.Content)?.slate?.leagues?.firstOrNull { it.id == selectedEvent.leagueId },
+                onDismiss = { eventsVm.closeEvent() },
+            )
         }
 
         // Long press context menu modal
@@ -267,6 +324,72 @@ fun SportsScreen(
                 },
                 onDismiss = { contextChannel = null },
             )
+        }
+    }
+}
+
+/**
+ * Popular Events + league rows from the Sports API. Loading / unavailable states render inline and
+ * never displace the channel rows below; once a slate exists it stays visible through failed refreshes.
+ */
+@Composable
+private fun SportsEventsArea(
+    state: SportsLiveState,
+    query: String,
+    onEventClick: (SportsEvent, androidx.compose.ui.focus.FocusRequester) -> Unit,
+    onFocused: () -> Unit,
+) {
+    val colors = OwnTVTheme.colors
+    when (state) {
+        SportsLiveState.Loading -> Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(start = 4.dp),
+        ) {
+            OwnTVSpinner(sizeDp = 24)
+            Text(stringResource(R.string.sports_events_loading), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+        }
+        SportsLiveState.TemporarilyUnavailable -> Text(
+            text = stringResource(R.string.sports_events_unavailable),
+            style = MaterialTheme.typography.bodyLarge,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp),
+        )
+        is SportsLiveState.Content -> {
+            val popularTitle = stringResource(R.string.sports_popular_events)
+            // One row per grouped sport (Soccer = every enabled competition); titles localized here.
+            val soccerTitle = stringResource(R.string.sports_section_soccer)
+            val eventSections = remember(state.slate, query, popularTitle, soccerTitle) {
+                SportsSlateLogic.sections(state.slate, query, popularTitle, mapOf("soccer" to soccerTitle))
+            }
+            val leaguesById = remember(state.slate.leagues) { state.slate.leagues.associateBy { it.id } }
+            if (state.stale) {
+                Text(
+                    text = stringResource(R.string.sports_events_stale),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+            if (eventSections.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.sports_events_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+            eventSections.forEach { section ->
+                // Keyed by section so an inserted/removed row never re-creates (and unfocuses) the others.
+                key(section.key) {
+                    SportsEventRow(
+                        section = section,
+                        leaguesById = leaguesById,
+                        onEventClick = onEventClick,
+                        onFocused = onFocused,
+                    )
+                }
+            }
         }
     }
 }
