@@ -26,6 +26,51 @@
 - **🧭 Sports remembers your place after fullscreen and Multiscreen**
 - **🎮 Smoother TV remote navigation in Sports**
 
+## allaccess-v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
+## 5star-v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
+## supreme-v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
 ## v4.4.22 — 2026-09-30
 
 ### ✨ New features
