@@ -9,6 +9,23 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
 ## v4.4.22 — 2026-09-30
 
 ### ✨ New features
