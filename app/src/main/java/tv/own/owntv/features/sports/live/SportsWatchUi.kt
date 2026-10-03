@@ -195,7 +195,7 @@ private fun WatchRowButton(row: SportsWatchRow, onClick: () -> Unit, modifier: M
 @Composable
 private fun Tag(text: String, background: Color, content: Color) {
     Box(Modifier.clip(RoundedCornerShape(6.dp)).background(background).padding(horizontal = 8.dp, vertical = 2.dp)) {
-        Text(text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = content, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = content, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -321,9 +321,10 @@ private fun ScoreboardOverlay(s: SportsScoreboardOverlay) {
             fontWeight = FontWeight.Bold,
             color = CardText,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         if (detail != null) {
-            Text(detail.uppercase(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = CardTextMuted, maxLines = 1)
+            Text(detail.uppercase(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = CardTextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

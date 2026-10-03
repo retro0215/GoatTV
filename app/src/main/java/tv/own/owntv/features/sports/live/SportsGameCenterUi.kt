@@ -218,6 +218,7 @@ private fun ScoreText(score: String, dim: Boolean) {
         fontWeight = FontWeight.ExtraBold,
         color = if (dim) CardTextMuted else CardText,
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
 }
 
@@ -259,7 +260,7 @@ private fun BaseballSituation(s: GameCenterLiveSituation) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (s.hasBases) BasesDiamond(s, 18.dp)
         if (parts.isNotEmpty()) {
-            Text(parts.joinToString(stringResource(R.string.sports_list_separator)), style = MaterialTheme.typography.labelMedium, color = CardTextMuted, maxLines = 1)
+            Text(parts.joinToString(stringResource(R.string.sports_list_separator)), style = MaterialTheme.typography.labelMedium, color = CardTextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -298,12 +299,12 @@ private fun SectionHeader(text: String, modifier: Modifier = Modifier) {
 private fun TeamStatsColumn(event: SportsEvent, preview: GameCenterPreview, modifier: Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(event.away?.abbreviation.orEmpty(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = CardText, maxLines = 1)
+            Text(event.away?.abbreviation.orEmpty(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = CardText, maxLines = 1, overflow = TextOverflow.Ellipsis)
             SectionHeader(
                 text = stringResource(R.string.sports_gc_team_stats),
                 modifier = Modifier.weight(1f).padding(horizontal = 6.dp),
             )
-            Text(event.home?.abbreviation.orEmpty(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = CardText, maxLines = 1)
+            Text(event.home?.abbreviation.orEmpty(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = CardText, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         for (stat in preview.teamStats) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -321,7 +322,7 @@ private fun TeamStatsColumn(event: SportsEvent, preview: GameCenterPreview, modi
             }
         }
         if (preview.stale) {
-            Text(stringResource(R.string.sports_gc_stale), style = MaterialTheme.typography.labelSmall, color = CardTextMuted, maxLines = 1)
+            Text(stringResource(R.string.sports_gc_stale), style = MaterialTheme.typography.labelSmall, color = CardTextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -335,6 +336,7 @@ private fun StatValue(value: String?, align: TextAlign) {
         color = CardText,
         textAlign = align,
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier.widthIn(min = 44.dp),
     )
 }
@@ -400,6 +402,7 @@ private fun LeaderBadge(leader: GameCenterLeader, size: Dp) {
                 fontWeight = FontWeight.Bold,
                 color = CardText,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -446,6 +449,7 @@ private fun InfoPanel(event: SportsEvent, preview: GameCenterPreview, modifier: 
                 style = MaterialTheme.typography.labelMedium,
                 color = CardTextMuted,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         event.primaryBroadcast?.let { broadcast ->
@@ -530,7 +534,7 @@ private fun GameCenterFighter(fighter: SportsFighter, winner: Boolean, modifier:
             textAlign = TextAlign.Center,
         )
         fighter.record?.let {
-            Text(it, style = MaterialTheme.typography.labelSmall, color = CardTextMuted, maxLines = 1)
+            Text(it, style = MaterialTheme.typography.labelSmall, color = CardTextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

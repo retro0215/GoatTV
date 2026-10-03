@@ -102,18 +102,18 @@
     <string name="sports_events_empty">No games are scheduled right now.</string>
     <string name="sports_event_broadcasts">Where it’s on</string>
     <string name="sports_event_no_broadcasts">No broadcast information yet.</string>
-    <string name="sports_event_starts">Starts %1$s</string>
+    <string name="sports_event_starts">Starts <xliff:g id="time">%1$s</xliff:g></string>
     <string name="sports_event_at">at</string>
     <string name="sports_score_unknown">–</string>
     <string name="sports_list_separator">"  ·  "</string>
-    <string name="sports_day_time">%1$s %2$s</string>
+    <string name="sports_day_time"><xliff:g id="day">%1$s</xliff:g> <xliff:g id="time">%2$s</xliff:g></string>
     <string name="sports_status_halftime">Halftime</string>
     <!-- Translators: Soccer result decided after extra time (shown after FINAL, e.g. "FINAL · AET"). -->
     <string name="sports_final_extra_time">AET</string>
     <!-- Translators: Soccer result decided on a penalty shootout (shown after FINAL, e.g. "FINAL · Pens"). -->
     <string name="sports_final_penalties">Pens</string>
     <!-- Translators: Away score, then home score, e.g. "2 – 1". -->
-    <string name="sports_score_line">%1$s – %2$s</string>
+    <string name="sports_score_line"><xliff:g id="away_score">%1$s</xliff:g> – <xliff:g id="home_score">%2$s</xliff:g></string>
     <string name="sports_section_mma">MMA</string>
     <string name="sports_section_boxing">Boxing</string>
     <!-- Translators: Label above the headline bout of a fight card. -->
@@ -122,13 +122,13 @@
     <string name="sports_fight_vs">vs</string>
     <string name="sports_fight_card">Fight card</string>
     <!-- Translators: Group heading for bouts starting at a given time, e.g. "From 8:00 PM". -->
-    <string name="sports_fight_bouts_from">From %1$s</string>
+    <string name="sports_fight_bouts_from">From <xliff:g id="time">%1$s</xliff:g></string>
     <!-- Translators: Round and clock of a bout, e.g. "R2 3:12". -->
-    <string name="sports_fight_round_clock">R%1$d %2$s</string>
+    <string name="sports_fight_round_clock">R<xliff:g id="round">%1$d</xliff:g> <xliff:g id="clock">%2$s</xliff:g></string>
     <!-- Translators: Scheduled number of rounds, e.g. "5 rounds". -->
     <plurals name="sports_fight_rounds">
-        <item quantity="one">%1$d round</item>
-        <item quantity="other">%1$d rounds</item>
+        <item quantity="one"><xliff:g id="count">%1$d</xliff:g> round</item>
+        <item quantity="other"><xliff:g id="count">%1$d</xliff:g> rounds</item>
     </plurals>
     <string name="sports_fight_method_ko">KO/TKO</string>
     <string name="sports_fight_method_submission">Submission</string>
@@ -143,16 +143,16 @@
     <string name="sports_gc_loading_stats">Stats loading…</string>
     <string name="sports_gc_loading_info">Game info loading…</string>
     <!-- Live: most recent play as the Sports API states it. -->
-    <string name="sports_gc_last_play">Last play: %1$s</string>
+    <string name="sports_gc_last_play">Last play: <xliff:g id="play">%1$s</xliff:g></string>
     <!-- Baseball comparison rows built from the line score's H / E columns. -->
     <string name="sports_gc_stat_hits">Hits</string>
     <string name="sports_gc_stat_errors">Errors</string>
     <!-- Translators: Baseball pitch count, balls then strikes (e.g. "Count 2-1"). -->
-    <string name="sports_gc_count">Count %1$d-%2$d</string>
+    <string name="sports_gc_count">Count <xliff:g id="balls">%1$d</xliff:g>-<xliff:g id="strikes">%2$d</xliff:g></string>
     <!-- Translators: Fight Game Center: the bout winner's name. -->
-    <string name="sports_gc_winner">Winner: %1$s</string>
+    <string name="sports_gc_winner">Winner: <xliff:g id="name">%1$s</xliff:g></string>
     <!-- Translators: Game Center: the network showing the event, e.g. "On ESPN". -->
-    <string name="sports_gc_where_on">On %1$s</string>
+    <string name="sports_gc_where_on">On <xliff:g id="network">%1$s</xliff:g></string>
     <!-- Translators: Title of the dialog listing the TV channels an event can be watched on. -->
     <string name="sports_watch_title">Where to watch</string>
     <!-- Translators: Title of the same dialog when picking the channel to add to Multiscreen. -->
@@ -170,15 +170,15 @@
     <!-- Translators: Button that opens the game's details panel. -->
     <string name="sports_watch_game_details">Game details</string>
     <!-- Translators: Scoreboard over live video: away team, away score, home team, home score (e.g. "PHI 21 – DAL 17"). -->
-    <string name="sports_scoreboard_line">%1$s %2$s  –  %3$s %4$s</string>
+    <string name="sports_scoreboard_line"><xliff:g id="away_team">%1$s</xliff:g> <xliff:g id="away_score">%2$s</xliff:g>  –  <xliff:g id="home_team">%3$s</xliff:g> <xliff:g id="home_score">%4$s</xliff:g></string>
     <!-- Translators: Button that plays the game fullscreen. -->
     <string name="sports_event_watch">Watch</string>
     <!-- Translators: Button that opens the list of channels showing the game. -->
     <string name="sports_event_select_channel">Select channel</string>
     <!-- Translators: Baseball outs in the current half-inning. -->
     <plurals name="sports_gc_outs">
-        <item quantity="one">%d out</item>
-        <item quantity="other">%d outs</item>
+        <item quantity="one"><xliff:g id="count">%1$d</xliff:g> out</item>
+        <item quantity="other"><xliff:g id="count">%1$d</xliff:g> outs</item>
     </plurals>
     <!-- Translators: Status text when no content source is configured. -->
     <string name="shell_no_source">No source</string>
