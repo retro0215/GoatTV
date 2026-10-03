@@ -1,0 +1,2129 @@
+{
+ "event": {
+  "id": "evt_18a7e0a36a974c27a706",
+  "away": {
+   "id": "nhl.wsh",
+   "name": "Washington Capitals",
+   "score": "5",
+   "logoUrl": null,
+   "shortName": "Capitals",
+   "abbreviation": "WSH"
+  },
+  "home": {
+   "id": "nhl.car",
+   "name": "Carolina Hurricanes",
+   "score": "2",
+   "logoUrl": null,
+   "shortName": "Hurricanes",
+   "abbreviation": "CAR"
+  },
+  "title": null,
+  "status": "LIVE",
+  "leagueId": "nhl",
+  "priority": 55,
+  "startTime": "2026-10-02T23:00:00Z",
+  "updatedAt": "2026-10-03T01:41:26.375Z",
+  "venueName": "Lenovo Center",
+  "broadcasts": [
+   {
+    "name": "ESPN+",
+    "type": "STREAMING",
+    "market": "NATIONAL",
+    "networkKey": "espn-plus"
+   },
+   {
+    "name": "CARNHL",
+    "type": "TV",
+    "market": "HOME",
+    "networkKey": "carnhl"
+   },
+   {
+    "name": "MNMT",
+    "type": "TV",
+    "market": "AWAY",
+    "networkKey": "mnmt"
+   }
+  ],
+  "statusDetail": "0:41 - 3rd"
+ },
+ "gameCenter": {
+  "availability": "AVAILABLE",
+  "phase": "LIVE",
+  "updatedAt": "2026-10-03T01:40:54.286Z",
+  "stale": false,
+  "status": {
+   "clock": "1:25",
+   "phase": "LIVE",
+   "detail": "1:25 - 3rd",
+   "period": 3
+  },
+  "leaders": {
+   "scope": "GAME",
+   "categories": [
+    {
+     "key": "goals",
+     "away": {
+      "value": "2",
+      "player": {
+       "id": "ply_ac63d4bf34dc4225a826",
+       "name": "Alex Tuch",
+       "jersey": "89",
+       "position": "RW",
+       "shortName": "A. Tuch",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "home": {
+      "value": "1",
+      "player": {
+       "id": "ply_19150ea5759e4bd08947",
+       "name": "Sebastian Aho",
+       "jersey": "20",
+       "position": "C",
+       "shortName": "S. Aho",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "label": "Goals"
+    },
+    {
+     "key": "assists",
+     "away": {
+      "value": "2",
+      "player": {
+       "id": "ply_7be5d6a4f85541769e47",
+       "name": "Pierre-Luc Dubois",
+       "jersey": "80",
+       "position": "LW",
+       "shortName": "P. Dubois",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "home": {
+      "value": "1",
+      "player": {
+       "id": "ply_cb87e020c9f04fc5bb45",
+       "name": "William Carrier",
+       "jersey": "28",
+       "position": "LW",
+       "shortName": "W. Carrier",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "label": "Assists"
+    },
+    {
+     "key": "points",
+     "away": {
+      "value": "2",
+      "player": {
+       "id": "ply_ac63d4bf34dc4225a826",
+       "name": "Alex Tuch",
+       "jersey": "89",
+       "position": "RW",
+       "shortName": "A. Tuch",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "home": {
+      "value": "1",
+      "player": {
+       "id": "ply_19150ea5759e4bd08947",
+       "name": "Sebastian Aho",
+       "jersey": "20",
+       "position": "C",
+       "shortName": "S. Aho",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "label": "Points"
+    }
+   ]
+  },
+  "scoring": [
+   {
+    "side": "away",
+    "text": "Alex Tuch Goal (1) Wrist Shot, assists: Pierre-Luc Dubois (1), Alex Ovechkin (1)",
+    "type": "Goal",
+    "clock": "6:33",
+    "period": "1st Period",
+    "awayScore": "1",
+    "homeScore": "0"
+   },
+   {
+    "side": "away",
+    "text": "Cole Hutson Goal (1) Snap Shot, assists: Ilya Protas (1), Aliaksei Protas (1)",
+    "type": "Goal",
+    "clock": "11:33",
+    "period": "1st Period",
+    "awayScore": "2",
+    "homeScore": "0"
+   },
+   {
+    "side": "away",
+    "text": "Alex Tuch Goal (2) Backhand, assists: Pierre-Luc Dubois (2), Tom Wilson (1)",
+    "type": "Goal",
+    "clock": "14:23",
+    "period": "1st Period",
+    "awayScore": "3",
+    "homeScore": "0"
+   },
+   {
+    "side": "away",
+    "text": "Jakob Chychrun Goal (1) Snap Shot, assists: Dylan Strome (1)",
+    "type": "Goal",
+    "clock": "1:36",
+    "period": "2nd Period",
+    "awayScore": "4",
+    "homeScore": "0"
+   },
+   {
+    "side": "home",
+    "text": "Sebastian Aho Goal (1) Snap Shot, assists: Andrei Svechnikov (1), Jackson Blake (1)",
+    "type": "Goal",
+    "clock": "16:50",
+    "period": "2nd Period",
+    "awayScore": "4",
+    "homeScore": "1"
+   },
+   {
+    "side": "away",
+    "text": "Ryan Leonard Goal (1) Snap Shot, assists: Dylan Strome (2), Jakob Chychrun (1)",
+    "type": "Goal",
+    "clock": "16:58",
+    "period": "2nd Period",
+    "awayScore": "5",
+    "homeScore": "1"
+   },
+   {
+    "side": "home",
+    "text": "Logan Stankoven Goal (1) Tip-In, assists: K'Andre Miller (1), William Carrier (1)",
+    "type": "Goal",
+    "clock": "10:50",
+    "period": "3rd Period",
+    "awayScore": "5",
+    "homeScore": "2"
+   }
+  ],
+  "boxScore": {
+   "away": {
+    "groups": [
+     {
+      "key": "forwards",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_4c45b8ffa3b04421aa33",
+         "name": "Anthony Beauvillier",
+         "jersey": "72",
+         "position": "LW",
+         "shortName": "A. Beauvillier",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "1",
+         "0",
+         "0",
+         "13:07",
+         "0:00",
+         "1:30",
+         "11:37",
+         "17",
+         "0",
+         "0",
+         "0",
+         "3",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_7be5d6a4f85541769e47",
+         "name": "Pierre-Luc Dubois",
+         "jersey": "80",
+         "position": "LW",
+         "shortName": "P. Dubois",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "2",
+         "12:08",
+         "1:50",
+         "0:00",
+         "10:18",
+         "19",
+         "0",
+         "0",
+         "2",
+         "1",
+         "0",
+         "0",
+         "7",
+         "6",
+         "53.8",
+         "0",
+         "2",
+         "4"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_915d9b3c41114b318c6c",
+         "name": "Boone Jenner",
+         "jersey": "22",
+         "position": "C",
+         "shortName": "B. Jenner",
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "0",
+         "1",
+         "0",
+         "15:29",
+         "0:00",
+         "4:39",
+         "10:50",
+         "22",
+         "0",
+         "0",
+         "0",
+         "3",
+         "0",
+         "0",
+         "13",
+         "4",
+         "76.5",
+         "4",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_492beda27c1c46a89748",
+         "name": "Jordan Kyrou",
+         "jersey": "25",
+         "position": "RW",
+         "shortName": "J. Kyrou",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "0",
+         "0",
+         "10:49",
+         "0:37",
+         "0:00",
+         "10:12",
+         "14",
+         "0",
+         "0",
+         "0",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_28f8cab47acc4955ae76",
+         "name": "Ryan Leonard",
+         "jersey": "9",
+         "position": "RW",
+         "shortName": "R. Leonard",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "2",
+         "0",
+         "1",
+         "11:40",
+         "0:37",
+         "0:00",
+         "11:03",
+         "16",
+         "1",
+         "1",
+         "0",
+         "3",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_df2b63fbe43440a1844d",
+         "name": "Alex Ovechkin",
+         "jersey": "8",
+         "position": "LW",
+         "shortName": "A. Ovechkin",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "1",
+         "12:06",
+         "1:50",
+         "0:00",
+         "10:16",
+         "20",
+         "0",
+         "0",
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_6df4844968f44664a96d",
+         "name": "Aliaksei Protas",
+         "jersey": "21",
+         "position": "C",
+         "shortName": "A. Protas",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "1",
+         "16:52",
+         "0:00",
+         "5:04",
+         "11:48",
+         "22",
+         "0",
+         "0",
+         "1",
+         "2",
+         "1",
+         "0",
+         "2",
+         "1",
+         "66.7",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_5b50f036faf44e61bc2c",
+         "name": "Ilya Protas",
+         "jersey": "62",
+         "position": "LW",
+         "shortName": "I. Protas",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "0",
+         "1",
+         "10:54",
+         "0:37",
+         "0:00",
+         "10:17",
+         "13",
+         "0",
+         "0",
+         "1",
+         "0",
+         "1",
+         "0",
+         "1",
+         "4",
+         "20.0",
+         "2",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_4f124e0f8f854f6d8199",
+         "name": "Justin Sourdif",
+         "jersey": "34",
+         "position": "RW",
+         "shortName": "J. Sourdif",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "0",
+         "0",
+         "12:01",
+         "0:00",
+         "0:52",
+         "11:09",
+         "17",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "2",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_184ea22d0d1f4f519bfc",
+         "name": "Dylan Strome",
+         "jersey": "17",
+         "position": "C",
+         "shortName": "D. Strome",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "11:53",
+         "1:50",
+         "0:06",
+         "9:57",
+         "17",
+         "0",
+         "0",
+         "2",
+         "2",
+         "0",
+         "0",
+         "7",
+         "5",
+         "58.3",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_ac63d4bf34dc4225a826",
+         "name": "Alex Tuch",
+         "jersey": "89",
+         "position": "RW",
+         "shortName": "A. Tuch",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "1",
+         "2",
+         "16:38",
+         "0:37",
+         "5:02",
+         "10:59",
+         "23",
+         "2",
+         "2",
+         "0",
+         "3",
+         "0",
+         "0",
+         "2",
+         "6",
+         "25.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_aa237ebed871486ea529",
+         "name": "Tom Wilson",
+         "jersey": "43",
+         "position": "RW",
+         "shortName": "T. Wilson",
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "3",
+         "0",
+         "1",
+         "16:37",
+         "1:50",
+         "5:26",
+         "9:21",
+         "23",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Forwards",
+      "totals": null,
+      "columns": [
+       {
+        "key": "blockedShots",
+        "label": "BS"
+       },
+       {
+        "key": "hits",
+        "label": "HT"
+       },
+       {
+        "key": "takeaways",
+        "label": "TK"
+       },
+       {
+        "key": "plusMinus",
+        "label": "+/-"
+       },
+       {
+        "key": "timeOnIce",
+        "label": "TOI"
+       },
+       {
+        "key": "powerPlayTimeOnIce",
+        "label": "PPTOI"
+       },
+       {
+        "key": "shortHandedTimeOnIce",
+        "label": "SHTOI"
+       },
+       {
+        "key": "evenStrengthTimeOnIce",
+        "label": "ESTOI"
+       },
+       {
+        "key": "shifts",
+        "label": "SHFT"
+       },
+       {
+        "key": "goals",
+        "label": "G"
+       },
+       {
+        "key": "ytdGoals",
+        "label": "YTDG"
+       },
+       {
+        "key": "assists",
+        "label": "A"
+       },
+       {
+        "key": "shotsTotal",
+        "label": "S"
+       },
+       {
+        "key": "shotsMissed",
+        "label": "SM"
+       },
+       {
+        "key": "shootoutGoals",
+        "label": "SOG"
+       },
+       {
+        "key": "faceoffsWon",
+        "label": "FW"
+       },
+       {
+        "key": "faceoffsLost",
+        "label": "FL"
+       },
+       {
+        "key": "faceoffPercent",
+        "label": "FO%"
+       },
+       {
+        "key": "giveaways",
+        "label": "GV"
+       },
+       {
+        "key": "penalties",
+        "label": "PN"
+       },
+       {
+        "key": "penaltyMinutes",
+        "label": "PIM"
+       }
+      ]
+     },
+     {
+      "key": "defenses",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_7e7c90e7e8f14fea9117",
+         "name": "Jakob Chychrun",
+         "jersey": "6",
+         "position": "D",
+         "shortName": "J. Chychrun",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "0",
+         "1",
+         "17:35",
+         "1:50",
+         "0:28",
+         "15:17",
+         "21",
+         "1",
+         "1",
+         "1",
+         "3",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "1",
+         "2"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_e560067b0e924d8c997d",
+         "name": "Vincent Desharnais",
+         "jersey": "73",
+         "position": "D",
+         "shortName": "V. Desharnais",
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "2",
+         "0",
+         "2",
+         "20:52",
+         "0:00",
+         "5:37",
+         "15:15",
+         "21",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_ea60ec309913406d93f5",
+         "name": "Martin Fehervary",
+         "jersey": "42",
+         "position": "D",
+         "shortName": "M. Fehervary",
+         "headshotUrl": null
+        },
+        "values": [
+         "5",
+         "0",
+         "0",
+         "0",
+         "19:07",
+         "0:00",
+         "5:18",
+         "13:49",
+         "25",
+         "0",
+         "0",
+         "0",
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "1",
+         "2"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_2e2b060ee6ae4ca49806",
+         "name": "Cole Hutson",
+         "jersey": "44",
+         "position": "D",
+         "shortName": "C. Hutson",
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "2",
+         "15:18",
+         "0:37",
+         "0:00",
+         "14:41",
+         "20",
+         "1",
+         "1",
+         "0",
+         "3",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "3",
+         "2",
+         "4"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_c6d5b249f8ee43b2bb95",
+         "name": "Timothy Liljegren",
+         "jersey": "27",
+         "position": "D",
+         "shortName": "T. Liljegren",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "1",
+         "17:38",
+         "0:00",
+         "3:43",
+         "13:55",
+         "19",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_f7c426bd8af145f39517",
+         "name": "Matt Roy",
+         "jersey": "3",
+         "position": "D",
+         "shortName": "M. Roy",
+         "headshotUrl": null
+        },
+        "values": [
+         "5",
+         "3",
+         "1",
+         "0",
+         "22:00",
+         "0:00",
+         "7:35",
+         "14:25",
+         "24",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Defense",
+      "totals": null,
+      "columns": [
+       {
+        "key": "blockedShots",
+        "label": "BS"
+       },
+       {
+        "key": "hits",
+        "label": "HT"
+       },
+       {
+        "key": "takeaways",
+        "label": "TK"
+       },
+       {
+        "key": "plusMinus",
+        "label": "+/-"
+       },
+       {
+        "key": "timeOnIce",
+        "label": "TOI"
+       },
+       {
+        "key": "powerPlayTimeOnIce",
+        "label": "PPTOI"
+       },
+       {
+        "key": "shortHandedTimeOnIce",
+        "label": "SHTOI"
+       },
+       {
+        "key": "evenStrengthTimeOnIce",
+        "label": "ESTOI"
+       },
+       {
+        "key": "shifts",
+        "label": "SHFT"
+       },
+       {
+        "key": "goals",
+        "label": "G"
+       },
+       {
+        "key": "ytdGoals",
+        "label": "YTDG"
+       },
+       {
+        "key": "assists",
+        "label": "A"
+       },
+       {
+        "key": "shotsTotal",
+        "label": "S"
+       },
+       {
+        "key": "shotsMissed",
+        "label": "SM"
+       },
+       {
+        "key": "shootoutGoals",
+        "label": "SOG"
+       },
+       {
+        "key": "faceoffsWon",
+        "label": "FW"
+       },
+       {
+        "key": "faceoffsLost",
+        "label": "FL"
+       },
+       {
+        "key": "faceoffPercent",
+        "label": "FO%"
+       },
+       {
+        "key": "giveaways",
+        "label": "GV"
+       },
+       {
+        "key": "penalties",
+        "label": "PN"
+       },
+       {
+        "key": "penaltyMinutes",
+        "label": "PIM"
+       }
+      ]
+     },
+     {
+      "key": "goalies",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_07412e70c58b4bec81e2",
+         "name": "Logan Thompson",
+         "jersey": "48",
+         "position": "G",
+         "shortName": "L. Thompson",
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "32",
+         "0",
+         "0",
+         "30",
+         ".938",
+         "16",
+         "14",
+         "0",
+         "57:10",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Goalies",
+      "totals": null,
+      "columns": [
+       {
+        "key": "goalsAgainst",
+        "label": "GA"
+       },
+       {
+        "key": "shotsAgainst",
+        "label": "SA"
+       },
+       {
+        "key": "shootoutSaves",
+        "label": "SOS"
+       },
+       {
+        "key": "shootoutShotsAgainst",
+        "label": "SOSA"
+       },
+       {
+        "key": "saves",
+        "label": "SV"
+       },
+       {
+        "key": "savePct",
+        "label": "SV%"
+       },
+       {
+        "key": "evenStrengthSaves",
+        "label": "ESSV"
+       },
+       {
+        "key": "powerPlaySaves",
+        "label": "PPSV"
+       },
+       {
+        "key": "shortHandedSaves",
+        "label": "SHSV"
+       },
+       {
+        "key": "timeOnIce",
+        "label": "TOI"
+       },
+       {
+        "key": "ytdGoals",
+        "label": "YTDG"
+       },
+       {
+        "key": "penaltyMinutes",
+        "label": "PIM"
+       }
+      ]
+     }
+    ],
+    "formation": null
+   },
+   "home": {
+    "groups": [
+     {
+      "key": "forwards",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_19150ea5759e4bd08947",
+         "name": "Sebastian Aho",
+         "jersey": "20",
+         "position": "C",
+         "shortName": "S. Aho",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "0",
+         "0",
+         "17:35",
+         "7:30",
+         "0:48",
+         "9:17",
+         "19",
+         "1",
+         "1",
+         "0",
+         "2",
+         "1",
+         "0",
+         "7",
+         "4",
+         "63.6",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_6922466e28154eea9e73",
+         "name": "Jackson Blake",
+         "jersey": "53",
+         "position": "RW",
+         "shortName": "J. Blake",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "1",
+         "-1",
+         "18:36",
+         "9:05",
+         "0:00",
+         "9:31",
+         "18",
+         "0",
+         "0",
+         "1",
+         "3",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_cb87e020c9f04fc5bb45",
+         "name": "William Carrier",
+         "jersey": "28",
+         "position": "LW",
+         "shortName": "W. Carrier",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "4",
+         "0",
+         "0",
+         "11:30",
+         "0:00",
+         "0:00",
+         "11:30",
+         "14",
+         "0",
+         "0",
+         "1",
+         "1",
+         "3",
+         "0",
+         "0",
+         "1",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_02220b60d7244377962d",
+         "name": "Nicolas Deslauriers",
+         "jersey": "44",
+         "position": "LW",
+         "shortName": "N. Deslauriers",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "7",
+         "0",
+         "-1",
+         "8:33",
+         "0:00",
+         "0:00",
+         "8:33",
+         "12",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_0b8f40750f434e5d80fa",
+         "name": "Nikolaj Ehlers",
+         "jersey": "27",
+         "position": "LW",
+         "shortName": "N. Ehlers",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "1",
+         "0",
+         "-2",
+         "18:24",
+         "5:40",
+         "0:00",
+         "12:44",
+         "22",
+         "0",
+         "0",
+         "0",
+         "4",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_628fa34f64f14fbe8c6f",
+         "name": "Taylor Hall",
+         "jersey": "71",
+         "position": "LW",
+         "shortName": "T. Hall",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "-2",
+         "12:51",
+         "3:45",
+         "0:00",
+         "9:06",
+         "18",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "1",
+         "0",
+         "100.0",
+         "1",
+         "1",
+         "2"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_f6cce8b5e15c4e89aa23",
+         "name": "Mark Jankowski",
+         "jersey": "77",
+         "position": "C",
+         "shortName": "M. Jankowski",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "2",
+         "0",
+         "-1",
+         "10:53",
+         "1:03",
+         "0:37",
+         "9:13",
+         "15",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "6",
+         "6",
+         "50.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_aac70ecdb4a54660a72b",
+         "name": "Jordan Martinook",
+         "jersey": "48",
+         "position": "RW",
+         "shortName": "J. Martinook",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "3",
+         "0",
+         "0",
+         "12:35",
+         "0:00",
+         "1:03",
+         "11:32",
+         "19",
+         "0",
+         "0",
+         "0",
+         "2",
+         "2",
+         "0",
+         "1",
+         "0",
+         "100.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_a9a1b34e46d542018744",
+         "name": "Eric Robinson",
+         "jersey": "50",
+         "position": "LW",
+         "shortName": "E. Robinson",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "2",
+         "0",
+         "0",
+         "9:52",
+         "0:00",
+         "0:37",
+         "9:15",
+         "16",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_a9b38a8dcb4c4af2a3e9",
+         "name": "Jordan Staal",
+         "jersey": "11",
+         "position": "C",
+         "shortName": "J. Staal",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "4",
+         "0",
+         "-1",
+         "14:45",
+         "3:19",
+         "1:01",
+         "10:25",
+         "24",
+         "0",
+         "0",
+         "0",
+         "3",
+         "3",
+         "0",
+         "11",
+         "10",
+         "52.4",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_19ddb33ce220403c9761",
+         "name": "Logan Stankoven",
+         "jersey": "22",
+         "position": "C",
+         "shortName": "L. Stankoven",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "2",
+         "0",
+         "-1",
+         "20:15",
+         "5:08",
+         "0:46",
+         "14:21",
+         "23",
+         "1",
+         "1",
+         "0",
+         "4",
+         "0",
+         "0",
+         "3",
+         "10",
+         "23.1",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_848874af13634fafb2c3",
+         "name": "Andrei Svechnikov",
+         "jersey": "37",
+         "position": "LW",
+         "shortName": "A. Svechnikov",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "2",
+         "1",
+         "0",
+         "19:51",
+         "7:35",
+         "0:00",
+         "12:16",
+         "22",
+         "0",
+         "0",
+         "1",
+         "6",
+         "2",
+         "0",
+         "0",
+         "1",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Forwards",
+      "totals": null,
+      "columns": [
+       {
+        "key": "blockedShots",
+        "label": "BS"
+       },
+       {
+        "key": "hits",
+        "label": "HT"
+       },
+       {
+        "key": "takeaways",
+        "label": "TK"
+       },
+       {
+        "key": "plusMinus",
+        "label": "+/-"
+       },
+       {
+        "key": "timeOnIce",
+        "label": "TOI"
+       },
+       {
+        "key": "powerPlayTimeOnIce",
+        "label": "PPTOI"
+       },
+       {
+        "key": "shortHandedTimeOnIce",
+        "label": "SHTOI"
+       },
+       {
+        "key": "evenStrengthTimeOnIce",
+        "label": "ESTOI"
+       },
+       {
+        "key": "shifts",
+        "label": "SHFT"
+       },
+       {
+        "key": "goals",
+        "label": "G"
+       },
+       {
+        "key": "ytdGoals",
+        "label": "YTDG"
+       },
+       {
+        "key": "assists",
+        "label": "A"
+       },
+       {
+        "key": "shotsTotal",
+        "label": "S"
+       },
+       {
+        "key": "shotsMissed",
+        "label": "SM"
+       },
+       {
+        "key": "shootoutGoals",
+        "label": "SOG"
+       },
+       {
+        "key": "faceoffsWon",
+        "label": "FW"
+       },
+       {
+        "key": "faceoffsLost",
+        "label": "FL"
+       },
+       {
+        "key": "faceoffPercent",
+        "label": "FO%"
+       },
+       {
+        "key": "giveaways",
+        "label": "GV"
+       },
+       {
+        "key": "penalties",
+        "label": "PN"
+       },
+       {
+        "key": "penaltyMinutes",
+        "label": "PIM"
+       }
+      ]
+     },
+     {
+      "key": "defenses",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_f3dc8f83260146d3bcdd",
+         "name": "Jalen Chatfield",
+         "jersey": "5",
+         "position": "D",
+         "shortName": "J. Chatfield",
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "0",
+         "0",
+         "-2",
+         "16:43",
+         "0:00",
+         "1:14",
+         "15:29",
+         "22",
+         "0",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_4cfbc2bf1d1b49fa8712",
+         "name": "Shayne Gostisbehere",
+         "jersey": "4",
+         "position": "D",
+         "shortName": "S. Gostisbehere",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "1",
+         "-1",
+         "21:45",
+         "7:12",
+         "0:00",
+         "14:33",
+         "21",
+         "0",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_92d179e0360a49bab928",
+         "name": "Charles Alexis Legault",
+         "jersey": "62",
+         "position": "D",
+         "shortName": "C. Legault",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "2",
+         "0",
+         "0",
+         "10:55",
+         "0:00",
+         "0:00",
+         "10:55",
+         "16",
+         "0",
+         "0",
+         "0",
+         "0",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "1",
+         "2"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_6c8ce587af554a8dad92",
+         "name": "K'Andre Miller",
+         "jersey": "19",
+         "position": "D",
+         "shortName": "K. Miller",
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "-1",
+         "21:01",
+         "4:08",
+         "1:17",
+         "15:36",
+         "25",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_d046727615a3451ead46",
+         "name": "Jaccob Slavin",
+         "jersey": "74",
+         "position": "D",
+         "shortName": "J. Slavin",
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "17:42",
+         "0:00",
+         "1:11",
+         "16:31",
+         "22",
+         "0",
+         "0",
+         "0",
+         "4",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_3fe5a1b21e0d43ffb193",
+         "name": "Sean Walker",
+         "jersey": "26",
+         "position": "D",
+         "shortName": "S. Walker",
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "1",
+         "0",
+         "-2",
+         "17:12",
+         "2:15",
+         "1:14",
+         "13:43",
+         "25",
+         "0",
+         "0",
+         "0",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0.0",
+         "1",
+         "1",
+         "2"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Defense",
+      "totals": null,
+      "columns": [
+       {
+        "key": "blockedShots",
+        "label": "BS"
+       },
+       {
+        "key": "hits",
+        "label": "HT"
+       },
+       {
+        "key": "takeaways",
+        "label": "TK"
+       },
+       {
+        "key": "plusMinus",
+        "label": "+/-"
+       },
+       {
+        "key": "timeOnIce",
+        "label": "TOI"
+       },
+       {
+        "key": "powerPlayTimeOnIce",
+        "label": "PPTOI"
+       },
+       {
+        "key": "shortHandedTimeOnIce",
+        "label": "SHTOI"
+       },
+       {
+        "key": "evenStrengthTimeOnIce",
+        "label": "ESTOI"
+       },
+       {
+        "key": "shifts",
+        "label": "SHFT"
+       },
+       {
+        "key": "goals",
+        "label": "G"
+       },
+       {
+        "key": "ytdGoals",
+        "label": "YTDG"
+       },
+       {
+        "key": "assists",
+        "label": "A"
+       },
+       {
+        "key": "shotsTotal",
+        "label": "S"
+       },
+       {
+        "key": "shotsMissed",
+        "label": "SM"
+       },
+       {
+        "key": "shootoutGoals",
+        "label": "SOG"
+       },
+       {
+        "key": "faceoffsWon",
+        "label": "FW"
+       },
+       {
+        "key": "faceoffsLost",
+        "label": "FL"
+       },
+       {
+        "key": "faceoffPercent",
+        "label": "FO%"
+       },
+       {
+        "key": "giveaways",
+        "label": "GV"
+       },
+       {
+        "key": "penalties",
+        "label": "PN"
+       },
+       {
+        "key": "penaltyMinutes",
+        "label": "PIM"
+       }
+      ]
+     },
+     {
+      "key": "goalies",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_721e70c34fc74d53b4e4",
+         "name": "Brandon Bussi",
+         "jersey": "32",
+         "position": "G",
+         "shortName": "B. Bussi",
+         "headshotUrl": null
+        },
+        "values": [
+         "5",
+         "27",
+         "0",
+         "0",
+         "22",
+         ".815",
+         "20",
+         "1",
+         "1",
+         "57:05",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Goalies",
+      "totals": null,
+      "columns": [
+       {
+        "key": "goalsAgainst",
+        "label": "GA"
+       },
+       {
+        "key": "shotsAgainst",
+        "label": "SA"
+       },
+       {
+        "key": "shootoutSaves",
+        "label": "SOS"
+       },
+       {
+        "key": "shootoutShotsAgainst",
+        "label": "SOSA"
+       },
+       {
+        "key": "saves",
+        "label": "SV"
+       },
+       {
+        "key": "savePct",
+        "label": "SV%"
+       },
+       {
+        "key": "evenStrengthSaves",
+        "label": "ESSV"
+       },
+       {
+        "key": "powerPlaySaves",
+        "label": "PPSV"
+       },
+       {
+        "key": "shortHandedSaves",
+        "label": "SHSV"
+       },
+       {
+        "key": "timeOnIce",
+        "label": "TOI"
+       },
+       {
+        "key": "ytdGoals",
+        "label": "YTDG"
+       },
+       {
+        "key": "penaltyMinutes",
+        "label": "PIM"
+       }
+      ]
+     }
+    ],
+    "formation": null
+   }
+  },
+  "gameInfo": {
+   "venue": "Lenovo Center",
+   "officials": [
+    "Gord Dwyer",
+    "Justin Kea",
+    "Shandor Alphonso",
+    "Ryan Jackson"
+   ],
+   "attendance": null
+  },
+  "shootout": null,
+  "lineScore": {
+   "away": [
+    "3",
+    "2",
+    "0"
+   ],
+   "home": [
+    "0",
+    "1",
+    "1"
+   ],
+   "extras": [],
+   "labels": [
+    "1",
+    "2",
+    "3"
+   ]
+  },
+  "probables": [],
+  "situation": {
+   "kind": "hockey",
+   "outs": null,
+   "balls": null,
+   "onFirst": null,
+   "onThird": null,
+   "strikes": null,
+   "lastPlay": "Shayne Gostisbehere shot blocked by Jordan Martinook",
+   "onSecond": null,
+   "isRedZone": null,
+   "inningHalf": null,
+   "possession": null,
+   "downDistance": null
+  },
+  "teamStats": [
+   {
+    "key": "shots",
+    "away": "27",
+    "home": "32",
+    "group": null,
+    "label": "Shots"
+   },
+   {
+    "key": "powerPlay",
+    "away": "1/2",
+    "home": "1/6",
+    "group": null,
+    "label": "Power Play"
+   },
+   {
+    "key": "faceoffPct",
+    "away": "52.5",
+    "home": "47.5",
+    "group": null,
+    "label": "Faceoff %"
+   },
+   {
+    "key": "hits",
+    "away": "16",
+    "home": "32",
+    "group": null,
+    "label": "Hits"
+   },
+   {
+    "key": "blockedShots",
+    "away": "27",
+    "home": "9",
+    "group": null,
+    "label": "Blocked Shots"
+   },
+   {
+    "key": "penaltyMinutes",
+    "away": "14",
+    "home": "6",
+    "group": null,
+    "label": "Penalty Minutes"
+   },
+   {
+    "key": "takeaways",
+    "away": "3",
+    "home": "3",
+    "group": null,
+    "label": "Takeaways"
+   },
+   {
+    "key": "giveaways",
+    "away": "18",
+    "home": "10",
+    "group": null,
+    "label": "Giveaways"
+   }
+  ],
+  "matchEvents": []
+ },
+ "refreshAfterSeconds": 30
+}

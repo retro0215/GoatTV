@@ -164,6 +164,9 @@ android {
         buildConfigField("String", "PUSHWOOSH_APP_ID", "\"\"")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
         buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
+        // Sports event channels (Phase C2): the brand sent as ?brand= to the Sports API. Empty = this
+        // build never requests channel data (only flavors with a curated channel index set it).
+        buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -236,6 +239,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
+            buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"goat\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"GoatTV\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")

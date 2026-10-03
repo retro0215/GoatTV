@@ -7,5 +7,16 @@
         <activity
             android:name="tv.own.owntv.core.i18n.FontFallbackQaActivity"
             android:exported="true" />
+        <!-- Sports Game Center fixture mode (debug builds only): adb-toggled, never in release. -->
+        <activity
+            android:name="tv.own.owntv.features.sports.live.GameCenterFixturesActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <provider
+            android:name="tv.own.owntv.features.sports.live.GameCenterFixtureInstaller"
+            android:authorities="${applicationId}.sportsgcfixtures"
+            android:exported="false" />
     </application>
 </manifest>

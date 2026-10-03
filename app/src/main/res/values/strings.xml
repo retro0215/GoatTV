@@ -88,6 +88,98 @@
     <string name="sports_section_boxing_mma">Boxing / MMA</string>
     <string name="sports_section_ppv_special">PPV &amp; Special Events</string>
     <string name="sports_live_badge">LIVE</string>
+    <string name="sports_popular_events">Popular Events</string>
+    <string name="sports_channels_heading">Sports Channels</string>
+    <string name="sports_status_final">FINAL</string>
+    <string name="sports_status_delayed">DELAYED</string>
+    <string name="sports_status_postponed">POSTPONED</string>
+    <string name="sports_status_canceled">CANCELED</string>
+    <string name="sports_day_today">Today</string>
+    <string name="sports_day_tomorrow">Tomorrow</string>
+    <string name="sports_events_loading">Loading games…</string>
+    <string name="sports_events_unavailable">Live scores are temporarily unavailable. Retrying automatically.</string>
+    <string name="sports_events_stale">Scores may be out of date. Retrying automatically.</string>
+    <string name="sports_events_empty">No games are scheduled right now.</string>
+    <string name="sports_event_broadcasts">Where it’s on</string>
+    <string name="sports_event_no_broadcasts">No broadcast information yet.</string>
+    <string name="sports_event_starts">Starts %1$s</string>
+    <string name="sports_event_at">at</string>
+    <string name="sports_score_unknown">–</string>
+    <string name="sports_list_separator">"  ·  "</string>
+    <string name="sports_day_time">%1$s %2$s</string>
+    <string name="sports_status_halftime">Halftime</string>
+    <!-- Translators: Soccer result decided after extra time (shown after FINAL, e.g. "FINAL · AET"). -->
+    <string name="sports_final_extra_time">AET</string>
+    <!-- Translators: Soccer result decided on a penalty shootout (shown after FINAL, e.g. "FINAL · Pens"). -->
+    <string name="sports_final_penalties">Pens</string>
+    <!-- Translators: Away score, then home score, e.g. "2 – 1". -->
+    <string name="sports_score_line">%1$s – %2$s</string>
+    <string name="sports_section_mma">MMA</string>
+    <string name="sports_section_boxing">Boxing</string>
+    <!-- Translators: Label above the headline bout of a fight card. -->
+    <string name="sports_fight_main_event">Main event</string>
+    <!-- Translators: Between two fighter names, e.g. "Silva vs Wang". -->
+    <string name="sports_fight_vs">vs</string>
+    <string name="sports_fight_card">Fight card</string>
+    <!-- Translators: Group heading for bouts starting at a given time, e.g. "From 8:00 PM". -->
+    <string name="sports_fight_bouts_from">From %1$s</string>
+    <!-- Translators: Round and clock of a bout, e.g. "R2 3:12". -->
+    <string name="sports_fight_round_clock">R%1$d %2$s</string>
+    <!-- Translators: Scheduled number of rounds, e.g. "5 rounds". -->
+    <plurals name="sports_fight_rounds">
+        <item quantity="one">%1$d round</item>
+        <item quantity="other">%1$d rounds</item>
+    </plurals>
+    <string name="sports_fight_method_ko">KO/TKO</string>
+    <string name="sports_fight_method_submission">Submission</string>
+    <string name="sports_fight_method_decision">Decision</string>
+    <!-- Translators: Game Center preview heading above away-vs-home team stat comparisons (e.g. Total Yards 327 — 281). -->
+    <string name="sports_gc_team_stats">Team stats</string>
+    <!-- Translators: Game Center preview heading above the top players (passing, points, goals…). -->
+    <string name="sports_gc_leaders">Leaders</string>
+    <!-- Translators: Small Game Center notice when the stats shown are a cached copy. -->
+    <string name="sports_gc_stale">Stats may be delayed</string>
+    <!-- Game Center detail requested but not here yet (subtle line, not an error). -->
+    <string name="sports_gc_loading_stats">Stats loading…</string>
+    <string name="sports_gc_loading_info">Game info loading…</string>
+    <!-- Live: most recent play as the Sports API states it. -->
+    <string name="sports_gc_last_play">Last play: %1$s</string>
+    <!-- Baseball comparison rows built from the line score's H / E columns. -->
+    <string name="sports_gc_stat_hits">Hits</string>
+    <string name="sports_gc_stat_errors">Errors</string>
+    <!-- Translators: Baseball pitch count, balls then strikes (e.g. "Count 2-1"). -->
+    <string name="sports_gc_count">Count %1$d-%2$d</string>
+    <!-- Translators: Fight Game Center: the bout winner's name. -->
+    <string name="sports_gc_winner">Winner: %1$s</string>
+    <!-- Translators: Game Center: the network showing the event, e.g. "On ESPN". -->
+    <string name="sports_gc_where_on">On %1$s</string>
+    <!-- Translators: Title of the dialog listing the TV channels an event can be watched on. -->
+    <string name="sports_watch_title">Where to watch</string>
+    <!-- Translators: Title of the same dialog when picking the channel to add to Multiscreen. -->
+    <string name="sports_watch_title_multiscreen">Add to Multiscreen</string>
+    <!-- Translators: Shown while the app checks which of the event's channels exist in the user's playlist. -->
+    <string name="sports_watch_checking">Checking your channels…</string>
+    <!-- Translators: No channel in the user's playlist can play this event. -->
+    <string name="sports_watch_none">No playable channel is available yet.</string>
+    <!-- Translators: Button that plays a channel in the small preview area instead of fullscreen. -->
+    <string name="sports_watch_preview">Preview</string>
+    <!-- Translators: Marks the channel the user already picked for this game. -->
+    <string name="sports_watch_selected">Selected</string>
+    <!-- Translators: Ultra HD / 4K badge on a channel. -->
+    <string name="sports_watch_uhd">4K</string>
+    <!-- Translators: Button that opens the game's details panel. -->
+    <string name="sports_watch_game_details">Game details</string>
+    <!-- Translators: Scoreboard over live video: away team, away score, home team, home score (e.g. "PHI 21 – DAL 17"). -->
+    <string name="sports_scoreboard_line">%1$s %2$s  –  %3$s %4$s</string>
+    <!-- Translators: Button that plays the game fullscreen. -->
+    <string name="sports_event_watch">Watch</string>
+    <!-- Translators: Button that opens the list of channels showing the game. -->
+    <string name="sports_event_select_channel">Select channel</string>
+    <!-- Translators: Baseball outs in the current half-inning. -->
+    <plurals name="sports_gc_outs">
+        <item quantity="one">%d out</item>
+        <item quantity="other">%d outs</item>
+    </plurals>
     <!-- Translators: Status text when no content source is configured. -->
     <string name="shell_no_source">No source</string>
     <!-- Translators: Generic error message for unexpected failures. -->

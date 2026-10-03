@@ -2204,6 +2204,18 @@ class LiveViewModel(
         }
     }
 
+    /**
+     * Stops ONLY the in-pane preview video (Sports Game Center took the pane), keeping [previewChannel]
+     * and leaving the full-screen player untouched. Refocusing the channel replays it. No-op while the
+     * preview engine is promoted to full-screen.
+     */
+    fun stopPanePreview() {
+        if (_liveOnExo.value) return
+        stalkerPreviewJob?.cancel()
+        stalkerPreviewCmd = null
+        if (previewEngine.currentUrl != null) previewEngine.stop()
+    }
+
     fun stopPreview() {
         setStalkerReconnect(null) // tearing down — no reconnect re-resolve should fire
         previewEngine.stop()
