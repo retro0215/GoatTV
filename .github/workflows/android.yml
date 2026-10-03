@@ -23,6 +23,19 @@ on:
           - fivestar
           - allaccess
           - supreme
+      # Signed release candidate: set BOTH to build a production-signed, correctly versioned APK as
+      # a CI artifact only (never a tag, never a GitHub Release, so the in-app updater never sees it).
+      # Leave both empty for the old 99.99.99 manual build.
+      version_name:
+        description: 'RC versionName X.Y.Z (must be newer than the brand''s published release)'
+        required: false
+        default: ''
+        type: string
+      version_code:
+        description: 'RC versionCode = X*10000 + Y*100 + Z (e.g. 4.4.23 -> 40423)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write   # required so tag builds can create a Release
@@ -392,7 +405,69 @@ jobs:
       - name: Compute version (from the git tag on releases)
         id: ver
         shell: bash
+        env:
+          # Inputs go through env, never inline ${{ }}, so they cannot inject shell.
+          RC_VERSION_NAME: ${{ github.event.inputs.version_name }}
+          RC_VERSION_CODE: ${{ github.event.inputs.version_code }}
+          RC_BRAND: ${{ github.event.inputs.brand }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -o pipefail
+          # Signed release candidate (manual run with explicit version). Fails closed on any doubt.
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && ( -n "$RC_VERSION_NAME" || -n "$RC_VERSION_CODE" ) ]]; then
+            if [[ -z "$RC_VERSION_NAME" || -z "$RC_VERSION_CODE" ]]; then
+              echo "::error::Release candidate needs both version_name and version_code."
+              exit 1
+            fi
+            if [[ ! "$RC_VERSION_NAME" =~ ^(0|[1-9][0-9]*)\.([0-9]|[1-9][0-9])\.([0-9]|[1-9][0-9])$ ]]; then
+              echo "::error::version_name '$RC_VERSION_NAME' must be X.Y.Z with Y and Z in 0..99."
+              exit 1
+            fi
+            if [[ ! "$RC_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]; then
+              echo "::error::version_code '$RC_VERSION_CODE' must be a positive integer."
+              exit 1
+            fi
+            IFS='.' read -r MA MI PA <<< "$RC_VERSION_NAME"
+            EXPECTED=$(( MA * 10000 + MI * 100 + PA ))
+            if [[ "$RC_VERSION_CODE" != "$EXPECTED" ]]; then
+              echo "::error::version_code $RC_VERSION_CODE does not match $RC_VERSION_NAME (expected $EXPECTED)."
+              exit 1
+            fi
+            case "$RC_BRAND" in
+              goat) PREFIX="v" ;;
+              fivestar) PREFIX="5star-v" ;;
+              allaccess) PREFIX="allaccess-v" ;;
+              supreme) PREFIX="supreme-v" ;;
+              *) echo "::error::Unknown brand '$RC_BRAND'."; exit 1 ;;
+            esac
+            # Highest versionCode among this brand's published releases, selected exactly like the
+            # in-app updater does (non-draft, non-prerelease, tag = prefix + X.Y.Z).
+            TAGS=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+              --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name')
+            PROD_CODE=0
+            PROD_TAG=""
+            while IFS= read -r TAG; do
+              V="${TAG#"$PREFIX"}"
+              [[ "$TAG" == "$PREFIX"* && "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || continue
+              IFS='.' read -r A B C <<< "$V"
+              CODE_I=$(( 10#$A * 10000 + 10#$B * 100 + 10#$C ))
+              if (( CODE_I > PROD_CODE )); then PROD_CODE=$CODE_I; PROD_TAG="$TAG"; fi
+            done <<< "$TAGS"
+            if (( PROD_CODE == 0 )); then
+              echo "::error::Could not determine the published $RC_BRAND production version; refusing to build an RC."
+              exit 1
+            fi
+            if (( RC_VERSION_CODE <= PROD_CODE )); then
+              echo "::error::RC $RC_VERSION_NAME ($RC_VERSION_CODE) is not newer than production $PROD_TAG ($PROD_CODE)."
+              exit 1
+            fi
+            echo "name=$RC_VERSION_NAME" >> "$GITHUB_OUTPUT"
+            echo "code=$RC_VERSION_CODE" >> "$GITHUB_OUTPUT"
+            echo "rc=true" >> "$GITHUB_OUTPUT"
+            echo "Release candidate: $RC_BRAND $RC_VERSION_NAME (code $RC_VERSION_CODE) > production $PROD_TAG ($PROD_CODE)"
+            exit 0
+          fi
+
           if [[ "$GITHUB_REF" == refs/tags/allaccess-v* ]]; then
             NAME="${GITHUB_REF_NAME#allaccess-v}"
           elif [[ "$GITHUB_REF" == refs/tags/5star-v* ]]; then
@@ -453,6 +528,7 @@ jobs:
         env:
           VERSION_NAME: ${{ steps.ver.outputs.name }}
           VERSION_CODE: ${{ steps.ver.outputs.code }}
+          RC_BUILD: ${{ steps.ver.outputs.rc }}
           KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
           FIVESTAR_KEYSTORE_FILE: ${{ env.FIVESTAR_KEYSTORE_FILE }}
           ALLACCESS_KEYSTORE_FILE: ${{ env.ALLACCESS_KEYSTORE_FILE }}
@@ -526,6 +602,12 @@ jobs:
             fi
           fi
 
+          # A release candidate must be production-signed; never fall back to a debug build.
+          if [[ "$RC_BUILD" == "true" && "$CAN_SIGN" != "true" ]]; then
+            echo "::error::Release candidate for $BRAND requires that brand's production signing secrets."
+            exit 1
+          fi
+
           if [ "$CAN_SIGN" = "true" ]; then
             echo "Building signed release APKs for brand: $BRAND"
             # Build both ABIs for the selected brand
@@ -548,9 +630,24 @@ jobs:
           fi
 
       - name: Name the APK
+        env:
+          RC_BUILD: ${{ steps.ver.outputs.rc }}
+          RC_BRAND: ${{ github.event.inputs.brand }}
         run: |
           mkdir -p dist
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+          if [[ "$RC_BUILD" == "true" ]]; then
+            # RC names carry "-rc-<sha>" and never the bare updater asset name (e.g. GoatTV.apk).
+            case "$RC_BRAND" in
+              goat) LABEL="GoatTV" ;;
+              fivestar) LABEL="5Star-Ultra" ;;
+              allaccess) LABEL="AllAccess" ;;
+              supreme) LABEL="Supreme-TV" ;;
+            esac
+            SUFFIX="v${{ steps.ver.outputs.name }}-rc-${GITHUB_SHA::7}"
+            OUT="${LABEL}-${SUFFIX}.apk"
+            test -n "$X86_64_SRC" || { echo "::error::x86_64 RC APK missing"; exit 1; }
+            cp "$X86_64_SRC" "dist/${LABEL}-x86_64-${SUFFIX}.apk"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
             OUT="${BRAND^}-manual.apk"
             cp "$ARM_SRC" "dist/${BRAND^}.apk"
             if [ -n "$X86_64_SRC" ]; then
@@ -586,6 +683,39 @@ jobs:
           cp "$ARM_SRC" "dist/$OUT"
           echo "APK_OUT=$OUT" >> "$GITHUB_ENV"
           echo "Packaged dist/$OUT"
+
+      - name: Verify release candidate APK
+        if: steps.ver.outputs.rc == 'true'
+        env:
+          RC_BRAND: ${{ github.event.inputs.brand }}
+          RC_NAME: ${{ steps.ver.outputs.name }}
+          RC_CODE: ${{ steps.ver.outputs.code }}
+        run: |
+          set -o pipefail
+          BT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}/build-tools/36.0.0"
+          case "$RC_BRAND" in
+            goat) PKG="tv.own.owntv"
+                  # Certificate of every published GoatTV release (public fingerprint, not a secret).
+                  CERT="fd5f1a7ca403ecf7859744d4e3c4a7578f945ea720b4947be2a24efc5e706528" ;;
+            fivestar) PKG="tv.fivestar.ultra"; CERT="" ;;
+            allaccess) PKG="tv.allaccess.app"; CERT="" ;;
+            supreme) PKG="tv.supreme.app"; CERT="" ;;
+          esac
+          for APK in dist/*.apk; do
+            BADGING=$("$BT/aapt2" dump badging "$APK" | head -n1)
+            echo "$APK: $BADGING"
+            [[ "$BADGING" == *"name='$PKG' versionCode='$RC_CODE' versionName='$RC_NAME'"* ]] || {
+              echo "::error::$APK package/version does not match $PKG $RC_NAME ($RC_CODE)"; exit 1; }
+            CERTS=$("$BT/apksigner" verify --print-certs "$APK")
+            echo "$CERTS" | grep -E "certificate (DN|SHA-256)"
+            if echo "$CERTS" | grep -q "CN=Android Debug"; then
+              echo "::error::$APK is debug-signed"; exit 1
+            fi
+            if [ -n "$CERT" ] && ! echo "$CERTS" | grep -q "certificate SHA-256 digest: $CERT"; then
+              echo "::error::$APK is not signed with the published $RC_BRAND production certificate"; exit 1
+            fi
+          done
+          echo "Release candidate verified: CI artifact only — no tag, no GitHub Release, invisible to the updater."
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
