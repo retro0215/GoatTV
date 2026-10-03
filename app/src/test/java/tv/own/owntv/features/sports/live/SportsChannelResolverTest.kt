@@ -124,7 +124,7 @@ class SportsChannelResolverTest {
         assertEquals(SportsWatchAction.Direct(resolved.first()), SportsWatchAction.of(resolved.take(1), featureEnabled = true))
         val select = SportsWatchAction.of(resolved, featureEnabled = true) as SportsWatchAction.Select
         assertEquals("4K/UHD alternate stays after the primary feeds", listOf("US: ESPN", "US: ESPN FHD", "ESPN 4K UHD"), select.channels.map { it.channel.name })
-        assertEquals(SportsWatchAction.None, SportsWatchAction.of(resolved))
-        assertFalse("Phase C1 ships with channels disabled", SportsChannelFeature.ENABLED)
+        assertEquals(SportsWatchAction.None, SportsWatchAction.of(resolved, featureEnabled = false))
+        assertEquals("enabled exactly when the build has a channel brand", SportsChannelFeature.BRAND != null, SportsChannelFeature.ENABLED)
     }
 }

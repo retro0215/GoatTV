@@ -17,12 +17,15 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Narrow client for the public, read-only GoatTV Sports API on DigitalOcean. No credentials: the API
- * serves sanitized schedule metadata only. Channel data is NOT requested in Phase C1 (no `?brand=`,
- * see [SportsChannelFeature]).
+ * serves sanitized schedule metadata only. Event requests carry the build's brand (`?brand=goat` in
+ * GoatTV, see [SportsChannelFeature]) so events include their matched `channels[]`; the brand id is
+ * the only thing sent — never a username, password, server, playlist or stream URL.
  */
 class SportsApiClient(
     sharedClient: OkHttpClient,
     private val baseUrl: String = BASE_URL,
+    /** `?brand=` for event requests; null = unbranded (no channel data). */
+    private val brand: String? = SportsChannelFeature.BRAND,
 ) {
     // The app's shared client (proxy/DNS/UA honoured) with tighter timeouts: a slow Sports API must
     // degrade to "temporarily unavailable", never hold the screen.
@@ -32,10 +35,11 @@ class SportsApiClient(
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    suspend fun home(): SportsApiResult<SportsHomePayload> = get("/sports/home", SportsApiParser::parseHome)
+    suspend fun home(): SportsApiResult<SportsHomePayload> = get(homePath(brand), SportsApiParser::parseHome)
 
+    /** Branded: the backend also returns events whose matched channels changed since [cursor]. */
     suspend fun eventsSince(cursor: String): SportsApiResult<SportsEventsPayload> =
-        get("/sports/events?since=${URLEncoder.encode(cursor, "UTF-8")}", SportsApiParser::parseEventsPage)
+        get(sincePath(cursor, brand), SportsApiParser::parseEventsPage)
 
     suspend fun leagues(): SportsApiResult<List<SportsLeague>> = get("/sports/leagues", SportsApiParser::parseLeaguesPage)
 
@@ -44,7 +48,7 @@ class SportsApiClient(
      * sports whose fixtures are days apart (soccer), which the 48h /sports/home window would hide.
      */
     suspend fun eventsForSport(sport: String, fromMs: Long, toMs: Long): SportsApiResult<SportsEventsPayload> =
-        get(eventsForSportPath(sport, fromMs, toMs), SportsApiParser::parseEventsPage)
+        get(eventsForSportPath(sport, fromMs, toMs, brand), SportsApiParser::parseEventsPage)
 
     /**
      * One event's Game Center (`/sports/events/{evt_id}/game-center`). Cancelling the calling coroutine
@@ -115,10 +119,23 @@ class SportsApiClient(
         const val BASE_URL = "https://goattv-sports-lnc6f.ondigitalocean.app"
         private const val TAG = "SportsApi"
 
-        internal fun eventsForSportPath(sport: String, fromMs: Long, toMs: Long): String =
+        internal fun homePath(brand: String?): String = withBrand("/sports/home", brand)
+
+        internal fun sincePath(cursor: String, brand: String?): String =
+            withBrand("/sports/events?since=" + URLEncoder.encode(cursor, "UTF-8"), brand)
+
+        internal fun eventsForSportPath(sport: String, fromMs: Long, toMs: Long, brand: String? = null): String = withBrand(
             "/sports/events?sport=" + URLEncoder.encode(sport, "UTF-8") +
                 "&from=" + URLEncoder.encode(isoUtc(fromMs), "UTF-8") +
-                "&to=" + URLEncoder.encode(isoUtc(toMs), "UTF-8")
+                "&to=" + URLEncoder.encode(isoUtc(toMs), "UTF-8"),
+            brand,
+        )
+
+        /** Appends `brand=<id>` (validated brand ids only); unbranded paths are unchanged. */
+        internal fun withBrand(path: String, brand: String?): String {
+            val b = SportsChannelFeature.brandOrNull(brand) ?: return path
+            return path + (if ('?' in path) "&" else "?") + "brand=" + b
+        }
 
         /** Epoch millis → `yyyy-MM-ddTHH:mm:ssZ` (UTC, second precision; no java.time on minSdk 24). */
         internal fun isoUtc(ms: Long): String =

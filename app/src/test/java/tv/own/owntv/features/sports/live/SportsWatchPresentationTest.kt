@@ -73,17 +73,28 @@ class SportsWatchPresentationTest {
         assertEquals(listOf(SportsEventAction.CLOSE), SportsEventPresentation.detailActions(3, channelsEnabled = false))
     }
 
-    // --- gating: release keeps event channels off -------------------------------------------------
+    // --- gating: a build without a channel brand keeps event channels off ---------------------------
 
     @Test
-    fun `production - event channels off, backend channels never read, fixtures absent`() = runBlocking {
-        assertFalse(SportsChannelFeature.ENABLED)
+    fun `brand without channels - event channels off, backend channels never read, fixtures absent`() = runBlocking {
         val withChannels = event.copy(channels = listOf(ref(ch(1, "US: ESPN"))))
-        assertTrue(SportsEventChannelSource.Production.refs(withChannels).isEmpty())
-        val config = SportsGameCenterConfig.create(fixtures = null, resolver = SportsChannelResolver(lookup(emptyList())))
+        assertTrue(SportsEventChannelSource.production(enabled = false).refs(withChannels).isEmpty())
+        val config = SportsGameCenterConfig.create(fixtures = null, resolver = SportsChannelResolver(lookup(emptyList())), channelFeature = false)
         assertFalse(config.channelsEnabled)
         assertNull(config.fixtures)
         assertNull(SportsGameCenterDevMode.active(isDebugBuild = false))
+    }
+
+    @Test
+    fun `GoatTV production - real backend channels are read and still go through the resolver`() = runBlocking {
+        val withChannels = event.copy(channels = listOf(ref(ch(1, "US: ESPN"))))
+        assertEquals(1, SportsEventChannelSource.production(enabled = true).refs(withChannels).size)
+        val config = SportsGameCenterConfig.create(fixtures = null, resolver = SportsChannelResolver(lookup(emptyList())), channelFeature = true)
+        assertTrue(config.channelsEnabled)
+        assertNull("no fixtures in production", config.fixtures)
+        assertEquals(1, config.channelSource.refs(withChannels).size)
+        // No resolver → nothing can ever be played, whatever the backend sent.
+        assertFalse(SportsGameCenterConfig.create(fixtures = null, resolver = null, channelFeature = true).channelsEnabled)
     }
 
     @Test

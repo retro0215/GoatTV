@@ -80,10 +80,13 @@ class SportsGameCenterDevModeTest {
         config.detailSource.fetch("evt_00000000000000000001")
         config.detailSource.fetch(fixtureId)
         assertEquals(listOf("evt_00000000000000000001", fixtureId), asked) // never answered by fixture data
-        assertFalse(config.channelsEnabled)
-        // A production event never gets channels while the feature is off, even if the API sent some.
+        assertFalse("no resolver, nothing playable", config.channelsEnabled)
+        // Real events use their real backend channels (GoatTV) — never debug fixture refs — and a build
+        // without a channel brand reads none at all.
         val withChannels = game(id = "evt_real").copy(channels = listOf(SportsChannelRef("ch_1", "100", null, "ESPN HD", null, null, "espn", 90, "network")))
-        assertTrue(config.channelSource.refs(withChannels).isEmpty())
+        assertEquals(withChannels.channels, config.channelSource.refs(withChannels))
+        val noBrand = SportsGameCenterConfig.create(fixtures = null, production = production, channelFeature = false)
+        assertTrue(noBrand.channelSource.refs(withChannels).isEmpty())
     }
 
     @Test

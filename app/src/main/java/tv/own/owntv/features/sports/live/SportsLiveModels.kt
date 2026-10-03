@@ -57,10 +57,10 @@ enum class SportsEventStatus {
 }
 
 /**
- * One matched channel for an event (Phase B contract). Only present once the backend exposure gate
- * (`SPORTS_API_CHANNELS`) is on AND the app requests `?brand=`; Phase C1 never does either — see
- * [SportsChannelFeature]. [remoteId] is the provider stream id resolved against the LOCAL source;
- * the server never sends a URL.
+ * One matched channel for an event (Phase B contract). Present when the backend exposure gate
+ * (`SPORTS_API_CHANNELS`) is on AND the app requests `?brand=` ([SportsChannelFeature]). [remoteId]
+ * is the provider stream id resolved against the LOCAL source; the server never sends a URL.
+ * [confidence] / [reason] are backend matching metadata: never shown to customers.
  */
 @Immutable
 data class SportsChannelRef(
@@ -167,10 +167,21 @@ data class SportsEventsPayload(
 )
 
 /**
- * Android-side feature boundary for Sports channels (Phase C2). While false the app never asks for
- * brand-scoped channel data and never offers Watch / Select Channel, even if a response carried
- * channels. Flip only after the backend exposure gate is intentionally enabled.
+ * Android-side feature boundary for Sports channels (Phase C2). The build's brand
+ * (`BuildConfig.SPORTS_CHANNEL_BRAND`: "goat" for GoatTV, empty for brands without a curated channel
+ * index) is the ONLY identifier sent to the Sports API (`?brand=`). Without one the app never asks
+ * for channel data and never offers Watch / Select Channel, even if a response carried channels.
+ * Every backend channel is still verified locally ([SportsChannelResolver]) before it can be shown.
  */
 object SportsChannelFeature {
-    const val ENABLED: Boolean = false
+    // Declared first: object properties initialize in order, and BRAND below uses it.
+    private val BRAND_ID = Regex("^[a-z0-9-]{1,32}$")
+
+    /** The `?brand=` value for this build, or null when this build has no event channels. */
+    val BRAND: String? = brandOrNull(tv.own.owntv.BuildConfig.SPORTS_CHANNEL_BRAND)
+
+    val ENABLED: Boolean get() = BRAND != null
+
+    /** A configured brand id, or null when empty / not a plain brand id. */
+    internal fun brandOrNull(raw: String?): String? = raw?.trim()?.lowercase()?.takeIf { BRAND_ID.matches(it) }
 }

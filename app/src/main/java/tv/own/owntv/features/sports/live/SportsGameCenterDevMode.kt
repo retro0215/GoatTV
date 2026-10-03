@@ -38,15 +38,19 @@ object SportsGameCenterDevMode {
 
 /**
  * Where an event's matched-channel refs come from. Production reads the backend's `channels[]` only
- * while [SportsChannelFeature.ENABLED] (still false: `SPORTS_API_CHANNELS` is off and no `?brand=` is
- * sent), so release resolves nothing. Refs are never trusted as-is: [SportsChannelResolver] verifies
- * each one against the local source before it can be shown or played.
+ * while event channels are enabled for this build ([SportsChannelFeature.ENABLED]: GoatTV, which
+ * requests `?brand=goat`). Refs are never trusted as-is: [SportsChannelResolver] verifies each one
+ * against the local source before it can be shown or played.
  */
 fun interface SportsEventChannelSource {
     suspend fun refs(event: SportsEvent): List<SportsChannelRef>
 
     companion object {
-        val Production = SportsEventChannelSource { event -> if (SportsChannelFeature.ENABLED) event.channels else emptyList() }
+        /** The backend's ranked refs when [enabled]; nothing otherwise. */
+        fun production(enabled: Boolean = SportsChannelFeature.ENABLED) =
+            SportsEventChannelSource { event -> if (enabled) event.channels else emptyList() }
+
+        val Production: SportsEventChannelSource = production()
     }
 }
 
@@ -69,6 +73,8 @@ class SportsGameCenterConfig(
             fixtures: SportsGameCenterFixtures? = SportsGameCenterDevMode.active(),
             resolver: SportsChannelResolver? = null,
             production: GameCenterDetailSource = GameCenterDetailSource.None,
+            /** Real event channels for this build (GoatTV: `?brand=goat`). */
+            channelFeature: Boolean = SportsChannelFeature.ENABLED,
         ): SportsGameCenterConfig =
             SportsGameCenterConfig(
                 detailSource = fixtures?.let { f ->
@@ -82,10 +88,10 @@ class SportsGameCenterConfig(
                 } ?: production,
                 fixtures = fixtures,
                 channelSource = fixtures?.let { f ->
-                    SportsEventChannelSource { e -> f.channelRefs(e.id) ?: SportsEventChannelSource.Production.refs(e) }
-                } ?: SportsEventChannelSource.Production,
+                    SportsEventChannelSource { e -> f.channelRefs(e.id) ?: SportsEventChannelSource.production(channelFeature).refs(e) }
+                } ?: SportsEventChannelSource.production(channelFeature),
                 resolver = resolver,
-                channelsEnabled = resolver != null && (SportsChannelFeature.ENABLED || fixtures != null),
+                channelsEnabled = resolver != null && (channelFeature || fixtures != null),
             )
     }
 }

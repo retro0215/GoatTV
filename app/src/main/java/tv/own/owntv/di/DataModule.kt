@@ -110,8 +110,9 @@ val dataModule = module {
     single { tv.own.owntv.core.trending.TrendingScheduleStore(androidContext()) }
     single { tv.own.owntv.core.trending.TrendingRepository(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     // GoatTV Sports Live (Phase C1): public read-only DigitalOcean Sports API + app-scoped in-memory
-    // slate cache (survives navigation; last-known-good kept through failures). The channel resolver is
-    // registered for Phase C2 but unused while SportsChannelFeature.ENABLED is false.
+    // slate cache (survives navigation; last-known-good kept through failures). Event requests carry the
+    // build's ?brand= (GoatTV: goat) so events include matched channels[]; the channel resolver verifies
+    // every one against the user's ACTIVE Xtream source before it can be shown or played.
     single { tv.own.owntv.features.sports.live.SportsApiClient(get()) }
     single { tv.own.owntv.features.sports.live.SportsLiveStore(get<tv.own.owntv.features.sports.live.SportsApiClient>().asSportsApi()) }
     single {

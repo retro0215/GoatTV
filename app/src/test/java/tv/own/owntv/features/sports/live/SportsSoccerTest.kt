@@ -175,8 +175,7 @@ class SportsSoccerTest {
         val channels = JSONArray(listOf(JSONObject("""{"channelId":"sch_000000000000000000000001","remoteId":"1","name":"ESPN","confidence":95,"reason":"network_exact"}""")))
         val e = parsed(event("a", channels = channels))
         assertEquals(1, e.channels.size)
-        assertFalse(SportsChannelFeature.ENABLED)
-        assertEquals(listOf(SportsEventAction.CLOSE), SportsEventPresentation.detailActions(e))
+        assertEquals(listOf(SportsEventAction.CLOSE), SportsEventPresentation.detailActions(e, channelsEnabled = false))
         assertEquals(listOf(SportsEventAction.CLOSE), SportsEventPresentation.detailActions(parsed(event("b")), channelsEnabled = true))
     }
 

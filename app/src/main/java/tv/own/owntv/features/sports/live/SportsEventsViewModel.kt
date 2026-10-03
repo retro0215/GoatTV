@@ -1,6 +1,8 @@
 package tv.own.owntv.features.sports.live
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import tv.own.owntv.BuildConfig
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,7 +74,17 @@ class SportsEventsViewModel(
         val r = resolver ?: return emptyList()
         val refs = channelSource.refs(event)
         if (refs.isEmpty()) return emptyList()
-        return r.resolve(refs).accepted
+        val resolution = r.resolve(refs)
+        if (BuildConfig.DEBUG) {
+            // Counts only (no URLs, no credentials): how backend matches fare on this device.
+            val reasons = resolution.rejected.groupingBy { it.reason }.eachCount()
+            Log.d(TAG, "event=${event.id} refs=${refs.size} accepted=${resolution.accepted.size} rejected=$reasons")
+        }
+        return resolution.accepted
+    }
+
+    private companion object {
+        const val TAG = "SportsChannels"
     }
 
     /** Re-verify one channel at action time; null if it no longer passes (never play an unverified feed). */
