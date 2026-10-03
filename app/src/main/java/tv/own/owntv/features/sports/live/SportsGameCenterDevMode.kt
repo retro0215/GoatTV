@@ -61,16 +61,25 @@ class SportsGameCenterConfig(
 ) {
     companion object {
         /**
-         * Production: no Game Center endpoint and no event channels yet (event focus does no I/O).
-         * Debug fixture mode: the fixture catalog answers detail requests and supplies channel refs
-         * for its own events only; every other event keeps the production rules.
+         * Production: Game Center detail from the GoatTV Sports API ([production]); no event channels
+         * yet. Debug fixture mode: the fixture catalog answers detail and channel refs for its OWN events
+         * only (no network); every real event keeps the production rules — real Game Center included.
          */
         fun create(
             fixtures: SportsGameCenterFixtures? = SportsGameCenterDevMode.active(),
             resolver: SportsChannelResolver? = null,
+            production: GameCenterDetailSource = GameCenterDetailSource.None,
         ): SportsGameCenterConfig =
             SportsGameCenterConfig(
-                detailSource = fixtures?.let { f -> GameCenterDetailSource { id -> f.detail(id) } } ?: GameCenterDetailSource.None,
+                detailSource = fixtures?.let { f ->
+                    GameCenterDetailSource { id ->
+                        if (id.startsWith(SportsGameCenterFixtures.FIXTURE_ID_PREFIX)) {
+                            GameCenterFetch.Loaded(f.detail(id) ?: GameCenterDetail(id, GameCenterAvailability.UNAVAILABLE))
+                        } else {
+                            production.fetch(id)
+                        }
+                    }
+                } ?: production,
                 fixtures = fixtures,
                 channelSource = fixtures?.let { f ->
                     SportsEventChannelSource { e -> f.channelRefs(e.id) ?: SportsEventChannelSource.Production.refs(e) }

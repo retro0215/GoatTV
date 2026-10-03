@@ -3,6 +3,7 @@ package tv.own.owntv.features.sports.live
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -38,14 +39,15 @@ class SportsGameCenterDevModeTest {
         val config = SportsGameCenterConfig.create(fixtures = null)
         assertNull(config.fixtures)
         assertSame(GameCenterDetailSource.None, config.detailSource)
-        assertNull(config.detailSource.detail(fixtureId))
+        assertEquals(GameCenterFetch.Loaded(GameCenterDetail(fixtureId, GameCenterAvailability.UNAVAILABLE)), config.detailSource.fetch(fixtureId))
     }
 
     @Test
     fun `fixture config answers only fixture events`() = runBlocking {
         val config = SportsGameCenterConfig.create(fixtures = fake)
-        assertEquals(fixtureId, config.detailSource.detail(fixtureId)?.eventId)
-        assertNull(config.detailSource.detail("evt_real"))
+        assertEquals(fixtureId, (config.detailSource.fetch(fixtureId) as GameCenterFetch.Loaded).detail.eventId)
+        // Real events go to the production source (here: none → UNAVAILABLE), never to the fixtures.
+        assertEquals(GameCenterAvailability.UNAVAILABLE, (config.detailSource.fetch("evt_real") as GameCenterFetch.Loaded).detail.availability)
     }
 
     @Test
@@ -66,5 +68,31 @@ class SportsGameCenterDevModeTest {
         assertEquals(listOf(fixtureId), merged.slate.popularIds)
         val sections = SportsSlateLogic.sections(merged.slate, "", "Popular")
         assertEquals(SportsSlateLogic.POPULAR_KEY, sections.first().key)
+    }
+
+    @Test
+    fun `release - no fixtures - every event (even a fixture-looking id) goes to the production source, no debug channels`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val production = GameCenterDetailSource { id -> asked += id; GameCenterFetch.Loaded(GameCenterDetail(id, GameCenterAvailability.PENDING)) }
+        val config = SportsGameCenterConfig.create(fixtures = null, production = production)
+        assertSame(production, config.detailSource)
+        assertNull(config.fixtures)
+        config.detailSource.fetch("evt_00000000000000000001")
+        config.detailSource.fetch(fixtureId)
+        assertEquals(listOf("evt_00000000000000000001", fixtureId), asked) // never answered by fixture data
+        assertFalse(config.channelsEnabled)
+        // A production event never gets channels while the feature is off, even if the API sent some.
+        val withChannels = game(id = "evt_real").copy(channels = listOf(SportsChannelRef("ch_1", "100", null, "ESPN HD", null, null, "espn", 90, "network")))
+        assertTrue(config.channelSource.refs(withChannels).isEmpty())
+    }
+
+    @Test
+    fun `debug fixtures on - fixture events answered locally, real events still hit the real Game Center`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val production = GameCenterDetailSource { id -> asked += id; GameCenterFetch.Loaded(GameCenterDetail(id, GameCenterAvailability.AVAILABLE)) }
+        val config = SportsGameCenterConfig.create(fixtures = fake, production = production)
+        assertEquals(fixtureId, (config.detailSource.fetch(fixtureId) as GameCenterFetch.Loaded).detail.eventId)
+        assertEquals(GameCenterAvailability.AVAILABLE, (config.detailSource.fetch("evt_real") as GameCenterFetch.Loaded).detail.availability)
+        assertEquals(listOf("evt_real"), asked)
     }
 }

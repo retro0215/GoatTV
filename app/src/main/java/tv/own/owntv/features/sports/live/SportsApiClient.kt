@@ -2,10 +2,15 @@ package tv.own.owntv.features.sports.live
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.IOException
+import kotlin.coroutines.resume
 import kotlin.coroutines.cancellation.CancellationException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
@@ -41,12 +46,47 @@ class SportsApiClient(
     suspend fun eventsForSport(sport: String, fromMs: Long, toMs: Long): SportsApiResult<SportsEventsPayload> =
         get(eventsForSportPath(sport, fromMs, toMs), SportsApiParser::parseEventsPage)
 
+    /**
+     * One event's Game Center (`/sports/events/{evt_id}/game-center`). Cancelling the calling coroutine
+     * cancels the HTTP call itself, so a card the user has already left never keeps a request alive.
+     */
+    internal suspend fun gameCenter(eventId: String): SportsApiResult<GameCenterResponseDto> =
+        getCancellable("/sports/events/" + URLEncoder.encode(eventId, "UTF-8") + "/game-center") { GameCenterApi.parse(it, eventId) }
+
+    private fun request(path: String): Request = Request.Builder()
+        .url(baseUrl.trimEnd('/') + path)
+        .header("Accept", "application/json")
+        .get()
+        .build()
+
+    private suspend fun <T> getCancellable(path: String, parse: (String) -> T?): SportsApiResult<T> = suspendCancellableCoroutine { cont ->
+        val call = http.newCall(request(path))
+        cont.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (!cont.isActive) return // cancelled by us: nothing to report
+                Log.w(TAG, "GET ${path.substringBefore('?')} failed: ${e.javaClass.simpleName}")
+                cont.resume(SportsApiResult.Unavailable(SportsApiResult.Reason.NETWORK))
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val result: SportsApiResult<T> = try {
+                    response.use { r ->
+                        interpret(r.code, r.header("Content-Type"), r.header("Retry-After"), r.body.string(), parse)
+                    }
+                } catch (e: IOException) {
+                    SportsApiResult.Unavailable(SportsApiResult.Reason.NETWORK)
+                } catch (e: RuntimeException) {
+                    SportsApiResult.Unavailable(SportsApiResult.Reason.NETWORK)
+                }
+                if (result !is SportsApiResult.Success) Log.w(TAG, "GET ${path.substringBefore('?')} → ${result.describe()}")
+                if (cont.isActive) cont.resume(result)
+            }
+        })
+    }
+
     private suspend fun <T> get(path: String, parse: (String) -> T?): SportsApiResult<T> = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(baseUrl.trimEnd('/') + path)
-            .header("Accept", "application/json")
-            .get()
-            .build()
+        val request = request(path)
         try {
             http.newCall(request).execute().use { response ->
                 val body = response.body.string()

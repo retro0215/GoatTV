@@ -54,7 +54,10 @@ internal object GameCenterTestData {
         leaders: List<GameCenterLeader> = emptyList(),
         live: GameCenterLiveSituation? = null,
         stale: Boolean = false,
-    ) = GameCenterDetail(eventId, GameCenterAvailability.FULL, stale = stale, live = live, teamStats = stats, leaders = leaders)
+    ) = GameCenterDetail(eventId, GameCenterAvailability.AVAILABLE, stale = stale, live = live, teamStats = stats, leaders = leaders)
 
     fun ready(detail: GameCenterDetail) = GameCenterDetailState.Ready(detail.eventId, detail)
+
+    /** Controller wait for tests that don't exercise timing: no settle; refresh/retry waits never end. */
+    val skipSettleOnly: suspend (Long) -> Unit = { ms -> if (ms != SportsPreviewController.DETAIL_SETTLE_MS) kotlinx.coroutines.awaitCancellation() }
 }

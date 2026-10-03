@@ -137,6 +137,14 @@
     <string name="sports_gc_leaders">Leaders</string>
     <!-- Translators: Small Game Center notice when the stats shown are a cached copy. -->
     <string name="sports_gc_stale">Stats may be delayed</string>
+    <!-- Game Center detail requested but not here yet (subtle line, not an error). -->
+    <string name="sports_gc_loading_stats">Stats loading…</string>
+    <string name="sports_gc_loading_info">Game info loading…</string>
+    <!-- Live: most recent play as the Sports API states it. -->
+    <string name="sports_gc_last_play">Last play: %1$s</string>
+    <!-- Baseball comparison rows built from the line score's H / E columns. -->
+    <string name="sports_gc_stat_hits">Hits</string>
+    <string name="sports_gc_stat_errors">Errors</string>
     <!-- Translators: Baseball pitch count, balls then strikes (e.g. "Count 2-1"). -->
     <string name="sports_gc_count">Count %1$d-%2$d</string>
     <!-- Translators: Fight Game Center: the bout winner's name. -->

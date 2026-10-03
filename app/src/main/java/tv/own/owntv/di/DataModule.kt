@@ -119,9 +119,15 @@ val dataModule = module {
             tv.own.owntv.features.sports.live.RoomSportsChannelLookup(get(), get(), get()),
         )
     }
-    // Game Center preview: no endpoint connected yet (event focus does no I/O). A factory so a debug
-    // build's fixture-mode switch applies the next time Sports opens; release never has fixtures.
-    factory { tv.own.owntv.features.sports.live.SportsGameCenterConfig.create(resolver = get()) }
+    // Game Center preview: real detail from the Sports API (GET /sports/events/{id}/game-center). A
+    // factory so a debug build's fixture-mode switch applies the next time Sports opens; release never
+    // has fixtures.
+    factory {
+        tv.own.owntv.features.sports.live.SportsGameCenterConfig.create(
+            resolver = get(),
+            production = tv.own.owntv.features.sports.live.GameCenterApiSource(get<tv.own.owntv.features.sports.live.SportsApiClient>()),
+        )
+    }
     // Per-content TMDB name overrides (plan §11.2 U5b): DataStore side-store, no Room schema change.
     single { tv.own.owntv.core.metadata.MetadataOverrideStore(androidContext()) }
     // OpenSubtitles (subtitle plan Phase 1): Worker-proxied REST client + Keystore-sealed

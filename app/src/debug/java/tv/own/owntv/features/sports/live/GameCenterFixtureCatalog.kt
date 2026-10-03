@@ -95,9 +95,9 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
 
     override fun detail(eventId: String): GameCenterDetail? = when (eventId) {
         // Scheduled: the backend has nothing to compare yet.
-        NFL_UPCOMING, UFC_UPCOMING -> GameCenterDetail(eventId, GameCenterAvailability.NONE)
+        NFL_UPCOMING, UFC_UPCOMING -> GameCenterDetail(eventId, GameCenterAvailability.UNAVAILABLE)
         NFL_LIVE -> GameCenterDetail(
-            eventId, GameCenterAvailability.FULL, refreshAfterMs = 15_000,
+            eventId, GameCenterAvailability.AVAILABLE, refreshAfterMs = 15_000,
             live = GameCenterLiveSituation(periodLabel = "3rd", clock = "4:32", possession = GameCenterSide.AWAY),
             teamStats = listOf(
                 stat("totalYards", "Total Yards", "327", "281"),
@@ -112,7 +112,7 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
             ),
         )
         NFL_FINAL -> GameCenterDetail(
-            eventId, GameCenterAvailability.PARTIAL,
+            eventId, GameCenterAvailability.AVAILABLE,
             teamStats = listOf(
                 stat("totalYards", "Total Yards", "362", "401"),
                 stat("turnovers", "Turnovers", "2", "1"),
@@ -124,10 +124,10 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
             ),
         )
         NBA_LIVE -> GameCenterDetail(
-            eventId, GameCenterAvailability.FULL, refreshAfterMs = 10_000,
+            eventId, GameCenterAvailability.AVAILABLE, refreshAfterMs = 10_000,
             live = GameCenterLiveSituation(periodLabel = "4th", clock = "6:21"),
             teamStats = listOf(
-                stat("fgPct", "FG%", "48%", "44%"),
+                stat("fieldGoalPct", "FG%", "48%", "44%"),
                 stat("rebounds", "Rebounds", "38", "34"),
                 stat("assists", "Assists", "24", "19"),
             ),
@@ -138,7 +138,7 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
             ),
         )
         NHL_LIVE -> GameCenterDetail(
-            eventId, GameCenterAvailability.FULL, refreshAfterMs = 15_000,
+            eventId, GameCenterAvailability.AVAILABLE, refreshAfterMs = 15_000,
             live = GameCenterLiveSituation(periodLabel = "3rd", clock = "8:14"),
             teamStats = listOf(
                 stat("shots", "Shots", "31", "27"),
@@ -150,7 +150,7 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
             ),
         )
         MLB_LIVE -> GameCenterDetail(
-            eventId, GameCenterAvailability.PARTIAL, refreshAfterMs = 15_000,
+            eventId, GameCenterAvailability.AVAILABLE, refreshAfterMs = 15_000,
             // Outs / count / bases are not supplied by this fixture, so none are drawn.
             live = GameCenterLiveSituation(periodLabel = "Top 7th"),
             teamStats = listOf(
@@ -163,7 +163,7 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
             ),
         )
         SOCCER_LIVE -> GameCenterDetail(
-            eventId, GameCenterAvailability.PARTIAL, refreshAfterMs = 15_000,
+            eventId, GameCenterAvailability.AVAILABLE, refreshAfterMs = 15_000,
             teamStats = listOf(
                 stat("possession", "Possession", "57%", "43%"),
                 stat("shots", "Shots", "14", "8"),
@@ -176,7 +176,7 @@ internal object GameCenterFixtureCatalog : SportsGameCenterFixtures {
                 GameCenterScoringPlay("2nd", "63'", GameCenterSide.AWAY, "Goal"),
             ),
         )
-        UFC_FINAL -> GameCenterDetail(eventId, GameCenterAvailability.NONE)
+        UFC_FINAL -> GameCenterDetail(eventId, GameCenterAvailability.UNAVAILABLE)
         else -> null
     }
 

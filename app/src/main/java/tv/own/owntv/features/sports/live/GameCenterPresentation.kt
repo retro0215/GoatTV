@@ -18,6 +18,11 @@ data class GameCenterPreview(
     val clockParts: List<String>,
     /** Baseball outs/count/bases, only when the detail states them. */
     val situation: GameCenterLiveSituation?,
+    /** Football: the side with the ball and down & distance, only when stated (live only). */
+    val possession: GameCenterSide?,
+    val downDistance: String?,
+    /** Most recent play, only when stated (live only). */
+    val lastPlay: String?,
     val teamStats: List<GameCenterTeamStat>,
     val leaders: List<GameCenterLeader>,
     /** Fight layout: the bout to feature (main event). */
@@ -60,7 +65,7 @@ internal object GameCenterPresentation {
         val detail = (detailState as? GameCenterDetailState.Ready)?.detail?.takeIf { it.eventId == event.id }
         // A game that hasn't started has nothing to compare — no "0 — 0" tables, no empty leaders.
         val showsGameData = phase == GameCenterPhase.LIVE || phase == GameCenterPhase.FINAL
-        val teamStats = if (showsGameData && layout == GameCenterLayout.MATCHUP) visibleTeamStats(detail?.teamStats.orEmpty()) else emptyList()
+        val teamStats = if (showsGameData && layout == GameCenterLayout.MATCHUP) visibleTeamStats(detail?.teamStats.orEmpty(), league?.sport) else emptyList()
         val leaders = if (showsGameData && layout == GameCenterLayout.MATCHUP) visibleLeaders(detail?.leaders.orEmpty()) else emptyList()
         return GameCenterPreview(
             eventId = event.id,
@@ -69,6 +74,9 @@ internal object GameCenterPresentation {
             layout = layout,
             clockParts = if (phase == GameCenterPhase.LIVE) clockParts(event, detail?.live) else emptyList(),
             situation = detail?.live?.takeIf { phase == GameCenterPhase.LIVE && (it.outs != null || it.hasBaseballCount || it.hasBases) },
+            possession = detail?.live?.possession?.takeIf { phase == GameCenterPhase.LIVE && layout == GameCenterLayout.MATCHUP },
+            downDistance = detail?.live?.downDistance?.trim()?.takeIf { phase == GameCenterPhase.LIVE && it.isNotEmpty() },
+            lastPlay = detail?.live?.lastPlay?.trim()?.takeIf { phase == GameCenterPhase.LIVE && it.isNotEmpty() },
             teamStats = teamStats,
             leaders = leaders,
             bout = if (layout == GameCenterLayout.FIGHT) event.fight?.mainEvent else null,
@@ -77,13 +85,30 @@ internal object GameCenterPresentation {
         )
     }
 
-    /** First [MAX_TEAM_STATS] rows that have at least one value (backend order = importance). */
-    fun visibleTeamStats(stats: List<GameCenterTeamStat>): List<GameCenterTeamStat> =
-        stats.filter { it.label.isNotBlank() && (!it.away.isNullOrBlank() || !it.home.isNullOrBlank()) }.take(MAX_TEAM_STATS)
+    /**
+     * The glance comparisons per sport, by GoatTV stat key, where the backend's full order (most useful
+     * first for Game Details) isn't the best 3-row glance; any sport/key not listed follows backend order.
+     */
+    private val PREVIEW_STAT_KEYS: Map<String, List<String>> = mapOf(
+        "basketball" to listOf("fieldGoalPct", "rebounds", "assists"),
+        "hockey" to listOf("shots", "powerPlay", "faceoffPct"),
+        "baseball" to listOf("hits", "errors", "homeRuns"),
+        "soccer" to listOf("possession", "shots", "shotsOnTarget"),
+    )
 
-    /** First [MAX_LEADERS] leaders with a name and a stat line. */
+    /**
+     * Up to [MAX_TEAM_STATS] comparison rows: the sport's preferred keys first, then backend order.
+     * A row needs BOTH values — a one-sided comparison would need a placeholder, which looks like data.
+     */
+    fun visibleTeamStats(stats: List<GameCenterTeamStat>, sport: String? = null): List<GameCenterTeamStat> {
+        val usable = stats.filter { it.label.isNotBlank() && !it.away.isNullOrBlank() && !it.home.isNullOrBlank() }
+        val preferred = PREVIEW_STAT_KEYS[sport].orEmpty().mapNotNull { key -> usable.firstOrNull { it.key == key } }
+        return (preferred + usable.filterNot { it in preferred }).take(MAX_TEAM_STATS)
+    }
+
+    /** First [MAX_LEADERS] leaders with a name and a stat line (a value and/or a summary). */
     fun visibleLeaders(leaders: List<GameCenterLeader>): List<GameCenterLeader> =
-        leaders.filter { it.athleteName.isNotBlank() && it.label.isNotBlank() && !it.summary.isNullOrBlank() }.take(MAX_LEADERS)
+        leaders.filter { it.athleteName.isNotBlank() && it.label.isNotBlank() && it.statParts.isNotEmpty() }.take(MAX_LEADERS)
 
     /**
      * Detail period/clock when the Game Center supplies them, otherwise the event's own status

@@ -82,10 +82,11 @@ class GameCenterPresentationTest {
     }
 
     @Test
-    fun `missing stats - rows without values are dropped, all-empty collapses the section`() {
-        val d = detail(stats = listOf(stat("a", null, null), stat("b", "", " "), stat("c", "3", null)), leaders = listOf(leader("points")))
+    fun `missing stats - rows without both values are dropped, all-empty collapses the section`() {
+        // A one-sided row ("c") would need a placeholder for the missing side, which reads as data: dropped.
+        val d = detail(stats = listOf(stat("a", null, null), stat("b", "", " "), stat("c", "3", null), stat("d", "4", "5")), leaders = listOf(leader("points")))
         val p = GameCenterPresentation.preview(game(), NBA, ready(d))
-        assertEquals(listOf("c"), p.teamStats.map { it.key })
+        assertEquals(listOf("d"), p.teamStats.map { it.key })
         val none = GameCenterPresentation.preview(game(), NBA, ready(detail(stats = listOf(stat("a", null, null)), leaders = listOf(leader("points")))))
         assertFalse(none.hasStats)
         assertTrue(none.hasLeaders)
@@ -131,7 +132,7 @@ class GameCenterPresentationTest {
     @Test
     fun `basketball stats`() {
         val d = detail(
-            stats = listOf(stat("fgPct", "48%", "44%"), stat("rebounds", "38", "34"), stat("assists", "24", "19")),
+            stats = listOf(stat("fieldGoalPct", "48%", "44%"), stat("rebounds", "38", "34"), stat("assists", "24", "19")),
             leaders = listOf(leader("points", summary = "27 PTS"), leader("rebounds", summary = "11 REB"), leader("assists", summary = "8 AST")),
             live = GameCenterLiveSituation(periodLabel = "4th", clock = "6:21"),
         )

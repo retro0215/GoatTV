@@ -123,7 +123,9 @@ private fun GameCenterBody(event: SportsEvent, league: SportsLeague?, preview: G
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                SportsEventPresentation.note(event)?.let { note ->
+                // Live: the last play (when the backend states one) takes the note's line.
+                val bottomLine = preview.lastPlay?.let { stringResource(R.string.sports_gc_last_play, it) } ?: SportsEventPresentation.note(event)
+                bottomLine?.let { note ->
                     Text(
                         text = note,
                         style = MaterialTheme.typography.labelMedium,
@@ -171,7 +173,7 @@ private fun GameCenterStatusChip(event: SportsEvent, preview: GameCenterPreview)
 @Composable
 private fun Matchup(event: SportsEvent, preview: GameCenterPreview) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        GameCenterTeam(event.away!!, Modifier.weight(1f))
+        GameCenterTeam(event.away!!, hasBall = preview.possession == GameCenterSide.AWAY, Modifier.weight(1f))
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(min = 120.dp).padding(horizontal = 6.dp)) {
             if (event.showsScores) {
                 val unknown = stringResource(R.string.sports_score_unknown)
@@ -191,6 +193,9 @@ private fun Matchup(event: SportsEvent, preview: GameCenterPreview) {
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                preview.downDistance?.let {
+                    Text(it, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = CardTextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 preview.situation?.let { BaseballSituation(it) }
             } else {
                 Text(
@@ -201,7 +206,7 @@ private fun Matchup(event: SportsEvent, preview: GameCenterPreview) {
                 )
             }
         }
-        GameCenterTeam(event.home!!, Modifier.weight(1f))
+        GameCenterTeam(event.home!!, hasBall = preview.possession == GameCenterSide.HOME, Modifier.weight(1f))
     }
 }
 
@@ -222,21 +227,27 @@ private fun isTrailing(event: SportsEvent, home: Boolean): Boolean {
     return if (home) h < a else a < h
 }
 
+/** [hasBall]: football possession, only when the backend states it (a small dot beside the name). */
 @Composable
-private fun GameCenterTeam(team: SportsTeam, modifier: Modifier) {
+private fun GameCenterTeam(team: SportsTeam, hasBall: Boolean, modifier: Modifier) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
         TeamLogo(team, size = 54.dp)
-        Text(
-            text = team.abbreviation ?: team.shortName ?: team.name,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = CardText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (hasBall) Box(Modifier.size(7.dp).clip(CircleShape).background(PossessionAmber))
+            Text(
+                text = team.abbreviation ?: team.shortName ?: team.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = CardText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
+
+private val PossessionAmber = Color(0xFFFFD54F)
 
 /** Outs / count / bases — each part only when the detail states it (never invented). */
 @Composable
@@ -298,7 +309,7 @@ private fun TeamStatsColumn(event: SportsEvent, preview: GameCenterPreview, modi
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 StatValue(stat.away, TextAlign.Start)
                 Text(
-                    text = stat.label,
+                    text = stat.labelRes?.let { stringResource(it) } ?: stat.label,
                     style = MaterialTheme.typography.labelMedium,
                     color = CardTextMuted,
                     textAlign = TextAlign.Center,
@@ -356,7 +367,7 @@ private fun LeadersColumn(event: SportsEvent, leaders: List<GameCenterLeader>, m
                             modifier = Modifier.weight(1f, fill = false),
                         )
                         Text(
-                            text = leader.summary.orEmpty(),
+                            text = leader.statParts.joinToString(sep),
                             style = MaterialTheme.typography.labelLarge,
                             color = CardText,
                             maxLines = 1,
@@ -427,6 +438,15 @@ private fun InfoPanel(event: SportsEvent, preview: GameCenterPreview, modifier: 
         }
         event.venueName?.takeIf { it.isNotBlank() }?.let {
             Text(it, style = MaterialTheme.typography.bodyLarge, color = CardText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        // Detail still on its way: one quiet line, never a spinner over the pane.
+        if (preview.detailPending && preview.phase != GameCenterPhase.INTERRUPTED) {
+            Text(
+                text = stringResource(if (preview.phase == GameCenterPhase.UPCOMING) R.string.sports_gc_loading_info else R.string.sports_gc_loading_stats),
+                style = MaterialTheme.typography.labelMedium,
+                color = CardTextMuted,
+                maxLines = 1,
+            )
         }
         event.primaryBroadcast?.let { broadcast ->
             Box(

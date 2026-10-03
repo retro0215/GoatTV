@@ -19,11 +19,12 @@ class SportsPreviewControllerTest {
         val pending = LinkedHashMap<String, CompletableDeferred<GameCenterDetail?>>()
         val requested = mutableListOf<String>()
         val cancelled = mutableListOf<String>()
-        override suspend fun detail(eventId: String): GameCenterDetail? {
+        /** null completes as "the backend has nothing" (UNAVAILABLE). */
+        override suspend fun fetch(eventId: String): GameCenterFetch {
             requested += eventId
             val d = CompletableDeferred<GameCenterDetail?>().also { pending[eventId] = it }
             try {
-                return d.await()
+                return GameCenterFetch.Loaded(d.await() ?: GameCenterDetail(eventId, GameCenterAvailability.UNAVAILABLE))
             } catch (e: kotlinx.coroutines.CancellationException) {
                 cancelled += eventId
                 throw e
@@ -36,7 +37,7 @@ class SportsPreviewControllerTest {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     private val source = ManualSource()
-    private val controller = SportsPreviewController(scope, source)
+    private val controller = SportsPreviewController(scope, source, detailWait = GameCenterTestData.skipSettleOnly)
 
     @After
     fun tearDown() = scope.cancel()
@@ -101,7 +102,7 @@ class SportsPreviewControllerTest {
         source.pending.getValue("evt_a").complete(null)
         assertEquals(GameCenterDetailState.Unavailable("evt_a"), controller.detail.value)
 
-        val failing = SportsPreviewController(scope, source = { error("boom") })
+        val failing = SportsPreviewController(scope, source = { error("boom") }, detailWait = GameCenterTestData.skipSettleOnly)
         failing.onEventFocused(ev("evt_b"))
         assertEquals(GameCenterDetailState.Unavailable("evt_b"), failing.detail.value)
         assertEquals(SportsPreviewMode.EventGameCenter("evt_b"), failing.mode.value)
@@ -109,7 +110,7 @@ class SportsPreviewControllerTest {
 
     @Test
     fun `production source does no work and yields unavailable`() {
-        val prod = SportsPreviewController(scope, GameCenterDetailSource.None)
+        val prod = SportsPreviewController(scope, GameCenterDetailSource.None, detailWait = GameCenterTestData.skipSettleOnly)
         prod.onEventFocused(ev("evt_a"))
         assertEquals(GameCenterDetailState.Unavailable("evt_a"), prod.detail.value)
     }
