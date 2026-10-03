@@ -211,7 +211,7 @@ fun ConnectPhoneScreen(
                                 val mins = state.secondsRemaining / 60
                                 val secs = state.secondsRemaining % 60
                                 Text(
-                                    text = String.format(java.util.Locale.US, "Code expires in: %02d:%02d", mins, secs),
+                                    text = String.format(java.util.Locale.ROOT, "Code expires in: %02d:%02d", mins, secs),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.onSurfaceVariant
                                 )
