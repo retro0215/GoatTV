@@ -81,10 +81,11 @@ class SportsGameCenterDevModeTest {
         config.detailSource.fetch(fixtureId)
         assertEquals(listOf("evt_00000000000000000001", fixtureId), asked) // never answered by fixture data
         assertFalse("no resolver, nothing playable", config.channelsEnabled)
-        // Real events use their real backend channels (GoatTV) — never debug fixture refs — and a build
-        // without a channel brand reads none at all.
+        // Real events use their real backend channels (a channel brand such as GoatTV) — never debug
+        // fixture refs — and a build without a channel brand reads none at all.
         val withChannels = game(id = "evt_real").copy(channels = listOf(SportsChannelRef("ch_1", "100", null, "ESPN HD", null, null, "espn", 90, "network")))
-        assertEquals(withChannels.channels, config.channelSource.refs(withChannels))
+        val branded = SportsGameCenterConfig.create(fixtures = null, production = production, channelFeature = true)
+        assertEquals(withChannels.channels, branded.channelSource.refs(withChannels))
         val noBrand = SportsGameCenterConfig.create(fixtures = null, production = production, channelFeature = false)
         assertTrue(noBrand.channelSource.refs(withChannels).isEmpty())
     }

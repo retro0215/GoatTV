@@ -27,16 +27,19 @@ class SportsRealChannelsTest {
     // ---------------------------------------------------------------- branded requests
 
     @Test
-    fun `brand - only a plain brand id is ever used, this GoatTV build sends goat`() {
+    fun `brand - only a plain brand id is ever used, GoatTV sends goat and resellers send none`() {
         assertEquals("goat", SportsChannelFeature.brandOrNull("goat"))
         assertEquals("goat", SportsChannelFeature.brandOrNull(" GOAT "))
         assertNull(SportsChannelFeature.brandOrNull(""))
         assertNull(SportsChannelFeature.brandOrNull(null))
         assertNull(SportsChannelFeature.brandOrNull("goat&user=x"))
         assertNull(SportsChannelFeature.brandOrNull("../goat"))
-        // Unit tests run the GoatTV flavor (standardGoat).
-        assertEquals("goat", SportsChannelFeature.BRAND)
-        assertTrue(SportsChannelFeature.ENABLED)
+        // Only GoatTV has a channel index in the Sports API; the API rejects unconfigured brands with
+        // HTTP 400, so a reseller sending its own brand would lose Sports entirely, and it must never
+        // borrow GoatTV's channels. Asserted per flavor, so every brand's test run checks its own build.
+        val expected = if (tv.own.owntv.BuildConfig.FLAVOR_brand == "goat") "goat" else null
+        assertEquals(expected, SportsChannelFeature.BRAND)
+        assertEquals(expected != null, SportsChannelFeature.ENABLED)
     }
 
     @Test
