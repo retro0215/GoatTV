@@ -9,6 +9,30 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## allaccess-v4.4.24 — 2026-10-04
+
+### ✨ New features
+
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🥊 UFC fight cards now show where to watch**
+
+## 5star-v4.4.24 — 2026-10-04
+
+### ✨ New features
+
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🥊 UFC fight cards now show where to watch**
+
+## supreme-v4.4.24 — 2026-10-04
+
+### ✨ New features
+
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🥊 UFC fight cards now show where to watch**
+
 ## v4.4.23 — 2026-10-03
 
 ### ✨ New features

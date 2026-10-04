@@ -27,19 +27,18 @@ class SportsRealChannelsTest {
     // ---------------------------------------------------------------- branded requests
 
     @Test
-    fun `brand - only a plain brand id is ever used, GoatTV sends goat and resellers send none`() {
+    fun `brand - only a plain brand id is ever used, every flavor sends its own brand`() {
         assertEquals("goat", SportsChannelFeature.brandOrNull("goat"))
         assertEquals("goat", SportsChannelFeature.brandOrNull(" GOAT "))
         assertNull(SportsChannelFeature.brandOrNull(""))
         assertNull(SportsChannelFeature.brandOrNull(null))
         assertNull(SportsChannelFeature.brandOrNull("goat&user=x"))
         assertNull(SportsChannelFeature.brandOrNull("../goat"))
-        // Only GoatTV has a channel index in the Sports API; the API rejects unconfigured brands with
-        // HTTP 400, so a reseller sending its own brand would lose Sports entirely, and it must never
-        // borrow GoatTV's channels. Asserted per flavor, so every brand's test run checks its own build.
-        val expected = if (tv.own.owntv.BuildConfig.FLAVOR_brand == "goat") "goat" else null
-        assertEquals(expected, SportsChannelFeature.BRAND)
-        assertEquals(expected != null, SportsChannelFeature.ENABLED)
+        // Every brand sends its OWN id (never "goat" from a reseller); the Sports API maps the resellers
+        // to the shared provider-playlist catalog server-side. Asserted per flavor, so every brand's
+        // test run checks its own build.
+        assertEquals(tv.own.owntv.BuildConfig.FLAVOR_brand, SportsChannelFeature.BRAND)
+        assertTrue(SportsChannelFeature.ENABLED)
     }
 
     @Test
