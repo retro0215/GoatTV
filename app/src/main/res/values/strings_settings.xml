@@ -1903,4 +1903,169 @@ Resync and remove missing titles also allows removing titles the provider no lon
     <string name="settings_glass_full_transparency_description">Disables the automatic readability floor for the clearest possible glass.</string>
     <string name="settings_glass_depth_title">Depth &amp; shadows</string>
     <string name="settings_glass_depth_description">Enables focus-travel lighting, subtle parallax and depth movement.</string>
+    <!-- Settings → Diagnostic Center (Phase 1, local checks only) -->
+    <string name="diag_title">Diagnostic Center</string>
+    <string name="diag_subtitle">Check your app, internet connection and playback setup.</string>
+    <string name="diag_run">Run full diagnostic</string>
+    <string name="diag_stop">Stop</string>
+    <string name="diag_checking">Checking <xliff:g id="check">%1$s</xliff:g>…</string>
+    <string name="diag_not_run">Run the full diagnostic to check everything at once. Nothing is sent anywhere — all checks run on this device.</string>
+    <string name="diag_all_passed">All checks passed</string>
+    <string name="diag_status_not_checked">Not checked</string>
+    <string name="diag_status_checking">Checking</string>
+    <string name="diag_status_pass">Pass</string>
+    <string name="diag_status_warning">Warning</string>
+    <string name="diag_status_failed">Failed</string>
+    <string name="diag_check_internet">Internet</string>
+    <string name="diag_check_service">Service</string>
+    <string name="diag_check_playlist">Playlist</string>
+    <string name="diag_check_epg">TV Guide (EPG)</string>
+    <string name="diag_check_live">Live TV</string>
+    <string name="diag_check_vod">Movies &amp; Series</string>
+    <string name="diag_check_sports">Sports</string>
+    <string name="diag_check_player">Video Player</string>
+    <string name="diag_check_version">App Version</string>
+    <string name="diag_check_device">Device</string>
+    <string name="diag_yes">Yes</string>
+    <string name="diag_no">No</string>
+    <string name="diag_internet_ok">Internet connection is working.</string>
+    <string name="diag_internet_failed">We could not connect to the internet.</string>
+    <string name="diag_network_type">Network: <xliff:g id="type">%1$s</xliff:g></string>
+    <string name="diag_net_wifi">Wi-Fi</string>
+    <string name="diag_net_ethernet">Ethernet</string>
+    <string name="diag_net_cellular">Mobile data</string>
+    <string name="diag_net_other">Other</string>
+    <string name="diag_net_none">No network</string>
+    <string name="diag_service_ok">Service connection is working.</string>
+    <string name="diag_service_failed">We could not connect to the service.</string>
+    <string name="diag_service_rejected">The service answered but did not accept the login. The account may have expired or the login details may be wrong.</string>
+    <string name="diag_service_no_source">No playlist has been added yet.</string>
+    <string name="diag_playlist_loaded">Playlist loaded: <xliff:g id="answer">%1$s</xliff:g></string>
+    <string name="diag_count_channels">Channels: <xliff:g id="count">%1$s</xliff:g></string>
+    <string name="diag_count_movies">Movies: <xliff:g id="count">%1$s</xliff:g></string>
+    <string name="diag_count_series">Series: <xliff:g id="count">%1$s</xliff:g></string>
+    <string name="diag_last_refresh">Last successful refresh: <xliff:g id="time">%1$s</xliff:g></string>
+    <string name="diag_last_refresh_unknown">Last successful refresh: not recorded</string>
+    <string name="diag_playlist_empty">The playlist has no content. Try re-syncing it.</string>
+    <string name="diag_epg_available">TV guide available: <xliff:g id="answer">%1$s</xliff:g></string>
+    <string name="diag_epg_programmes">Guide programmes: <xliff:g id="count">%1$s</xliff:g></string>
+    <string name="diag_epg_none">No TV guide has been set up.</string>
+    <string name="diag_epg_failed">The last TV guide update did not finish.</string>
+    <string name="diag_live_ok">Channels are available and the service is answering. Playback itself was not tested.</string>
+    <string name="diag_live_warning">Channels are listed, but the service could not be reached. Playback was not tested.</string>
+    <string name="diag_live_failed">No live channels were found.</string>
+    <string name="diag_live_na">Live TV is not part of this playlist.</string>
+    <string name="diag_vod_ok">Movies and Series are available. Playback itself was not tested.</string>
+    <string name="diag_vod_warning">No Movies or Series were found.</string>
+    <string name="diag_vod_na">Movies and Series are not part of this playlist.</string>
+    <string name="diag_vod_tip">If Movies or Series are buffering or not playing, try switching the video player.</string>
+    <string name="diag_sports_connected">Sports service: Connected</string>
+    <string name="diag_sports_unavailable">The Sports service could not be reached right now.</string>
+    <string name="diag_sports_events">Events loaded: <xliff:g id="count">%1$s</xliff:g></string>
+    <string name="diag_sports_no_events">Connected, but no events are listed right now.</string>
+    <string name="diag_sports_gc_ok">Game Center: Available</string>
+    <string name="diag_sports_gc_failed">Game Center: Not available right now</string>
+    <string name="diag_player_current">Movies &amp; Series player: <xliff:g id="player">%1$s</xliff:g></string>
+    <string name="diag_engine_with_fallback"><xliff:g id="engine">%1$s</xliff:g> (automatic fallback on)</string>
+    <string name="diag_engine_only"><xliff:g id="engine">%1$s</xliff:g> only</string>
+    <string name="diag_engine_mpv">MPV</string>
+    <string name="diag_engine_exo">Exo</string>
+    <string name="diag_version">App version: <xliff:g id="version">%1$s</xliff:g></string>
+    <string name="diag_build">Build: <xliff:g id="code">%1$s</xliff:g></string>
+    <string name="diag_up_to_date">Up to date</string>
+    <string name="diag_update_available">Update available: <xliff:g id="version">%1$s</xliff:g></string>
+    <string name="diag_update_failed">Could not check for updates</string>
+    <string name="diag_update_busy">An update is downloading</string>
+    <string name="diag_device_name"><xliff:g id="manufacturer">%1$s</xliff:g> <xliff:g id="model">%2$s</xliff:g></string>
+    <string name="diag_android">Android <xliff:g id="release">%1$s</xliff:g> (API <xliff:g id="sdk">%2$s</xliff:g>)</string>
+    <string name="diag_storage_free">Free storage: <xliff:g id="free">%1$s</xliff:g> of <xliff:g id="total">%2$s</xliff:g></string>
+    <string name="diag_storage_low">Storage is low. Free up space on this device.</string>
+    <string name="diag_advanced">Advanced details</string>
+    <string name="diag_advanced_hide">Hide advanced details</string>
+    <string name="diag_adv_cpu">CPU architecture: <xliff:g id="abi">%1$s</xliff:g></string>
+    <string name="diag_adv_memory">Memory: <xliff:g id="memory">%1$s</xliff:g></string>
+    <string name="diag_memory_value"><xliff:g id="avail">%1$s</xliff:g> available of <xliff:g id="total">%2$s</xliff:g></string>
+    <string name="diag_adv_screen">Screen: <xliff:g id="screen">%1$s</xliff:g></string>
+    <string name="diag_screen_value"><xliff:g id="width">%1$s</xliff:g> × <xliff:g id="height">%2$s</xliff:g> at <xliff:g id="hz">%3$s</xliff:g> Hz</string>
+    <string name="diag_adv_codecs">Video and audio decoders reported by this device</string>
+    <string name="diag_codec_supported">Supported</string>
+    <string name="diag_codec_not_reported">Not reported</string>
+    <string name="diag_codec_line"><xliff:g id="codec">%1$s</xliff:g>: <xliff:g id="support">%2$s</xliff:g></string>
+    <string name="diag_codec_note">A reported decoder does not guarantee that every video in that format will play.</string>
+    <string name="diag_codec_h264">H.264 / AVC</string>
+    <string name="diag_codec_hevc">H.265 / HEVC</string>
+    <string name="diag_codec_av1">AV1</string>
+    <string name="diag_codec_aac">AAC</string>
+    <string name="diag_codec_ac3">AC3 (Dolby Digital)</string>
+    <string name="diag_codec_eac3">EAC3 (Dolby Digital Plus)</string>
+    <string name="diag_actions">Quick fixes</string>
+    <string name="diag_resync_playlist">Re-sync playlist</string>
+    <string name="diag_resync_epg">Re-sync EPG</string>
+    <string name="diag_switch_player_to">Switch to <xliff:g id="engine">%1$s</xliff:g></string>
+    <string name="diag_switch_title">Switch video player?</string>
+    <string name="diag_switch_message">Movies &amp; Series will start in <xliff:g id="target">%1$s</xliff:g> instead of <xliff:g id="current">%2$s</xliff:g>. You can switch back at any time.</string>
+    <string name="diag_switch_confirm">Switch</string>
+    <string name="diag_check_update">Check for update</string>
+    <string name="diag_clear_cache">Clear image cache</string>
+    <string name="diag_clear_cache_description">Clears saved posters and logos only. Your playlists, profiles, favorites, history and settings are kept.</string>
+    <string name="diag_open_app_settings">Open app settings</string>
+    <string name="diag_open_app_settings_description">To clear all cached data or force stop the app, use Android\'s App Info screen.</string>
+    <string name="diag_restart_title">Restart the app</string>
+    <string name="diag_restart_description">To restart <xliff:g id="app">%1$s</xliff:g>, fully close the app and open it again.</string>
+    <string name="diag_vpn_help">VPN help</string>
+    <string name="diag_vpn_body">VPN apps such as Surfshark or NordVPN can be downloaded from your device\'s app store. Install one, connect it, then open this app again.</string>
+    <string name="diag_copy_report">Copy report</string>
+    <string name="diag_share_report">Share report</string>
+    <string name="diag_report_clip_label">Diagnostic report</string>
+    <string name="diag_notice_playlist_resync">Playlist re-sync started. It continues in the background.</string>
+    <string name="diag_notice_no_playlist">There is no playlist to re-sync yet.</string>
+    <string name="diag_notice_epg_resync">TV guide re-sync started. It continues in the background.</string>
+    <string name="diag_notice_no_epg">No TV guide has been set up yet. Add one in Settings → EPG Sources.</string>
+    <string name="diag_notice_player_switched">Movies &amp; Series now start in <xliff:g id="engine">%1$s</xliff:g>.</string>
+    <string name="diag_notice_cache_cleared">Image cache cleared.</string>
+    <string name="diag_notice_report_copied">Report copied to the clipboard.</string>
+    <string name="diag_notice_share_unavailable">Sharing is not available on this device. Use Copy report instead.</string>
+    <string name="diag_recommendations">Recommendations</string>
+    <string name="diag_rec_restart_router">Restart your modem/router and try again.</string>
+    <string name="diag_rec_service_vpn">Your internet is working, but the streaming service could not be reached. Restart your modem/router and try again. If the problem continues, a VPN may help.</string>
+    <string name="diag_rec_check_account">Contact your provider to check that your account is active and the login details are correct.</string>
+    <string name="diag_rec_add_playlist">Add a playlist in Settings → Playlists.</string>
+    <string name="diag_rec_resync_playlist">Re-sync your playlist.</string>
+    <string name="diag_rec_add_epg">Add a TV guide in Settings → EPG Sources.</string>
+    <string name="diag_rec_resync_epg">Re-sync the TV guide (EPG).</string>
+    <string name="diag_rec_sports_later">Sports information is temporarily unavailable. Try again later.</string>
+    <string name="diag_rec_update_app">Update the app to the latest version.</string>
+    <string name="diag_rec_free_storage">Free up storage on this device.</string>
+    <string name="diag_report_title">DIAGNOSTIC REPORT</string>
+    <string name="diag_report_line"><xliff:g id="label">%1$s</xliff:g>: <xliff:g id="value">%2$s</xliff:g></string>
+    <string name="diag_report_bullet">- <xliff:g id="text">%1$s</xliff:g></string>
+    <string name="diag_report_none">None</string>
+    <string name="diag_report_incomplete">Diagnostic not finished</string>
+    <string name="diag_report_app"><xliff:g id="brand">%1$s</xliff:g> <xliff:g id="version">%2$s</xliff:g> (build <xliff:g id="code">%3$s</xliff:g>)</string>
+    <string name="diag_label_summary">Summary</string>
+    <string name="diag_label_app">App</string>
+    <string name="diag_label_device">Device</string>
+    <string name="diag_label_android">Android</string>
+    <string name="diag_label_network">Network</string>
+    <string name="diag_label_channels">Channels</string>
+    <string name="diag_label_movies">Movies</string>
+    <string name="diag_label_series">Series</string>
+    <string name="diag_label_programmes">Guide programmes</string>
+    <string name="diag_label_vod_player">VOD player</string>
+    <string name="diag_label_sports_events">Sports events</string>
+    <string name="diag_label_app_update">App update</string>
+    <string name="diag_label_device_check">Device check</string>
+    <string name="diag_label_advanced">Advanced</string>
+    <string name="diag_label_cpu">CPU</string>
+    <string name="diag_label_memory">Memory</string>
+    <string name="diag_label_storage">Storage</string>
+    <string name="diag_label_screen">Screen</string>
+    <string name="diag_label_codecs">Decoders</string>
+    <string name="diag_label_timestamp">Timestamp</string>
+    <string name="diag_storage_value"><xliff:g id="free">%1$s</xliff:g> free of <xliff:g id="total">%2$s</xliff:g></string>
+    <string name="diag_settings_search_keywords">diagnostic diagnostics troubleshoot problem help internet connection test buffering report support</string>
+    <plurals name="diag_issues_found">
+        <item quantity="one"><xliff:g id="count">%1$d</xliff:g> issue found</item>
+        <item quantity="other"><xliff:g id="count">%1$d</xliff:g> issues found</item>
+    </plurals>
 </resources>

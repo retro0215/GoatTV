@@ -563,6 +563,9 @@ class XtreamClient(private val http: HttpClient) {
         /** `user_info.max_connections` — simultaneous streams the account may open; 0 when the panel
          *  omits it or reports nonsense. `1` is the one that changes playback (F30). */
         val maxConnections: Int = 0,
+        /** `user_info.auth` — false when the panel answered but refused the login; null when omitted.
+         *  Read for the Diagnostic Center's service check. */
+        val authenticated: Boolean? = null,
     )
 
     /**
@@ -581,6 +584,7 @@ class XtreamClient(private val http: HttpClient) {
                 var expSec: Long? = null
                 var hlsSupported = false
                 var maxConnections = 0
+                var authenticated: Boolean? = null
                 JsonReader(java.io.InputStreamReader(input, Charsets.UTF_8)).use { r ->
                     r.isLenient = true
                     if (r.peek() != JsonToken.BEGIN_OBJECT) return@use
@@ -597,7 +601,15 @@ class XtreamClient(private val http: HttpClient) {
                                             else -> { r.skipValue(); null }
                                         }
                                     }
-                                    // Panels send this as a string ("1") about as often as a number.
+                                    // Panels send this (and max_connections) as a string ("1") about as often as a number.
+                                    "auth" -> {
+                                        authenticated = when (r.peek()) {
+                                            JsonToken.STRING -> r.nextString().trim().toIntOrNull()?.let { it != 0 }
+                                            JsonToken.NUMBER -> r.nextInt() != 0
+                                            JsonToken.BOOLEAN -> r.nextBoolean()
+                                            else -> { r.skipValue(); null }
+                                        }
+                                    }
                                     "max_connections" -> {
                                         maxConnections = when (r.peek()) {
                                             JsonToken.STRING -> r.nextString().trim().toIntOrNull() ?: 0
@@ -640,6 +652,7 @@ class XtreamClient(private val http: HttpClient) {
                     expiryMs = expSec?.takeIf { it > 0 }?.times(1000),
                     hlsSupported = hlsSupported,
                     maxConnections = maxConnections,
+                    authenticated = authenticated,
                 )
             }
         } catch (e: Exception) {

@@ -229,4 +229,10 @@ val dataModule = module {
     single { UpdateManager(androidContext(), get()) }
     single { CatalogSyncScheduler(androidContext()) }
     single { EpgSyncScheduler(androidContext()) }
+    // Settings → Diagnostic Center: read-only probes over the clients registered above.
+    single {
+        tv.own.owntv.core.diagnostics.AndroidDiagnosticProbes(
+            androidContext(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(),
+        )
+    }
 }

@@ -22,6 +22,7 @@ import tv.own.owntv.features.sports.SportsViewModel
 import tv.own.owntv.features.sports.live.SportsEventsViewModel
 import tv.own.owntv.features.settings.BackupViewModel
 import tv.own.owntv.features.settings.DeleteSubtitlesViewModel
+import tv.own.owntv.features.settings.DiagnosticCenterViewModel
 import tv.own.owntv.features.settings.EpgSourcesViewModel
 import tv.own.owntv.features.settings.HomeSettingsViewModel
 import tv.own.owntv.features.settings.LanguageSettingsViewModel
@@ -113,4 +114,5 @@ val appModule = module {
     viewModelOf(::CustomizeItemsViewModel)
     viewModelOf(::BackupViewModel)
     viewModelOf(::EpgSourcesViewModel)
+    viewModelOf(::DiagnosticCenterViewModel)
 }
