@@ -13,7 +13,8 @@ enum class DiagCheck { INTERNET, SERVICE, PLAYLIST, EPG, LIVE_TV, VOD, SPORTS, P
 
 enum class NetworkTransport { WIFI, ETHERNET, CELLULAR, OTHER, NONE }
 
-data class InternetFact(val reachable: Boolean, val transport: NetworkTransport)
+/** [latencyMs]: best round trip of the lightweight connectivity check (null when nothing answered). */
+data class InternetFact(val reachable: Boolean, val transport: NetworkTransport, val latencyMs: Long? = null)
 
 /** Which kind of playlist the service test talked to; never the address itself. */
 enum class ServiceKind { XTREAM, STALKER, M3U, OTHER }
@@ -24,8 +25,11 @@ sealed interface ServiceFact {
     data class Ok(val kind: ServiceKind) : ServiceFact
     /** The provider answered but refused the account (wrong/expired login). */
     data class Rejected(val kind: ServiceKind) : ServiceFact
-    /** The provider could not be reached (DNS, timeout, refused, 5xx). */
-    data class Unreachable(val kind: ServiceKind) : ServiceFact
+    /**
+     * The provider could not be reached (DNS, timeout, refused, 5xx). [repeated] = it also failed a retry
+     * a moment later, so it is not a one-off blip.
+     */
+    data class Unreachable(val kind: ServiceKind, val repeated: Boolean = false) : ServiceFact
 }
 
 data class PlaylistFact(
@@ -111,6 +115,8 @@ data class DiagnosticFacts(
     val player: PlayerFact? = null,
     val update: UpdateFact? = null,
     val device: DeviceFact? = null,
+    /** Result of a user-started speed test, if one was run (never run automatically). */
+    val speed: SpeedTestResult? = null,
 )
 
 enum class Recommendation {

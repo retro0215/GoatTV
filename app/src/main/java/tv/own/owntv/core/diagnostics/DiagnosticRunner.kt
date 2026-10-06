@@ -31,6 +31,7 @@ class DiagnosticRunner(
     private val probes: DiagnosticProbes,
     private val probeTimeoutMs: Long = PROBE_TIMEOUT_MS,
     private val updateTimeoutMs: Long = UPDATE_TIMEOUT_MS,
+    private val serviceTimeoutMs: Long = SERVICE_TIMEOUT_MS,
 ) {
     suspend fun run(app: AppFact, onProgress: (DiagnosticProgress) -> Unit): DiagnosticProgress {
         var facts = DiagnosticFacts(app = app)
@@ -51,7 +52,7 @@ class DiagnosticRunner(
         }
 
         step(DiagCheck.INTERNET, probeTimeoutMs, probes::internet) { facts.copy(internet = it) }
-        step(DiagCheck.SERVICE, probeTimeoutMs, probes::service) { facts.copy(service = it) }
+        step(DiagCheck.SERVICE, serviceTimeoutMs, probes::service) { facts.copy(service = it) }
         step(DiagCheck.PLAYLIST, probeTimeoutMs, probes::playlist) { facts.copy(playlist = it) }
         step(DiagCheck.EPG, probeTimeoutMs, probes::epg) { facts.copy(epg = it) }
         step(DiagCheck.SPORTS, probeTimeoutMs, probes::sports) { facts.copy(sports = it) }
@@ -65,6 +66,8 @@ class DiagnosticRunner(
     companion object {
         const val PROBE_TIMEOUT_MS = 20_000L
         const val UPDATE_TIMEOUT_MS = 30_000L
+        /** Room for one retry of an unreachable service (two bounded attempts plus a short pause). */
+        const val SERVICE_TIMEOUT_MS = 45_000L
 
         /** Results for a progress snapshot: errored checks FAIL, the running one shows CHECKING. */
         fun results(p: DiagnosticProgress): List<CheckResult> = DiagnosticEvaluator.results(p.facts).map { r ->

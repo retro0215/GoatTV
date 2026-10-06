@@ -234,6 +234,11 @@ fun EpgScreen(
     // No BackHandler here: the Guide is a top-level section, so Back is the shell's job (content →
     // sidebar → exit dialog). A screen-level handler would swallow Back forever and block app exit.
     LaunchedEffect(Unit) { vm.load() } // reload from DB each time the guide is opened
+    // Lets the shared ViewModel skip data-change reloads while the guide is not on screen.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        vm.setScreenVisible(true)
+        onDispose { vm.setScreenVisible(false) }
+    }
     // Phase 6 fix — don't auto-focus the first channel when the guide mounts. The guide nav item
     // keeps focus on click; RIGHT press from the sidebar enters the grid via focusProperties.onEnter
     // (which routes to firstCell/tunedCell). Auto-focusing here stole the sidebar's focus on section

@@ -29,6 +29,7 @@ class DiagnosticReportTest {
             "DEVICE: onn 4K Plus",
             "ANDROID: Android 14 (API 34)",
             "NETWORK: WIFI",
+            "LATENCY: 31 ms",
             "INTERNET: PASS",
             "SERVICE: PASS",
             "CHANNELS: 4625",
@@ -45,11 +46,18 @@ class DiagnosticReportTest {
 
     @Test
     fun `issues and recommendations are listed`() {
-        val r = report(healthy.copy(service = ServiceFact.Unreachable(ServiceKind.XTREAM), update = UpdateFact.Available("4.4.25")))
+        val r = report(healthy.copy(service = ServiceFact.Unreachable(ServiceKind.XTREAM, repeated = true), update = UpdateFact.Available("4.4.25")))
         assertTrue(r.contains("SUMMARY: 3 issues found"))
         assertTrue(r.contains("- SERVICE_UNREACHABLE_VPN"))
         assertTrue(r.contains("- UPDATE_APP"))
         assertTrue(r.contains("APP_UPDATE: Available 4.4.25"))
+    }
+
+    @Test
+    fun `a user-run speed test appears in the report, and a healthy report has no VPN line`() {
+        val r = report(healthy.copy(speed = SpeedTestResult(28, 42.8, 24_000_000, 6_000, SpeedRating.GOOD)))
+        assertTrue(r.contains("SPEED: 42.8 Mbps GOOD"))
+        assertFalse(r.contains("VPN"))
     }
 
     @Test

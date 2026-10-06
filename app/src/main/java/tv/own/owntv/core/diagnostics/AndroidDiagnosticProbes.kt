@@ -78,8 +78,15 @@ class AndroidDiagnosticProbes(
         val transport = transport()
         // Android's own captive-portal endpoints: tiny 204 replies, independent of the playlist provider
         // and of the Sports service, so "internet works" is never confused with "the service works".
-        val reachable = INTERNET_ENDPOINTS.any { url -> statusOf(url) == 204 }
-        return InternetFact(reachable, transport)
+        // Lightweight latency: the best of a few tiny round trips (the first one also pays for DNS + TLS).
+        // This is not a bandwidth test — that one is separate and user-started.
+        val endpoint = INTERNET_ENDPOINTS.firstOrNull { url -> statusOf(url) == 204 }
+            ?: return InternetFact(reachable = false, transport = transport)
+        val samples = (1..LATENCY_SAMPLES).mapNotNull {
+            val start = android.os.SystemClock.elapsedRealtime()
+            if (statusOf(endpoint) == 204) android.os.SystemClock.elapsedRealtime() - start else null
+        }
+        return InternetFact(reachable = true, transport = transport, latencyMs = samples.minOrNull())
     }
 
     private fun transport(): NetworkTransport {
@@ -112,8 +119,21 @@ class AndroidDiagnosticProbes(
     override suspend fun service(): ServiceFact {
         val sources = activeSources()
         if (sources.isEmpty()) return ServiceFact.NoSource
-        // Bounded: a household with many playlists gets the first few tested, one at a time.
-        val outcomes = sources.take(MAX_SERVICE_SOURCES).map { serviceOf(it) }
+        // Bounded: a household with many playlists gets the first few tested, one at a time. An unreachable
+        // service is retried once after a short pause, so a one-off blip is told apart from a repeated
+        // failure (only the latter can lead to the VPN suggestion).
+        val outcomes = sources.take(MAX_SERVICE_SOURCES).map { source ->
+            when (val first = serviceOf(source)) {
+                is ServiceFact.Unreachable -> {
+                    kotlinx.coroutines.delay(SERVICE_RETRY_DELAY_MS)
+                    when (val second = serviceOf(source)) {
+                        is ServiceFact.Unreachable -> second.copy(repeated = true)
+                        else -> second
+                    }
+                }
+                else -> first
+            }
+        }
         return outcomes.firstOrNull { it is ServiceFact.Rejected }
             ?: outcomes.firstOrNull { it is ServiceFact.Unreachable }
             ?: outcomes.first()
@@ -273,6 +293,8 @@ class AndroidDiagnosticProbes(
     companion object {
         private const val TAG = "Diagnostics"
         private const val MAX_SERVICE_SOURCES = 3
+        private const val LATENCY_SAMPLES = 3
+        private const val SERVICE_RETRY_DELAY_MS = 2_000L
         private const val RANGE_HEADER = "Range"
         private const val RANGE_FIRST_KB = "bytes=0-1023"
         private val INTERNET_ENDPOINTS = listOf(

@@ -2,7 +2,7 @@ package tv.own.owntv.core.diagnostics
 
 /** Labels of the copyable report, resolved to the user's language by [DiagnosticText]. */
 enum class ReportLabel {
-    SUMMARY, APP, DEVICE, ANDROID, NETWORK,
+    SUMMARY, APP, DEVICE, ANDROID, NETWORK, LATENCY, SPEED,
     INTERNET, SERVICE, PLAYLIST, CHANNELS, MOVIES, SERIES, EPG, GUIDE_PROGRAMMES,
     LIVE_TV, VOD, VOD_PLAYER, SPORTS, SPORTS_EVENTS, APP_UPDATE, DEVICE_CHECK,
     RECOMMENDATIONS, ADVANCED, CPU, MEMORY, STORAGE, SCREEN, CODECS, TIMESTAMP,
@@ -26,6 +26,8 @@ interface DiagnosticText {
     fun engine(engine: VodEngine, exclusive: Boolean): String
     fun update(update: UpdateFact): String
     fun recommendation(recommendation: Recommendation): String
+    fun latency(ms: Long): String
+    fun speed(result: SpeedTestResult): String
     fun count(value: Int): String
     fun bytes(value: Long): String
     fun memory(availBytes: Long, totalBytes: Long): String
@@ -65,7 +67,11 @@ object DiagnosticReport {
             lines += text.line(ReportLabel.DEVICE, text.device(d.manufacturer, d.model))
             lines += text.line(ReportLabel.ANDROID, text.android(d.androidRelease, d.sdkInt))
         }
-        facts.internet?.let { lines += text.line(ReportLabel.NETWORK, text.transport(it.transport)) }
+        facts.internet?.let { net ->
+            lines += text.line(ReportLabel.NETWORK, text.transport(net.transport))
+            net.latencyMs?.let { lines += text.line(ReportLabel.LATENCY, text.latency(it)) }
+        }
+        facts.speed?.let { lines += text.line(ReportLabel.SPEED, text.speed(it)) }
         lines += ""
         lines += text.line(ReportLabel.INTERNET, st(DiagCheck.INTERNET))
         lines += text.line(ReportLabel.SERVICE, st(DiagCheck.SERVICE))

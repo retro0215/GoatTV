@@ -44,6 +44,13 @@ class ResourceDiagnosticText(private val context: Context) : DiagnosticText {
         UpdateFact.Busy -> s(R.string.diag_update_busy)
     }
     override fun recommendation(recommendation: Recommendation) = s(recommendationRes(recommendation))
+    override fun latency(ms: Long) = s(R.string.diag_latency_value, ms.toString())
+    override fun speed(result: tv.own.owntv.core.diagnostics.SpeedTestResult): String {
+        val mbps = NumberFormat.getNumberInstance(context.resources.configuration.locales[0])
+            .apply { maximumFractionDigits = 1; minimumFractionDigits = 1 }
+            .format(result.downloadMbps)
+        return s(R.string.diag_speed_value, mbps, s(ratingRes(result.rating)))
+    }
     override fun count(value: Int): String = NumberFormat.getIntegerInstance(context.resources.configuration.locales[0]).format(value)
     override fun bytes(value: Long): String = Formatter.formatShortFileSize(context, value)
     override fun memory(availBytes: Long, totalBytes: Long) = s(R.string.diag_memory_value, bytes(availBytes), bytes(totalBytes))
@@ -60,6 +67,8 @@ class ResourceDiagnosticText(private val context: Context) : DiagnosticText {
             ReportLabel.DEVICE -> R.string.diag_label_device
             ReportLabel.ANDROID -> R.string.diag_label_android
             ReportLabel.NETWORK -> R.string.diag_label_network
+            ReportLabel.LATENCY -> R.string.diag_label_latency
+            ReportLabel.SPEED -> R.string.diag_label_speed
             ReportLabel.INTERNET -> R.string.diag_check_internet
             ReportLabel.SERVICE -> R.string.diag_check_service
             ReportLabel.PLAYLIST -> R.string.diag_check_playlist
@@ -127,6 +136,13 @@ class ResourceDiagnosticText(private val context: Context) : DiagnosticText {
             DiagCodec.AAC -> R.string.diag_codec_aac
             DiagCodec.AC3 -> R.string.diag_codec_ac3
             DiagCodec.EAC3 -> R.string.diag_codec_eac3
+        }
+
+        fun ratingRes(r: tv.own.owntv.core.diagnostics.SpeedRating): Int = when (r) {
+            tv.own.owntv.core.diagnostics.SpeedRating.EXCELLENT -> R.string.diag_speed_excellent
+            tv.own.owntv.core.diagnostics.SpeedRating.GOOD -> R.string.diag_speed_good
+            tv.own.owntv.core.diagnostics.SpeedRating.FAIR -> R.string.diag_speed_fair
+            tv.own.owntv.core.diagnostics.SpeedRating.POOR -> R.string.diag_speed_poor
         }
 
         fun codecSupportRes(s: CodecSupport): Int =

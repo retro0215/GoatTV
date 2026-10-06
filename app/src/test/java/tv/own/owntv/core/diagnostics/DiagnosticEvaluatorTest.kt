@@ -43,12 +43,65 @@ class DiagnosticEvaluatorTest {
         assertFalse("sports advice is noise while the internet itself is down", Recommendation.SPORTS_LATER in recs)
     }
 
+    // --- VPN guidance: absent by default, only for a repeated service failure on a healthy line ---
+
+    private fun vpn(f: DiagnosticFacts) = Recommendation.SERVICE_UNREACHABLE_VPN in DiagnosticEvaluator.recommendations(f)
+    private val repeatedOutage = ServiceFact.Unreachable(ServiceKind.XTREAM, repeated = true)
+
     @Test
-    fun `internet up but service unreachable - router restart and VPN may help`() {
-        val f = healthy.copy(service = ServiceFact.Unreachable(ServiceKind.XTREAM))
+    fun `healthy connection and service - no VPN`() {
+        assertFalse(vpn(healthy))
+        assertFalse(DiagnosticEvaluator.vpnSuggested(healthy))
+    }
+
+    @Test
+    fun `service down twice on a healthy line - conditional VPN guidance, no router-only advice duplicate`() {
+        val f = healthy.copy(service = repeatedOutage)
         assertEquals(DiagStatus.FAILED, status(DiagCheck.SERVICE, f))
         assertEquals(listOf(Recommendation.SERVICE_UNREACHABLE_VPN), DiagnosticEvaluator.recommendations(f))
-        assertFalse(Recommendation.RESTART_ROUTER in DiagnosticEvaluator.recommendations(f))
+    }
+
+    @Test
+    fun `a single service failure is a blip - router advice, no VPN`() {
+        val f = healthy.copy(service = ServiceFact.Unreachable(ServiceKind.XTREAM, repeated = false))
+        assertFalse(vpn(f))
+        assertEquals(listOf(Recommendation.RESTART_ROUTER), DiagnosticEvaluator.recommendations(f))
+    }
+
+    @Test
+    fun `slow internet - no automatic VPN even when the service is down`() {
+        val slowLatency = healthy.copy(
+            internet = InternetFact(true, NetworkTransport.WIFI, latencyMs = DiagnosticEvaluator.SLOW_LATENCY_MS + 1),
+            service = repeatedOutage,
+        )
+        assertFalse(vpn(slowLatency))
+        val poorSpeed = healthy.copy(service = repeatedOutage, speed = SpeedTestResult(30, 3.2, 1_000_000, 6_000, SpeedRating.POOR))
+        assertFalse(vpn(poorSpeed))
+        assertTrue(Recommendation.RESTART_ROUTER in DiagnosticEvaluator.recommendations(poorSpeed))
+    }
+
+    @Test
+    fun `internet down - no VPN, just restart the router`() {
+        val f = healthy.copy(internet = InternetFact(false, NetworkTransport.WIFI), service = repeatedOutage)
+        assertFalse(vpn(f))
+        assertEquals(Recommendation.RESTART_ROUTER, DiagnosticEvaluator.recommendations(f).first())
+    }
+
+    @Test
+    fun `service healthy or refusing the login - never VPN`() {
+        assertFalse(vpn(healthy.copy(service = ServiceFact.Ok(ServiceKind.XTREAM))))
+        assertFalse(vpn(healthy.copy(service = ServiceFact.Rejected(ServiceKind.XTREAM))))
+        assertFalse(vpn(healthy.copy(service = ServiceFact.NoSource)))
+    }
+
+    @Test
+    fun `slow speed, playlist or EPG problems alone never suggest a VPN`() {
+        val f = healthy.copy(
+            speed = SpeedTestResult(40, 4.0, 1_000_000, 6_000, SpeedRating.POOR),
+            playlist = playlist.copy(channels = 0, movies = 0, series = 0),
+            epg = EpgFact(0, 0, 0, null, false),
+        )
+        assertFalse(vpn(f))
     }
 
     @Test

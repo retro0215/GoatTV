@@ -119,7 +119,34 @@ class EpgViewModel(
     private val streamUrlResolver: tv.own.owntv.core.stalker.StreamUrlResolver,
     private val externalPlayerLauncher: tv.own.owntv.core.player.ExternalPlayerLauncher,
     private val customCategoryDao: tv.own.owntv.core.database.dao.CustomCategoryDao,
+    private val epgActivity: tv.own.owntv.core.sync.EpgActivityTracker,
 ) : ViewModel() {
+
+    // The guide grid can hold hundreds of thousands of programme rows. Only one load may be in flight
+    // (a newer request cancels the older one and its catch-up back-fill), otherwise overlapping reloads
+    // each hold a full copy of the window and a low-RAM TV box runs out of heap.
+    private var loadJob: kotlinx.coroutines.Job? = null
+    private var backfillJob: kotlinx.coroutines.Job? = null
+
+    // Whether the Guide screen is on screen. The ViewModel is activity-scoped and outlives the screen;
+    // data-change reloads are skipped while it is hidden because the screen reloads on every open anyway.
+    private val screenVisible = MutableStateFlow(false)
+
+    /** Frees the loaded guide window; the next load() re-reads it from the database. */
+    private fun releaseGridCache() {
+        loadJob?.cancel()
+        backfillJob?.cancel()
+        rowCache.clear()
+        shiftedRowCache.clear()
+        cachedWindow = null
+        lastStored = -1
+        _cacheRevision.value++
+    }
+
+    /** Called by the Guide screen as it enters / leaves composition. */
+    fun setScreenVisible(visible: Boolean) {
+        screenVisible.value = visible
+    }
 
     // This profile's customizations — shared by the Guide picker, guide rows, and manual EPG match.
     // It must be initialized before guideCategories (Kotlin property initializers run top-to-bottom).
@@ -281,15 +308,27 @@ class EpgViewModel(
             .distinctUntilChanged()
             .onEach { load() }
             .launchIn(viewModelScope)
+        // Reload when the stored guide data changes — but never mid-import. An EPG sync writes a batch every
+        // few seconds; reloading the whole window after each one stacked full copies of the guide in memory
+        // and crashed the app (OutOfMemoryError) while the user browsed during a long sync. The count is
+        // only taken once no EPG sync is running, so a sync causes exactly one reload when it finishes, and
+        // only while the Guide is actually on screen (it reloads itself on the next open otherwise).
         epgSourceStore.sources
             .map { sources -> sources.map { it.id } }
             .distinctUntilChanged()
             .flatMapLatest { ids ->
                 if (ids.isEmpty()) flowOf(0) else combine(ids.map { epgDao.countForSource(it) }) { it.sum() }
             }
-            .debounce(GUIDE_DATA_SETTLE_MS)
-            .drop(1)
-            .onEach { load() }
+            .let { counts -> guideReloadTriggers(counts, epgActivity.active.map { it.isEmpty() }, GUIDE_DATA_SETTLE_MS) }
+            .onEach { if (screenVisible.value) load() }
+            .launchIn(viewModelScope)
+        // While an EPG sync runs and the guide is off screen, drop its programme cache. On a big lineup
+        // that cache is the whole guide window (hundreds of thousands of rows) and, kept alongside a
+        // running import, it left only a few MB of a TV box's heap. The data is stale during a sync
+        // anyway, and the screen reloads the window on its next open.
+        combine(screenVisible, epgActivity.active.map { it.isNotEmpty() }) { visible, syncing -> !visible && syncing }
+            .distinctUntilChanged()
+            .onEach { release -> if (release) releaseGridCache() }
             .launchIn(viewModelScope)
     }
 
@@ -616,7 +655,9 @@ class EpgViewModel(
     // with the ExoPlayer ladder, the pending-tune anchor and the bounded rebuild.
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        backfillJob?.cancel()
+        loadJob = viewModelScope.launch {
             // Show the spinner only on the FIRST load. The EpgViewModel is shared, so on re-entry the guide
             // is already populated — keep the existing list on screen and refresh it silently, so opening the
             // Guide menu is instant instead of flashing a spinner and re-rendering from scratch every time.
@@ -729,7 +770,18 @@ class EpgViewModel(
             val windowChanged = cachedWindow != (windowStart to windowEnd) || loadedSourceIds != ids || stored != lastStored
             loadedSourceIds = ids
             lastStored = stored
-            if (windowChanged) {
+            // While an EPG import is running, skip the whole-window preload: on a big lineup it holds
+            // hundreds of thousands of rows, and together with the import it nearly filled a TV box's heap.
+            // Rows then load lazily as they scroll into view (programmesFor); the one reload when the sync
+            // finishes restores the fast preloaded grid.
+            val importRunning = epgActivity.active.value.isNotEmpty()
+            if (windowChanged && importRunning) {
+                cachedWindow = null
+                lastStored = -1
+                rowCache.clear()
+                shiftedRowCache.clear()
+                _cacheRevision.value++
+            } else if (windowChanged) {
                 cachedWindow = windowStart to windowEnd
                 rowCache.clear()
                 shiftedRowCache.clear()
@@ -766,8 +818,8 @@ class EpgViewModel(
             // channel window never blocks the open or spikes memory on low-RAM (1.8 GB) boxes. Only runs when
             // there's a real lookback (catch-up channels). distinctBy(id): a programme straddling `now` is in
             // both window queries. The revision bump makes already-visible rows re-read the completed cache.
-            if (windowChanged && windowStart < nowAligned) {
-                viewModelScope.launch {
+            if (windowChanged && !importRunning && windowStart < nowAligned) {
+                backfillJob = viewModelScope.launch {
                     val back = loadWindowGrouped(ids, windowStart, nowAligned)
                     if (back.isNotEmpty()) {
                         back.forEach { (k, extra) ->

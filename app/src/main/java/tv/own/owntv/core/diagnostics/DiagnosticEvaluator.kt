@@ -12,6 +12,9 @@ package tv.own.owntv.core.diagnostics
  */
 object DiagnosticEvaluator {
 
+    /** Above this best-case round trip the connection itself is treated as weak (no VPN suggestion). */
+    const val SLOW_LATENCY_MS: Long = 250
+
     /** Below this much free storage the device check warns (updates, EPG and artwork need room). */
     const val LOW_STORAGE_BYTES: Long = 500L * 1024 * 1024
 
@@ -83,7 +86,11 @@ object DiagnosticEvaluator {
         when (f.service) {
             ServiceFact.NoSource -> add(Recommendation.ADD_PLAYLIST)
             is ServiceFact.Rejected -> add(Recommendation.CHECK_ACCOUNT)
-            is ServiceFact.Unreachable -> if (internetOk == true) add(Recommendation.SERVICE_UNREACHABLE_VPN)
+            is ServiceFact.Unreachable -> when {
+                vpnSuggested(f) -> add(Recommendation.SERVICE_UNREACHABLE_VPN)
+                internetOk == true -> add(Recommendation.RESTART_ROUTER)
+                else -> Unit // internet down: RESTART_ROUTER was added above
+            }
             else -> Unit
         }
         val p = f.playlist
@@ -96,6 +103,24 @@ object DiagnosticEvaluator {
         if (f.sports == SportsFact.Unavailable && internetOk == true) add(Recommendation.SPORTS_LATER)
         if (f.update is UpdateFact.Available) add(Recommendation.UPDATE_APP)
         if (f.device?.let(::isLowStorage) == true) add(Recommendation.FREE_STORAGE)
+    }
+
+    /**
+     * Whether testing with a VPN could reasonably help isolate a network-path problem. Conservative on
+     * purpose — it never claims the ISP is at fault, and needs ALL of:
+     *  - the internet check passed, with a best-case latency that is not slow;
+     *  - if the user ran a speed test, the result was not Poor (a slow line is its own explanation);
+     *  - the streaming service was unreachable twice in a row (not a refusal, not a one-off blip).
+     * Anything else — healthy service, internet down, slow connection, a single failure — gets no VPN
+     * guidance at all.
+     */
+    fun vpnSuggested(f: DiagnosticFacts): Boolean {
+        val net = f.internet ?: return false
+        if (!net.reachable) return false
+        if (net.latencyMs != null && net.latencyMs > SLOW_LATENCY_MS) return false
+        if (f.speed?.rating == SpeedRating.POOR) return false
+        val service = f.service as? ServiceFact.Unreachable ?: return false
+        return service.repeated
     }
 
     /** The engine the "Switch video player" action moves to, keeping automatic fallback on. */

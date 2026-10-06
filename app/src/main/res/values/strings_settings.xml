@@ -2027,7 +2027,7 @@ Resync and remove missing titles also allows removing titles the provider no lon
     <string name="diag_notice_share_unavailable">Sharing is not available on this device. Use Copy report instead.</string>
     <string name="diag_recommendations">Recommendations</string>
     <string name="diag_rec_restart_router">Restart your modem/router and try again.</string>
-    <string name="diag_rec_service_vpn">Your internet is working, but the streaming service could not be reached. Restart your modem/router and try again. If the problem continues, a VPN may help.</string>
+    <string name="diag_rec_service_vpn">Your internet connection appears to be working, but the streaming service could not be reached reliably. Restart your modem/router and try again. If the problem continues, testing with a VPN may help determine whether the issue is related to your network connection.</string>
     <string name="diag_rec_check_account">Contact your provider to check that your account is active and the login details are correct.</string>
     <string name="diag_rec_add_playlist">Add a playlist in Settings → Playlists.</string>
     <string name="diag_rec_resync_playlist">Re-sync your playlist.</string>
@@ -2068,4 +2068,16 @@ Resync and remove missing titles also allows removing titles the provider no lon
         <item quantity="one"><xliff:g id="count">%1$d</xliff:g> issue found</item>
         <item quantity="other"><xliff:g id="count">%1$d</xliff:g> issues found</item>
     </plurals>
+    <string name="diag_epg_sync_in_progress">EPG sync in progress</string>
+    <string name="diag_epg_sync_in_progress_count">EPG sync in progress · <xliff:g id="count">%1$s</xliff:g> programmes</string>
+    <string name="diag_notice_epg_already_running">The TV guide is already syncing. It continues in the background — there is no need to start it again.</string>
+    <string name="diag_latency_value"><xliff:g id="ms">%1$s</xliff:g> ms</string>
+    <string name="diag_latency_line">Latency: <xliff:g id="latency">%1$s</xliff:g></string>
+    <string name="diag_label_latency">Latency</string>
+    <string name="diag_label_speed">Download speed</string>
+    <string name="diag_speed_value"><xliff:g id="mbps">%1$s</xliff:g> Mbps (<xliff:g id="rating">%2$s</xliff:g>)</string>
+    <string name="diag_speed_excellent">Excellent</string>
+    <string name="diag_speed_good">Good</string>
+    <string name="diag_speed_fair">Fair</string>
+    <string name="diag_speed_poor">Poor</string>
 </resources>

@@ -89,6 +89,7 @@ fun DiagnosticCenterScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val state by vm.state.collectAsStateWithLifecycle()
     val notice by vm.notice.collectAsStateWithLifecycle()
     val engine by vm.vodEngine.collectAsStateWithLifecycle()
+    val epgSync by vm.epgSync.collectAsStateWithLifecycle()
     val text = remember(context) { ResourceDiagnosticText(context) }
 
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
@@ -242,7 +243,16 @@ fun DiagnosticCenterScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             )
             when (check) {
                 DiagCheck.PLAYLIST -> ActionRow { OwnTVButton(stringResource(R.string.diag_resync_playlist), onClick = vm::resyncPlaylist, style = OwnTVButtonStyle.SECONDARY, modifier = actionModifier) }
-                DiagCheck.EPG -> ActionRow { OwnTVButton(stringResource(R.string.diag_resync_epg), onClick = vm::resyncEpg, style = OwnTVButtonStyle.SECONDARY, modifier = actionModifier) }
+                DiagCheck.EPG -> ActionRow {
+                    // Stays focusable while a sync runs (focus never jumps); pressing it then only explains.
+                    val label = when {
+                        epgSync == null -> stringResource(R.string.diag_resync_epg)
+                        (epgSync?.programmes ?: 0) > 0 ->
+                            stringResource(R.string.diag_epg_sync_in_progress_count, text.count(epgSync?.programmes ?: 0))
+                        else -> stringResource(R.string.diag_epg_sync_in_progress)
+                    }
+                    OwnTVButton(label, onClick = vm::resyncEpg, style = OwnTVButtonStyle.SECONDARY, modifier = actionModifier)
+                }
                 DiagCheck.VOD -> Text(
                     stringResource(R.string.diag_vod_tip),
                     style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
@@ -274,16 +284,6 @@ fun DiagnosticCenterScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         InfoCard(lines = listOf(stringResource(R.string.diag_open_app_settings_description)), focusable = false)
         ActionRow { OwnTVButton(stringResource(R.string.diag_open_app_settings), onClick = { openAppSettings(context) }, style = OwnTVButtonStyle.SECONDARY) }
         InfoCard(title = stringResource(R.string.diag_restart_title), lines = listOf(stringResource(R.string.diag_restart_description, brand)), focusable = false)
-        if (Recommendation.SERVICE_UNREACHABLE_VPN !in state.recommendations) {
-            ActionRow {
-                OwnTVButton(
-                    stringResource(R.string.diag_vpn_help),
-                    onClick = { openDialog(vpnFocus) { showVpn = true } },
-                    style = OwnTVButtonStyle.SECONDARY,
-                    modifier = Modifier.focusRequester(vpnFocus),
-                )
-            }
-        }
 
         Spacer(Modifier.height(4.dp))
         ActionRow {
@@ -318,7 +318,7 @@ private fun detailLines(check: DiagCheck, status: DiagStatus, f: DiagnosticFacts
             listOf(
                 stringResource(if (it.reachable) R.string.diag_internet_ok else R.string.diag_internet_failed),
                 stringResource(R.string.diag_network_type, stringResource(ResourceDiagnosticText.transportRes(it.transport))),
-            )
+            ) + listOfNotNull(it.latencyMs?.let { ms -> stringResource(R.string.diag_latency_line, text.latency(ms)) })
         }.orEmpty()
         DiagCheck.SERVICE -> when (f.service) {
             null -> if (status == DiagStatus.FAILED) listOf(stringResource(R.string.diag_service_failed)) else emptyList()
@@ -537,6 +537,7 @@ private fun noticeMessage(context: Context, n: DiagnosticCenterViewModel.Notice,
     DiagnosticCenterViewModel.Notice.NO_PLAYLIST -> context.getString(R.string.diag_notice_no_playlist)
     DiagnosticCenterViewModel.Notice.EPG_RESYNC_STARTED -> context.getString(R.string.diag_notice_epg_resync)
     DiagnosticCenterViewModel.Notice.NO_EPG -> context.getString(R.string.diag_notice_no_epg)
+    DiagnosticCenterViewModel.Notice.EPG_ALREADY_RUNNING -> context.getString(R.string.diag_notice_epg_already_running)
     DiagnosticCenterViewModel.Notice.PLAYER_SWITCHED ->
         context.getString(R.string.diag_notice_player_switched, context.getString(ResourceDiagnosticText.engineRes(engine)))
     DiagnosticCenterViewModel.Notice.CACHE_CLEARED -> context.getString(R.string.diag_notice_cache_cleared)

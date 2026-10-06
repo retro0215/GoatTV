@@ -27,7 +27,7 @@ internal object DiagnosticTestFacts {
 
     val healthy = DiagnosticFacts(
         app = app,
-        internet = InternetFact(reachable = true, transport = NetworkTransport.WIFI),
+        internet = InternetFact(reachable = true, transport = NetworkTransport.WIFI, latencyMs = 31),
         service = ServiceFact.Ok(ServiceKind.XTREAM),
         playlist = playlist,
         epg = EpgFact(sourceCount = 1, programmes = 250_000, guideChannels = 900, lastSyncAtMs = 1_759_600_000_000, lastSyncFailed = false),
@@ -63,6 +63,8 @@ internal class EnglishDiagnosticText : DiagnosticText {
         UpdateFact.Busy -> "Downloading"
     }
     override fun recommendation(recommendation: Recommendation) = recommendation.name
+    override fun latency(ms: Long) = "$ms ms"
+    override fun speed(result: SpeedTestResult) = "${result.downloadMbps} Mbps ${result.rating}"
     override fun count(value: Int) = value.toString()
     override fun bytes(value: Long) = "${value shr 20} MB"
     override fun memory(availBytes: Long, totalBytes: Long) = "${bytes(availBytes)} of ${bytes(totalBytes)}"

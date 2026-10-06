@@ -3,6 +3,7 @@ package tv.own.owntv.features.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
 import coil3.SingletonImageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -10,6 +11,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -27,6 +33,7 @@ import tv.own.owntv.core.diagnostics.DiagnosticReport
 import tv.own.owntv.core.diagnostics.DiagnosticRunner
 import tv.own.owntv.core.diagnostics.DiagnosticSummary
 import tv.own.owntv.core.diagnostics.DiagnosticText
+import tv.own.owntv.core.diagnostics.EpgResync
 import tv.own.owntv.core.diagnostics.Recommendation
 import tv.own.owntv.core.diagnostics.VodEngine
 import tv.own.owntv.core.epg.EpgSourceStore
@@ -68,7 +75,7 @@ class DiagnosticCenterViewModel(
     )
 
     /** One-shot confirmations shown under the actions. */
-    enum class Notice { PLAYLIST_RESYNC_STARTED, NO_PLAYLIST, EPG_RESYNC_STARTED, NO_EPG, PLAYER_SWITCHED, CACHE_CLEARED, REPORT_COPIED, SHARE_UNAVAILABLE }
+    enum class Notice { PLAYLIST_RESYNC_STARTED, NO_PLAYLIST, EPG_RESYNC_STARTED, EPG_ALREADY_RUNNING, NO_EPG, PLAYER_SWITCHED, CACHE_CLEARED, REPORT_COPIED, SHARE_UNAVAILABLE }
 
     private val app = AppFact(
         brandName = appContext.getString(R.string.app_name),
@@ -86,6 +93,21 @@ class DiagnosticCenterViewModel(
     val vodEngine: StateFlow<VodEngine> = settings.vodEnginePreference
         .map { if (it.startsOnMpv) VodEngine.MPV else VodEngine.EXO }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VodEngine.MPV)
+
+    /**
+     * Live EPG sync state, read from WorkManager (the production sync owns its lifetime; this screen only
+     * observes it). Null = idle. Re-reads the real state whenever the screen comes back.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val epgSync: StateFlow<EpgResync.Progress?> = epgSources.sources
+        .map { list -> list.map { it.id } }
+        .distinctUntilChanged()
+        .flatMapLatest { ids ->
+            if (ids.isEmpty()) flowOf(emptyList())
+            else combine(ids.map { epgSyncScheduler.observeSync(it) }) { it.toList() }
+        }
+        .map(EpgResync::progressOf)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private var job: Job? = null
 
@@ -133,19 +155,34 @@ class DiagnosticCenterViewModel(
                     reason = RESYNC_REASON,
                     contentTypes = SyncContentTypes.enabledOf(s),
                     baseItemCount = counts.channels + counts.movies + counts.series,
+                    // A playlist sync already running (startup refresh, or an earlier press) is left alone.
+                    policy = ExistingWorkPolicy.KEEP,
                 )
             }
             _notice.value = Notice.PLAYLIST_RESYNC_STARTED
         }
     }
 
-    /** Re-sync every EPG source exactly as Settings → EPG Sources → Re-sync does. */
+    /**
+     * Re-sync every EPG source through the production EpgSyncWorker (Settings → EPG Sources → Re-sync).
+     * The work belongs to WorkManager, so it keeps running after this screen or the app is left. A sync
+     * that is already running is never started again: the button reports it instead, and KEEP makes
+     * WorkManager ignore a second request even if two presses race.
+     */
     fun resyncEpg() {
         viewModelScope.launch {
             val sources = epgSources.getAll()
-            if (sources.isEmpty()) { _notice.value = Notice.NO_EPG; return@launch }
-            for (s in sources) epgSyncScheduler.enqueueSync(s.id, RESYNC_REASON, epgDao.countForSources(listOf(s.id)))
-            _notice.value = Notice.EPG_RESYNC_STARTED
+            val current = EpgResync.progressOf(sources.map { epgSyncScheduler.observeSync(it.id).first() })
+            when (EpgResync.decide(sources.size, current)) {
+                EpgResync.Decision.NO_SOURCES -> _notice.value = Notice.NO_EPG
+                EpgResync.Decision.ALREADY_RUNNING -> _notice.value = Notice.EPG_ALREADY_RUNNING
+                EpgResync.Decision.START -> {
+                    for (s in sources) {
+                        epgSyncScheduler.enqueueSync(s.id, RESYNC_REASON, epgDao.countForSources(listOf(s.id)), ExistingWorkPolicy.KEEP)
+                    }
+                    _notice.value = Notice.EPG_RESYNC_STARTED
+                }
+            }
         }
     }
 
