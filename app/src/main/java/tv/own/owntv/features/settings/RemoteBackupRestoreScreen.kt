@@ -79,7 +79,7 @@ fun RemoteBackupRestoreScreen(
                 Text(stringResource(R.string.settings_restore_remote_title), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    stringResource(R.string.settings_restore_remote_description),
+                    stringResource(R.string.settings_restore_remote_description, stringResource(R.string.app_name)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant,
                     textAlign = TextAlign.Center,

@@ -128,8 +128,8 @@
     <string name="update_failed_download_http">Le téléchargement de la mise à jour a renvoyé le code HTTP <xliff:g id="code">%1$s</xliff:g>.</string>
     <string name="update_empty_download">Le serveur de mise à jour a renvoyé un APK vide.</string>
     <string name="update_install_failed">Le programme d’installation du système n’a pas pu ouvrir la mise à jour téléchargée.</string>
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> est prêt (vous utilisez la v<xliff:g id="current">%2$s</xliff:g>).</string>
-    <string name="recovery_title">OwnTV n’a pas pu ouvrir sa base de données</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> est prêt (vous utilisez la v<xliff:g id="current">%2$s</xliff:g>).</string>
+    <string name="recovery_title"><xliff:g id="app_name">%1$s</xliff:g> n’a pas pu ouvrir sa base de données</string>
     <string name="recovery_data_safe_full">Vos profils, vos listes de lecture, vos favoris et votre historique N’ONT PAS été supprimés — il s’agit de l’échec d’une mise à niveau de la base de données et les données se trouvent toujours sur cet appareil.\n\nVeuillez signaler ce problème afin qu’il puisse être corrigé et incluez le message ci-dessous.</string>
     <string name="recovery_retry">Réessayer</string>
     <string name="recovery_backup_hint">Si vous avez un fichier de sauvegarde, vous pouvez réinitialiser l’application, puis restaurer vos données à partir de ce fichier. La réinitialisation supprime tout ce qui est stocké sur cet appareil.</string>

@@ -252,7 +252,7 @@ private fun ProfileCard(
             AvatarButton(avatarId = avatarId, sizeDp = 64, onClick = onPickAvatar)
             Spacer(Modifier.height(10.dp))
             Text(
-                profileName.ifBlank { stringResource(R.string.common_own_tv_user) },
+                profileName.ifBlank { stringResource(R.string.common_own_tv_user, stringResource(R.string.app_name)) },
                 style = MaterialTheme.typography.titleMedium,
                 color = colors.onSurface,
                 maxLines = 1,

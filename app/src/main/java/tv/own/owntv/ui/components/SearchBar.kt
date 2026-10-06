@@ -40,6 +40,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -81,6 +82,7 @@ fun SearchBar(
     val fieldFocus = remember { FocusRequester() }
     val bringIntoView = remember { BringIntoViewRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val tvImeWatcher = LocalTvImeWatcher.current
     val tvImeMetrics = LocalTvImeMetrics.current
     val shape = RoundedCornerShape(50)
@@ -158,6 +160,12 @@ fun SearchBar(
                         .focusRequester(fieldFocus)
                         .focusProperties { canFocus = editing }
                         .onFocusChanged { if (editing && !it.isFocused) editing = false }
+                        .leaveOnVerticalDpad { direction ->
+                            editing = false
+                            keyboard?.hide()
+                            runCatching { pillFocus.requestFocus() }
+                            focusManager.moveFocus(direction)
+                        }
                         .onPreviewKeyEvent {
                             // After the IME closed itself, Back hands focus back to the pill
                             // instead of bubbling to the screen's BackHandler.

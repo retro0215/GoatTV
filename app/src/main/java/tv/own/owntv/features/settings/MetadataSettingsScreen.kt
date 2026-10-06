@@ -219,7 +219,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 eyebrow = stringResource(R.string.settings_metadata_active_source),
                 title = stringResource(metadataTierLabelRes(tier)),
                 description = when (tier) {
-                    MetadataConfig.Tier.DEFAULT_WORKER -> stringResource(R.string.settings_metadata_shared_worker_description)
+                    MetadataConfig.Tier.DEFAULT_WORKER -> stringResource(R.string.settings_metadata_shared_worker_description, stringResource(R.string.app_name))
                     MetadataConfig.Tier.OWN_KEY -> maskSecret(storedKey)
                     MetadataConfig.Tier.SELF_HOST -> storedUrl
                 },
@@ -236,7 +236,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             if (tier == MetadataConfig.Tier.DEFAULT_WORKER) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    stringResource(R.string.settings_metadata_fair_share),
+                    stringResource(R.string.settings_metadata_fair_share, stringResource(R.string.app_name)),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 8.dp),
@@ -254,7 +254,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 eyebrow = stringResource(R.string.settings_metadata_active_source),
                 title = stringResource(metadataTierLabelRes(tier)),
                 description = when (tier) {
-                    MetadataConfig.Tier.DEFAULT_WORKER -> stringResource(R.string.settings_metadata_shared_worker_description)
+                    MetadataConfig.Tier.DEFAULT_WORKER -> stringResource(R.string.settings_metadata_shared_worker_description, stringResource(R.string.app_name))
                     MetadataConfig.Tier.OWN_KEY -> maskSecret(storedKey)
                     MetadataConfig.Tier.SELF_HOST -> storedUrl
                 },
@@ -283,7 +283,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        stringResource(R.string.settings_metadata_fair_share),
+                        stringResource(R.string.settings_metadata_fair_share, stringResource(R.string.app_name)),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -456,7 +456,7 @@ fun MetadataSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     if (confirmClearAdvanced) {
         ConfirmDialog(
             title = stringResource(R.string.settings_metadata_clear_advanced_title),
-            message = stringResource(R.string.settings_metadata_clear_advanced_message),
+            message = stringResource(R.string.settings_metadata_clear_advanced_message, stringResource(R.string.app_name)),
             onConfirm = {
                 key = ""
                 url = ""

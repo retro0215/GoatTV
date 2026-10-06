@@ -355,7 +355,7 @@ fun AddSourceScreen(
             Text(if (editing) stringResource(R.string.setup_edit_source) else stringResource(R.string.setup_add_your_source), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
             Spacer(Modifier.height(6.dp))
             Text(
-                if (editing) stringResource(R.string.setup_edit_source_description) else stringResource(R.string.setup_byo_source_description),
+                if (editing) stringResource(R.string.setup_edit_source_description) else stringResource(R.string.setup_byo_source_description, stringResource(R.string.app_name)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.onSurfaceVariant,
             )

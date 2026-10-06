@@ -87,7 +87,7 @@ fun UpdateStatusToast(onDone: () -> Unit, onViewChangelog: () -> Unit, modifier:
                 Text(stringResource(R.string.update_available), style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    stringResource(R.string.update_ready, s.info.version, manager.currentVersion),
+                    stringResource(R.string.update_ready, s.info.version, manager.currentVersion, stringResource(R.string.app_name)),
                     style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(12.dp))

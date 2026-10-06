@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -38,6 +39,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -89,6 +91,7 @@ fun OwnTVTextField(
     val innerFocus = remember { FocusRequester() }
     val bringIntoView = remember { BringIntoViewRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val tvImeWatcher = LocalTvImeWatcher.current
     val tvImeMetrics = LocalTvImeMetrics.current
     val shape = RoundedCornerShape(12.dp)
@@ -165,6 +168,12 @@ fun OwnTVTextField(
                     .focusRequester(innerFocus)
                         .focusProperties { canFocus = editing }
                         .onFocusChanged { if (editing && !it.isFocused) editing = false }
+                        .leaveOnVerticalDpad { direction ->
+                            editing = false
+                            keyboard?.hide()
+                            runCatching { pillFocus.requestFocus() }
+                            focusManager.moveFocus(direction)
+                        }
                         .onPreviewKeyEvent {
                             if (it.key == Key.Back) {
                                 if (it.type == KeyEventType.KeyUp) {
@@ -220,4 +229,24 @@ fun OwnTVTextField(
             }
         }
     }
+}
+
+/**
+ * D-pad Up/Down while a single-line field is in edit mode: leave edit mode and move focus to the
+ * adjacent control, exactly like any other TV row ([onLeave] does the exit + move). Left/Right are
+ * untouched, so they still move the text cursor.
+ *
+ * Without this a field could trap the remote: Android TV keyboards consume Back themselves, so after
+ * the keyboard closed the field stayed in edit mode with no keyboard on screen, and a single-line
+ * BasicTextField swallows Up/Down. The only way out was Tab, which a TV remote doesn't have. While the
+ * keyboard is visible the D-pad drives the keyboard, so typing is unaffected.
+ */
+internal fun Modifier.leaveOnVerticalDpad(onLeave: (FocusDirection) -> Unit): Modifier = onPreviewKeyEvent {
+    val direction = when (it.key) {
+        Key.DirectionDown -> FocusDirection.Down
+        Key.DirectionUp -> FocusDirection.Up
+        else -> return@onPreviewKeyEvent false
+    }
+    if (it.type == KeyEventType.KeyDown) onLeave(direction)
+    true
 }

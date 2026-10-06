@@ -310,10 +310,10 @@
     <!-- Translators: Error when the system installer cannot open the downloaded update. -->
     <string name="update_install_failed">The downloaded update could not be opened by the system installer.</string>
     <!-- Translators: Status text when an update has been downloaded and is ready to install. "available" is the new version, "current" is the installed version. -->
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> is ready (you have v<xliff:g id="current">%2$s</xliff:g>).</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> is ready (you have v<xliff:g id="current">%2$s</xliff:g>).</string>
 
     <!-- Translators: Dialog title for the database recovery screen. "OwnTV" is a brand name. -->
-    <string name="recovery_title">OwnTV could not open its database</string>
+    <string name="recovery_title"><xliff:g id="app_name">%1$s</xliff:g> could not open its database</string>
     <!-- Translators: Body text on the recovery screen explaining that data is safe and requesting a bug report. -->
     <string name="recovery_data_safe_full">Your profiles, playlists, favorites and history have NOT been deleted \u2014 this is a database upgrade failure, and the data is still on this device.\n\nPlease report this so it can be fixed, and include the message below.</string>
     <!-- Translators: Button on the recovery screen to retry opening the database. -->

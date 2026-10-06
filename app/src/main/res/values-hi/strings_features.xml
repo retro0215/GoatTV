@@ -124,8 +124,8 @@
     <string name="update_failed_download_http">अपडेट डाउनलोड ने HTTP <xliff:g id="code">%1$s</xliff:g> लौटाया।</string>
     <string name="update_empty_download">अपडेट सर्वर ने एक खाली APK लौटाया।</string>
     <string name="update_install_failed">सिस्टम इंस्टॉलर डाउनलोड किए गए अपडेट को नहीं खोल सका।</string>
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> तैयार है (आपके पास v<xliff:g id="current">%2$s</xliff:g> है)।</string>
-    <string name="recovery_title">OwnTV अपना डेटाबेस नहीं खोल सका</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> तैयार है (आपके पास v<xliff:g id="current">%2$s</xliff:g> है)।</string>
+    <string name="recovery_title"><xliff:g id="app_name">%1$s</xliff:g> अपना डेटाबेस नहीं खोल सका</string>
     <string name="recovery_data_safe_full">आपकी प्रोफ़ाइलें, प्लेलिस्ट, पसंदीदा और इतिहास हटाए नहीं गए हैं — यह डेटाबेस अपग्रेड की विफलता है और डेटा अभी भी इस डिवाइस पर मौजूद है।\n\nकृपया इसकी रिपोर्ट करें ताकि इसे ठीक किया जा सके और नीचे दिया गया संदेश भी शामिल करें।</string>
     <string name="recovery_retry">फिर से कोशिश करें</string>
     <string name="recovery_backup_hint">अगर आपके पास बैकअप फ़ाइल है, तो आप ऐप को रीसेट करके बाद में उसे रीस्टोर कर सकते हैं। रीसेट करने से इस डिवाइस पर सेव की गई हर चीज़ मिट जाती है।</string>

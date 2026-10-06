@@ -45,7 +45,7 @@
     <string name="settings_dynamic">動態</string>
     <string name="settings_http_proxy">HTTP 代理伺服器</string>
     <string name="settings_use_proxy">使用代理伺服器</string>
-    <string name="settings_proxy_description">透過 HTTP 代理伺服器傳送所有 OwnTV 流量及播放內容。</string>
+    <string name="settings_proxy_description">透過 HTTP 代理伺服器傳送所有 <xliff:g id="app_name">%1$s</xliff:g> 流量及播放內容。</string>
     <string name="settings_host">主機</string>
     <string name="settings_proxy_host_hint">proxy.example.com</string>
     <string name="settings_port">連接埠</string>
@@ -107,7 +107,7 @@
         <item quantity="other">剩餘 <xliff:g id="remaining">%1$d</xliff:g> / <xliff:g id="limit">%2$d</xliff:g></item>
     </plurals>
     <string name="settings_metadata_active_source">目前來源</string>
-    <string name="settings_metadata_shared_worker_description">OwnTV Worker · 無需設定</string>
+    <string name="settings_metadata_shared_worker_description"><xliff:g id="app_name">%1$s</xliff:g> Worker · 無需設定</string>
     <string name="settings_metadata_connection">連線</string>
     <string name="settings_metadata_remote_advanced">取得進階 TMDB 資訊</string>
     <string name="settings_metadata_remote_advanced_description">使用你自己的 TMDB API 金鑰或自建 Worker，而不是共用的預設服務。</string>
@@ -118,8 +118,8 @@
     <string name="settings_metadata_server_label">伺服器</string>
     <string name="settings_metadata_refills_label">恢復時間</string>
     <string name="settings_metadata_clear_advanced_title">不再使用你自己的金鑰？</string>
-    <string name="settings_metadata_clear_advanced_message">你的 TMDB API 金鑰與自有伺服器位址將從此裝置刪除，OwnTV 將回到帶有每日額度的內建共用服務。</string>
-    <string name="settings_metadata_fair_share">內建中繼資料服務由所有 OwnTV 使用者共用，因此每部裝置每天都有自己的額度。用完額度後，海報與簡介會暫停顯示，直到額度恢復；播放清單自帶的資訊不受影響。加入你自己的 TMDB API 金鑰或伺服器即可解除此限制：它是免費的，而且個人金鑰幾乎沒有限制。</string>
+    <string name="settings_metadata_clear_advanced_message">你的 TMDB API 金鑰與自有伺服器位址將從此裝置刪除，<xliff:g id="app_name">%1$s</xliff:g> 將回到帶有每日額度的內建共用服務。</string>
+    <string name="settings_metadata_fair_share">內建中繼資料服務由所有 <xliff:g id="app_name">%1$s</xliff:g> 使用者共用，因此每部裝置每天都有自己的額度。用完額度後，海報與簡介會暫停顯示，直到額度恢復；播放清單自帶的資訊不受影響。加入你自己的 TMDB API 金鑰或伺服器即可解除此限制：它是免費的，而且個人金鑰幾乎沒有限制。</string>
     <string name="settings_metadata_limit_reached">今日中繼資料額度已用完 — 在「設定 → 中繼資料」中加入你自己的 TMDB 金鑰即可解除此限制。</string>
     <string name="settings_metadata_language">中繼資料語言</string>
     <string name="settings_metadata_language_description">TMDB 提供的劇情、類型與標題的語言。TMDB 未翻譯的欄位會保持英文。詳細資料會依語言分別快取，因此切換回來是立即的。</string>
@@ -237,7 +237,7 @@
     <string name="settings_network_group">網路</string>
     <string name="settings_app_group">應用程式</string>
     <string name="settings_app_startup">應用程式啟動</string>
-    <string name="settings_app_startup_description">OwnTV 啟動時開啟的內容</string>
+    <string name="settings_app_startup_description"><xliff:g id="app_name">%1$s</xliff:g> 啟動時開啟的內容</string>
     <string name="settings_check_updates">檢查更新</string>
     <string name="settings_check_updates_description">從 GitHub Releases 取得最新版本</string>
     <string name="settings_update_startup">啟動時檢查更新</string>
@@ -456,7 +456,7 @@
     <string name="settings_open_subtitles_api_key">OpenSubtitles 應用程式 API 金鑰</string>
     <string name="settings_worker_server_url">Worker / 伺服器網址</string>
     <string name="settings_shared">共用</string>
-    <string name="settings_open_subtitles_access_priority">兩項都留空即使用 OwnTV 的共用 Worker。自訂 Worker 網址優先於直接填寫的 API 金鑰。帳號登入狀態仍依設定檔分別儲存。</string>
+    <string name="settings_open_subtitles_access_priority">兩項都留空即使用 <xliff:g id="app_name">%1$s</xliff:g> 的共用 Worker。自訂 Worker 網址優先於直接填寫的 API 金鑰。帳號登入狀態仍依設定檔分別儲存。</string>
     <string name="settings_remove_custom_access">移除自訂存取</string>
     <string name="settings_audio">音訊</string>
     <string name="settings_preferred_audio_language">偏好的音訊語言</string>
@@ -523,7 +523,7 @@
     <string name="settings_guide_synced">電視節目表已同步</string>
     <string name="settings_guide_sync_failed">電視節目表同步失敗</string>
     <string name="settings_restore_remote_title">從其他裝置還原</string>
-    <string name="settings_restore_remote_description">在連接至相同 Wi-Fi 的手機、平板或電腦上掃描 QR 圖碼（或開啟網址），輸入此 PIN，選擇您的 OwnTV 備份檔案，然後點選「傳送至電視」。接著您可在此選擇要還原的內容。</string>
+    <string name="settings_restore_remote_description">在連接至相同 Wi-Fi 的手機、平板或電腦上掃描 QR 圖碼（或開啟網址），輸入此 PIN，選擇您的 <xliff:g id="app_name">%1$s</xliff:g> 備份檔案，然後點選「傳送至電視」。接著您可在此選擇要還原的內容。</string>
     <string name="settings_opening_server">正在開啟伺服器…</string>
     <string name="settings_enter_pin_browser">在瀏覽器中輸入此 PIN</string>
     <string name="settings_companion_qr">輔助工具網址的 QR 圖碼</string>
@@ -548,7 +548,7 @@
     </plurals>
     <string name="settings_catchup_timezone_device">裝置</string>
     <string name="settings_catchup_player_ask">一律詢問</string>
-    <string name="settings_catchup_player_internal">OwnTV 播放器</string>
+    <string name="settings_catchup_player_internal"><xliff:g id="app_name">%1$s</xliff:g> 播放器</string>
     <string name="settings_catchup_player_external">外部播放器</string>
     <string name="settings_soon">即將推出</string>
     <string name="settings_download_folder_title">選擇下載資料夾</string>
@@ -871,7 +871,7 @@
     <string name="settings_move_category_action">移動</string>
     <string name="settings_dns_description">使用自訂 DNS 伺服器進行網域查詢</string>
     <string name="settings_dns_custom">自訂 DNS</string>
-    <string name="settings_dns_toggle_description">透過自訂 DNS 伺服器解析 OwnTV 的所有網域查詢。</string>
+    <string name="settings_dns_toggle_description">透過自訂 DNS 伺服器解析 <xliff:g id="app_name">%1$s</xliff:g> 的所有網域查詢。</string>
     <string name="settings_dns_use_custom">使用自訂 DNS</string>
     <string name="settings_dns_server_missing">自訂 DNS 已啟用，但尚未設定伺服器。請輸入伺服器位址並選取「儲存」，或關閉此功能。</string>
     <string name="settings_dns_server">DNS 伺服器</string>
@@ -925,7 +925,7 @@
     <string name="settings_surround_stereo">僅立體聲</string>
     <string name="settings_surround_auto_description">自動 — 嘗試播放 Dolby/DTS 環繞音效，如果電視或 Soundbar 無法播放，就會自動切回立體聲。建議使用。</string>
     <string name="settings_surround_stereo_description">僅立體聲 — 一律在應用程式內解碼，並傳送純 2.0 音效。電視喇叭或立體聲 Soundbar 請使用此選項；若聲音比畫面慢，也請使用此選項。</string>
-    <string name="settings_surround_forced_description">環繞音效 — 將 Dolby/DTS 傳送至實體的 5.1/7.1 環繞擴大機。如果出現無聲或卡頓，OwnTV 仍會自動切回立體聲並通知你。</string>
+    <string name="settings_surround_forced_description">環繞音效 — 將 Dolby/DTS 傳送至實體的 5.1/7.1 環繞擴大機。如果出現無聲或卡頓，<xliff:g id="app_name">%1$s</xliff:g> 仍會自動切回立體聲並通知你。</string>
     <string name="settings_panel_width">面板寬度調整</string>
     <string name="settings_panel_width_description">在直播電視、電影與影集中調整分類、清單和預覽面板的大小。</string>
     <string name="settings_search_keywords_epg_offset">電子節目表 節目表 時間 偏移 平移 時區 東 西 小時</string>
@@ -966,7 +966,7 @@
     <string name="settings_language_contribution_copy_failed">無法複製連結。請閱讀或輸入上方顯示的網址。</string>
     <string name="settings_auto_frame_rate_warning_suffix">不建議在此電視上使用：在 Android 12 以下，更新率無法平滑切換。</string>
     <string name="settings_auto_frame_rate_warning_title">不建議在此電視上使用</string>
-    <string name="settings_auto_frame_rate_warning_description">此裝置執行的是 Android <xliff:g id="android_version">%1$s</xliff:g>。在 Android 12 以下，電視無法告知 OwnTV 它可以順暢切換到哪些更新率，因此切換更新率可能會讓畫面變黑一兩秒——有時在節目播放期間還會發生不只一次。\n\n我們建議在此保持自動更新率關閉。如果你的電視切換得很順暢，不妨開啟試試看：你隨時都可以改回來。</string>
+    <string name="settings_auto_frame_rate_warning_description">此裝置執行的是 Android <xliff:g id="android_version">%1$s</xliff:g>。在 Android 12 以下，電視無法告知 <xliff:g id="app_name">%2$s</xliff:g> 它可以順暢切換到哪些更新率，因此切換更新率可能會讓畫面變黑一兩秒——有時在節目播放期間還會發生不只一次。\n\n我們建議在此保持自動更新率關閉。如果你的電視切換得很順暢，不妨開啟試試看：你隨時都可以改回來。</string>
     <string name="settings_auto_frame_rate_keep_off">保持關閉</string>
     <string name="settings_auto_frame_rate_turn_on_anyway">仍要開啟</string>
     <string name="settings_language_request_workflow">想要新增未列出的語言嗎？請先提出語言請求。維護者會註冊該語言並準備基礎翻譯檔案；一旦它出現在 Hosted Weblate 上，你就可以開始貢獻。</string>

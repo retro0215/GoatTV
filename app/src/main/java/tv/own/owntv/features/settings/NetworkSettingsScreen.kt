@@ -94,7 +94,7 @@ fun NetworkSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         Row2(
             icon = OwnTVIcon.SHARE,
             title = stringResource(R.string.settings_use_proxy),
-            desc = stringResource(R.string.settings_proxy_description),
+            desc = stringResource(R.string.settings_proxy_description, stringResource(R.string.app_name)),
             chip = if (enabled) stringResource(R.string.common_on) else stringResource(R.string.common_off), primaryChip = enabled,
             modifier = Modifier.focusRequester(firstFocus),
             onClick = { enabled = !enabled; save() },
