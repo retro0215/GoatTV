@@ -159,6 +159,45 @@ class DiagnosticEvaluatorTest {
         assertEquals(DiagStatus.NOT_CHECKED, status(DiagCheck.VOD, healthy.copy(playlist = playlist.copy(moviesEnabled = false, seriesEnabled = false))))
     }
 
+    // --- speed results and VPN: a speed result alone never triggers VPN guidance ---
+
+    private fun speed(mbps: Double) = SpeedTestResult(28, mbps, 20_000_000, 6_000, SpeedTestEngine.rate(mbps))
+
+    @Test
+    fun `300 Mbps with a healthy service - no VPN, no advice`() {
+        val f = healthy.copy(speed = speed(300.0))
+        assertFalse(vpn(f))
+        assertEquals(emptyList<Recommendation>(), DiagnosticEvaluator.recommendations(f))
+    }
+
+    @Test
+    fun `5 Mbps with a healthy service - slow-connection advice, no VPN`() {
+        val f = healthy.copy(speed = speed(5.0))
+        assertFalse(vpn(f))
+        assertEquals(listOf(Recommendation.SLOW_CONNECTION), DiagnosticEvaluator.recommendations(f))
+    }
+
+    @Test
+    fun `5 Mbps and the service failing twice - the poor connection first, never VPN`() {
+        val f = healthy.copy(speed = speed(5.0), service = repeatedOutage)
+        assertFalse(vpn(f))
+        val recs = DiagnosticEvaluator.recommendations(f)
+        assertEquals(Recommendation.SLOW_CONNECTION, recs.first())
+        assertFalse(Recommendation.SERVICE_UNREACHABLE_VPN in recs)
+    }
+
+    @Test
+    fun `80 Mbps, good latency and the service failing twice - conditional VPN suggestion`() {
+        val f = healthy.copy(speed = speed(80.0), service = repeatedOutage)
+        assertTrue(vpn(f))
+        assertEquals(listOf(Recommendation.SERVICE_UNREACHABLE_VPN), DiagnosticEvaluator.recommendations(f))
+    }
+
+    @Test
+    fun `a speed result never changes the check statuses or the issue count`() {
+        assertEquals(summary(healthy).issues, summary(healthy.copy(speed = speed(3.0))).issues)
+    }
+
     @Test
     fun `player switch flips MPV and Exo`() {
         assertEquals(VodEngine.EXO, DiagnosticEvaluator.switchTarget(VodEngine.MPV))

@@ -36,6 +36,8 @@ data class SpeedTestConfig(
     val maxBytes: Long = 30L * 1024 * 1024,
     /** No byte at all within this long = the endpoint is not answering. */
     val firstByteTimeoutMs: Long = 5_000,
+    /** If every stream failed, a measurement shorter than this is too short to trust. */
+    val minValidMs: Long = 2_000,
     val liveWindowMs: Long = 1_000,
 )
 
@@ -52,10 +54,28 @@ data class SpeedTestResult(
 sealed interface SpeedTestState {
     data object Idle : SpeedTestState
     data class Latency(val sample: Int, val of: Int) : SpeedTestState
-    data class Downloading(val currentMbps: Double, val elapsedMs: Long, val maxMs: Long, val bytes: Long) : SpeedTestState
+    data class Downloading(
+        val currentMbps: Double,
+        val elapsedMs: Long,
+        val maxMs: Long,
+        val bytes: Long,
+        val latencyMs: Long? = null,
+    ) : SpeedTestState
     data class Done(val result: SpeedTestResult) : SpeedTestState
     data class Failed(val reason: Reason) : SpeedTestState
-    enum class Reason { UNREACHABLE, TIMEOUT }
+
+    /**
+     * Why a test could not produce a measurement. None of these says anything about the customer's
+     * line — the test endpoint may simply be unavailable or rate-limited — so a failure is never rated.
+     */
+    enum class Reason {
+        /** No latency request got an answer. */
+        UNREACHABLE,
+        /** The endpoint answered the download with an error (e.g. HTTP 429/403/5xx) or cut every stream early. */
+        ENDPOINT_ERROR,
+        /** Requests were accepted but not a single byte arrived in time. */
+        TIMEOUT,
+    }
 }
 
 class SpeedTestEngine(
@@ -85,6 +105,7 @@ class SpeedTestEngine(
     private suspend fun measureDownload(latencyMs: Long, onState: (SpeedTestState) -> Unit): SpeedTestState {
         val total = AtomicLong(0)
         val stop = AtomicBoolean(false)
+        val streamErrors = java.util.concurrent.atomic.AtomicInteger(0)
         val start = clockMs()
         var warmupBytes = -1L
         var warmupAt = 0L
@@ -97,12 +118,16 @@ class SpeedTestEngine(
             val elapsed = now - start
             val bytes = total.addAndGet(n.toLong())
             synchronized(lock) {
-                if (warmupBytes < 0 && elapsed >= config.warmupMs) { warmupBytes = bytes; warmupAt = now }
+                // Warm-up (connection set-up + TCP slow start) ends after warmupMs, or earlier on a line
+                // fast enough to reach the byte cap first: then the first third of the cap is the warm-up.
+                if (warmupBytes < 0 && (elapsed >= config.warmupMs || bytes >= config.maxBytes / WARMUP_CAP_DIVISOR)) {
+                    warmupBytes = bytes; warmupAt = now
+                }
                 window.addLast(now to bytes)
                 while (window.size > 1 && now - window.first().first > config.liveWindowMs) window.removeFirst()
                 val (t0, b0) = window.first()
                 val live = if (now > t0) mbps(bytes - b0, now - t0) else 0.0
-                onState(SpeedTestState.Downloading(live, elapsed, config.maxDownloadMs, bytes))
+                onState(SpeedTestState.Downloading(live, elapsed, config.maxDownloadMs, bytes, latencyMs))
             }
             if (bytes >= config.maxBytes || elapsed >= config.maxDownloadMs) stop.set(true)
             return !stop.get()
@@ -111,7 +136,9 @@ class SpeedTestEngine(
         val finished = withTimeoutOrNull(config.maxDownloadMs + config.firstByteTimeoutMs) {
             coroutineScope {
                 (1..config.connections).map {
-                    async { runCatchingNonCancel { transport.download(::onBytes) } }
+                    async {
+                        runCatchingNonCancel { transport.download(::onBytes); true } ?: streamErrors.incrementAndGet()
+                    }
                 }.let { jobs ->
                     // Fail fast when nothing at all arrives.
                     val gotFirstByte = withTimeoutOrNull(config.firstByteTimeoutMs) {
@@ -127,8 +154,12 @@ class SpeedTestEngine(
         stop.set(true)
         val end = clockMs()
         val bytes = total.get()
+        val allStreamsFailed = streamErrors.get() >= config.connections
+        if (bytes == 0L && streamErrors.get() > 0) return SpeedTestState.Failed(SpeedTestState.Reason.ENDPOINT_ERROR)
         if (finished == false || bytes == 0L) return SpeedTestState.Failed(SpeedTestState.Reason.TIMEOUT)
-        // Average after warm-up; a run too short to pass warm-up (tiny file / huge line) uses all of it.
+        // Every stream was cut off early (throttled / rejected mid-way): too little to rate the line.
+        if (allStreamsFailed && end - start < config.minValidMs) return SpeedTestState.Failed(SpeedTestState.Reason.ENDPOINT_ERROR)
+        // Average after warm-up; a run too short to pass warm-up (stream ended early) uses all of it.
         val mbps = if (warmupBytes in 0 until bytes && end > warmupAt) mbps(bytes - warmupBytes, end - warmupAt)
         else mbps(bytes, maxOf(1, end - start))
         return SpeedTestState.Done(SpeedTestResult(latencyMs, mbps, bytes, end - start, rate(mbps)))
@@ -143,6 +174,8 @@ class SpeedTestEngine(
     }
 
     companion object {
+        private const val WARMUP_CAP_DIVISOR = 3
+
         fun mbps(bytes: Long, ms: Long): Double = if (ms <= 0) 0.0 else bytes * 8.0 / 1_000_000.0 / (ms / 1000.0)
 
         /**

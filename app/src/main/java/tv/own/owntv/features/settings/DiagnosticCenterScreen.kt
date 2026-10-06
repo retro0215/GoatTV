@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -58,6 +59,8 @@ import tv.own.owntv.core.diagnostics.DiagnosticEvaluator
 import tv.own.owntv.core.diagnostics.DiagnosticFacts
 import tv.own.owntv.core.diagnostics.Recommendation
 import tv.own.owntv.core.diagnostics.ServiceFact
+import tv.own.owntv.core.diagnostics.SpeedRating
+import tv.own.owntv.core.diagnostics.SpeedTestState
 import tv.own.owntv.core.diagnostics.SportsFact
 import tv.own.owntv.core.diagnostics.VodEngine
 import tv.own.owntv.features.update.UpdateDialog
@@ -90,6 +93,8 @@ fun DiagnosticCenterScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     val notice by vm.notice.collectAsStateWithLifecycle()
     val engine by vm.vodEngine.collectAsStateWithLifecycle()
     val epgSync by vm.epgSync.collectAsStateWithLifecycle()
+    val speed by vm.speed.collectAsStateWithLifecycle()
+    val speedAtMs by vm.speedAtMs.collectAsStateWithLifecycle()
     val text = remember(context) { ResourceDiagnosticText(context) }
 
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
@@ -278,6 +283,24 @@ fun DiagnosticCenterScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             }
         }
 
+        GroupLabel(stringResource(R.string.diag_speed_title))
+        SpeedTestPanel(speed, text)
+        ActionRow {
+            val speedRunning = speed is SpeedTestState.Latency || speed is SpeedTestState.Downloading
+            OwnTVButton(
+                stringResource(
+                    when {
+                        speedRunning -> R.string.common_cancel
+                        speed is SpeedTestState.Done || speed is SpeedTestState.Failed -> R.string.diag_speed_run_again
+                        else -> R.string.diag_speed_run
+                    },
+                ),
+                // One button that changes its label, so focus stays put while the test runs.
+                onClick = { if (speedRunning) vm.cancelSpeedTest() else vm.runSpeedTest() },
+                style = if (speedRunning) OwnTVButtonStyle.SECONDARY else OwnTVButtonStyle.PRIMARY,
+            )
+        }
+
         GroupLabel(stringResource(R.string.diag_actions))
         InfoCard(lines = listOf(stringResource(R.string.diag_clear_cache_description)), focusable = false)
         ActionRow { OwnTVButton(stringResource(R.string.diag_clear_cache), onClick = vm::clearImageCache, style = OwnTVButtonStyle.SECONDARY) }
@@ -293,7 +316,7 @@ fun DiagnosticCenterScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 style = OwnTVButtonStyle.SECONDARY,
             )
         }
-        if (showAdvanced) AdvancedDetails(facts, text)
+        if (showAdvanced) AdvancedDetails(facts, text, speedAtMs)
     }
 
     if (showSwitch) {
@@ -397,7 +420,7 @@ private fun detailLines(check: DiagCheck, status: DiagStatus, f: DiagnosticFacts
 }
 
 @Composable
-private fun AdvancedDetails(f: DiagnosticFacts, text: ResourceDiagnosticText) {
+private fun AdvancedDetails(f: DiagnosticFacts, text: ResourceDiagnosticText, speedAtMs: Long?) {
     val d = f.device
     if (d == null) {
         InfoCard(lines = listOf(stringResource(R.string.diag_not_run)))
@@ -411,12 +434,78 @@ private fun AdvancedDetails(f: DiagnosticFacts, text: ResourceDiagnosticText) {
             if (d.storageTotalBytes > 0) add(stringResource(R.string.diag_storage_free, text.bytes(d.storageFreeBytes), text.bytes(d.storageTotalBytes)))
             if (d.screenWidthPx > 0) add(stringResource(R.string.diag_adv_screen, text.screen(d.screenWidthPx, d.screenHeightPx, d.refreshRateHz)))
             f.internet?.let { add(stringResource(R.string.diag_network_type, stringResource(ResourceDiagnosticText.transportRes(it.transport)))) }
+            f.internet?.latencyMs?.let { add(stringResource(R.string.diag_latency_line, text.latency(it))) }
+            val result = f.speed
+            if (result != null && speedAtMs != null) add(stringResource(R.string.diag_adv_last_speed, text.speed(result), text.timestamp(speedAtMs)))
         },
     )
     InfoCard(
         title = stringResource(R.string.diag_adv_codecs),
         lines = DiagCodec.entries.map { c -> text.codec(c, d.codecs[c] ?: CodecSupport.NOT_REPORTED) } + stringResource(R.string.diag_codec_note),
     )
+}
+
+/**
+ * The speed test's live read-out. Shows only what the engine measured: the latency phase, then the
+ * current download rate from its one-second window and the elapsed share of the time budget, then the
+ * result. A failure is shown as "could not be completed", never as a slow connection.
+ */
+@Composable
+private fun SpeedTestPanel(state: SpeedTestState, text: ResourceDiagnosticText) {
+    val colors = OwnTVTheme.colors
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        when (state) {
+            SpeedTestState.Idle -> Text(stringResource(R.string.diag_speed_intro), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            is SpeedTestState.Latency -> {
+                Text(stringResource(R.string.diag_speed_testing_latency), style = MaterialTheme.typography.titleMedium, color = colors.primary)
+                SpeedProgressBar(if (state.of > 0) state.sample.toFloat() / state.of else 0f)
+            }
+            is SpeedTestState.Downloading -> {
+                Text(stringResource(R.string.diag_speed_testing_download), style = MaterialTheme.typography.titleMedium, color = colors.primary)
+                // The first chunk has no window to measure over yet: show the rate once there is one.
+                if (state.currentMbps > 0.0) {
+                    SpeedFigure(stringResource(R.string.diag_speed_download), stringResource(R.string.diag_speed_mbps, text.decimal(state.currentMbps)))
+                }
+                state.latencyMs?.let { SpeedFigure(stringResource(R.string.diag_speed_latency), text.latency(it)) }
+                SpeedProgressBar((state.elapsedMs.toFloat() / state.maxMs).coerceIn(0f, 1f))
+            }
+            is SpeedTestState.Done -> {
+                val r = state.result
+                SpeedFigure(stringResource(R.string.diag_speed_download), stringResource(R.string.diag_speed_mbps, text.decimal(r.downloadMbps)))
+                r.latencyMs?.let { SpeedFigure(stringResource(R.string.diag_speed_latency), text.latency(it)) }
+                SpeedFigure(stringResource(R.string.diag_speed_connection), stringResource(ResourceDiagnosticText.ratingRes(r.rating)))
+                Text(
+                    stringResource(
+                        when (r.rating) {
+                            SpeedRating.EXCELLENT, SpeedRating.GOOD -> R.string.diag_speed_note_4k
+                            SpeedRating.FAIR -> R.string.diag_speed_note_hd
+                            SpeedRating.POOR -> R.string.diag_speed_note_poor
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium, color = colors.onSurface,
+                )
+                Text(stringResource(R.string.diag_speed_disclaimer), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+            is SpeedTestState.Failed -> Text(stringResource(R.string.diag_speed_failed), style = MaterialTheme.typography.bodyMedium, color = WarningAmber)
+        }
+    }
+}
+
+@Composable
+private fun SpeedFigure(label: String, value: String) {
+    val colors = OwnTVTheme.colors
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant, modifier = Modifier.width(160.dp))
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun SpeedProgressBar(fraction: Float) {
+    val colors = OwnTVTheme.colors
+    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.secondaryContainer)) {
+        Box(Modifier.fillMaxWidth(fraction).height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.primary))
+    }
 }
 
 /** A focusable status card: focus is what lets the D-pad scroll through the results. */

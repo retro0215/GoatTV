@@ -65,6 +65,7 @@ internal class EnglishDiagnosticText : DiagnosticText {
     override fun recommendation(recommendation: Recommendation) = recommendation.name
     override fun latency(ms: Long) = "$ms ms"
     override fun speed(result: SpeedTestResult) = "${result.downloadMbps} Mbps ${result.rating}"
+    override fun speedNotRun() = "Not run"
     override fun count(value: Int) = value.toString()
     override fun bytes(value: Long) = "${value shr 20} MB"
     override fun memory(availBytes: Long, totalBytes: Long) = "${bytes(availBytes)} of ${bytes(totalBytes)}"

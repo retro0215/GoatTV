@@ -121,6 +121,7 @@ data class DiagnosticFacts(
 
 enum class Recommendation {
     RESTART_ROUTER,
+    SLOW_CONNECTION,
     SERVICE_UNREACHABLE_VPN,
     CHECK_ACCOUNT,
     ADD_PLAYLIST,

@@ -83,6 +83,9 @@ object DiagnosticEvaluator {
     fun recommendations(f: DiagnosticFacts): List<Recommendation> = buildList {
         val internetOk = f.internet?.reachable
         if (internetOk == false) add(Recommendation.RESTART_ROUTER)
+        // A user-run speed test that measured a slow line is the first thing to address — before any
+        // service-specific advice, and it rules out the VPN suggestion (see vpnSuggested).
+        if (f.speed?.rating == SpeedRating.POOR) add(Recommendation.SLOW_CONNECTION)
         when (f.service) {
             ServiceFact.NoSource -> add(Recommendation.ADD_PLAYLIST)
             is ServiceFact.Rejected -> add(Recommendation.CHECK_ACCOUNT)

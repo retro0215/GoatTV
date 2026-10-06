@@ -63,6 +63,7 @@ class DiagnosticCenterViewModel(
     private val epgSyncScheduler: EpgSyncScheduler,
     private val epgSources: EpgSourceStore,
     private val epgDao: EpgDao,
+    private val okHttp: okhttp3.OkHttpClient,
 ) : ViewModel() {
 
     data class UiState(
@@ -113,34 +114,100 @@ class DiagnosticCenterViewModel(
 
     private fun idleState(facts: DiagnosticFacts) = UiState(facts = facts, results = DiagnosticEvaluator.results(facts))
 
+    /**
+     * The full diagnostic never runs the bandwidth test itself (only the lightweight latency check);
+     * a speed result the customer already ran this session is carried over and informs the advice.
+     */
     fun runFull() {
         if (job?.isActive == true) return
         _notice.value = null
+        val keptSpeed = _state.value.facts.speed
         job = viewModelScope.launch {
-            _state.value = idleState(DiagnosticFacts(app = app)).copy(running = true)
+            _state.value = idleState(DiagnosticFacts(app = app, speed = keptSpeed)).copy(running = true)
             try {
-                val done = DiagnosticRunner(probes).run(app) { p -> _state.value = progressState(p) }
-                val results = DiagnosticRunner.results(done)
+                val done = DiagnosticRunner(probes).run(app) { p -> _state.value = progressState(p.copy(facts = p.facts.copy(speed = keptSpeed))) }
+                val facts = done.facts.copy(speed = _state.value.facts.speed ?: keptSpeed)
+                val results = DiagnosticRunner.results(done.copy(facts = facts))
                 _state.value = UiState(
                     running = false,
-                    facts = done.facts,
+                    facts = facts,
                     results = results,
                     summary = DiagnosticEvaluator.summary(results, finished = true),
-                    recommendations = DiagnosticEvaluator.recommendations(done.facts),
+                    recommendations = DiagnosticEvaluator.recommendations(facts),
                     finishedAtMs = System.currentTimeMillis(),
                 )
             } finally {
                 // Cancelled (Back): drop the half-finished run rather than show partial results as final.
-                if (_state.value.running) _state.value = idleState(DiagnosticFacts(app = app))
+                if (_state.value.running) _state.value = idleState(DiagnosticFacts(app = app, speed = keptSpeed))
             }
         }
     }
 
     private fun progressState(p: DiagnosticProgress) = UiState(running = true, facts = p.facts, results = DiagnosticRunner.results(p))
 
+    // --- Internet speed test (user-started only; never part of the full diagnostic) ---
+
+    private val _speed = MutableStateFlow<tv.own.owntv.core.diagnostics.SpeedTestState>(tv.own.owntv.core.diagnostics.SpeedTestState.Idle)
+    val speed: StateFlow<tv.own.owntv.core.diagnostics.SpeedTestState> = _speed.asStateFlow()
+
+    private val _speedAtMs = MutableStateFlow<Long?>(null)
+    /** When the last completed speed test finished (for Advanced Details). */
+    val speedAtMs: StateFlow<Long?> = _speedAtMs.asStateFlow()
+
+    private var speedJob: Job? = null
+
+    /**
+     * Starts a brand-new measurement (a new engine and transport every time — nothing carries over
+     * from a previous run). The UI receives only values the engine measured, at most every
+     * [SPEED_UI_INTERVAL_MS] during the download; phase changes and the final result always go through.
+     */
+    fun runSpeedTest() {
+        if (speedJob?.isActive == true) return
+        speedJob = viewModelScope.launch {
+            val transport = tv.own.owntv.core.diagnostics.OkHttpSpeedTestTransport(okHttp, tv.own.owntv.core.diagnostics.SpeedTestEndpoint.configured())
+            val lastEmit = java.util.concurrent.atomic.AtomicLong(0)
+            _speed.value = tv.own.owntv.core.diagnostics.SpeedTestState.Latency(0, 0)
+            try {
+                val end = tv.own.owntv.core.diagnostics.SpeedTestEngine(transport).run { st ->
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    val sameDownloadPhase = st is tv.own.owntv.core.diagnostics.SpeedTestState.Downloading &&
+                        _speed.value is tv.own.owntv.core.diagnostics.SpeedTestState.Downloading
+                    if (!sameDownloadPhase || now - lastEmit.get() >= SPEED_UI_INTERVAL_MS) {
+                        lastEmit.set(now)
+                        _speed.value = st
+                    }
+                }
+                _speed.value = end
+                if (end is tv.own.owntv.core.diagnostics.SpeedTestState.Done) {
+                    _speedAtMs.value = System.currentTimeMillis()
+                    val s = _state.value
+                    val facts = s.facts.copy(speed = end.result)
+                    _state.value = s.copy(
+                        facts = facts,
+                        recommendations = if (s.summary != null) DiagnosticEvaluator.recommendations(facts) else s.recommendations,
+                    )
+                }
+            } finally {
+                transport.release()
+                // Cancelled (Cancel / Back): back to a clean, startable state; nothing half-measured is kept.
+                val v = _speed.value
+                if (v !is tv.own.owntv.core.diagnostics.SpeedTestState.Done && v !is tv.own.owntv.core.diagnostics.SpeedTestState.Failed) {
+                    _speed.value = tv.own.owntv.core.diagnostics.SpeedTestState.Idle
+                }
+            }
+        }
+    }
+
+    fun cancelSpeedTest() {
+        speedJob?.cancel()
+        speedJob = null
+    }
+
+    /** Leaving the screen stops a running diagnostic and a running speed test (no background bandwidth). */
     fun cancel() {
         job?.cancel()
         job = null
+        cancelSpeedTest()
     }
 
     /** Re-sync every active playlist through the normal (non-pruning) Settings → Playlists path. */
@@ -237,5 +304,6 @@ class DiagnosticCenterViewModel(
 
     private companion object {
         const val RESYNC_REASON = "diagnostic_resync"
+        const val SPEED_UI_INTERVAL_MS = 250L
     }
 }

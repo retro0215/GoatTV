@@ -28,6 +28,7 @@ interface DiagnosticText {
     fun recommendation(recommendation: Recommendation): String
     fun latency(ms: Long): String
     fun speed(result: SpeedTestResult): String
+    fun speedNotRun(): String
     fun count(value: Int): String
     fun bytes(value: Long): String
     fun memory(availBytes: Long, totalBytes: Long): String
@@ -71,7 +72,8 @@ object DiagnosticReport {
             lines += text.line(ReportLabel.NETWORK, text.transport(net.transport))
             net.latencyMs?.let { lines += text.line(ReportLabel.LATENCY, text.latency(it)) }
         }
-        facts.speed?.let { lines += text.line(ReportLabel.SPEED, text.speed(it)) }
+        // Only a test the customer actually ran is reported; the endpoint itself never appears here.
+        lines += text.line(ReportLabel.SPEED, facts.speed?.let(text::speed) ?: text.speedNotRun())
         lines += ""
         lines += text.line(ReportLabel.INTERNET, st(DiagCheck.INTERNET))
         lines += text.line(ReportLabel.SERVICE, st(DiagCheck.SERVICE))

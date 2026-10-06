@@ -45,12 +45,14 @@ class ResourceDiagnosticText(private val context: Context) : DiagnosticText {
     }
     override fun recommendation(recommendation: Recommendation) = s(recommendationRes(recommendation))
     override fun latency(ms: Long) = s(R.string.diag_latency_value, ms.toString())
-    override fun speed(result: tv.own.owntv.core.diagnostics.SpeedTestResult): String {
-        val mbps = NumberFormat.getNumberInstance(context.resources.configuration.locales[0])
-            .apply { maximumFractionDigits = 1; minimumFractionDigits = 1 }
-            .format(result.downloadMbps)
-        return s(R.string.diag_speed_value, mbps, s(ratingRes(result.rating)))
-    }
+    override fun speed(result: tv.own.owntv.core.diagnostics.SpeedTestResult): String =
+        s(R.string.diag_speed_value, decimal(result.downloadMbps), s(ratingRes(result.rating)))
+
+    /** One decimal place, in the current locale (42.8 or 42,8). */
+    fun decimal(value: Double): String = NumberFormat.getNumberInstance(context.resources.configuration.locales[0])
+        .apply { maximumFractionDigits = 1; minimumFractionDigits = 1 }
+        .format(value)
+    override fun speedNotRun() = s(R.string.diag_speed_not_run)
     override fun count(value: Int): String = NumberFormat.getIntegerInstance(context.resources.configuration.locales[0]).format(value)
     override fun bytes(value: Long): String = Formatter.formatShortFileSize(context, value)
     override fun memory(availBytes: Long, totalBytes: Long) = s(R.string.diag_memory_value, bytes(availBytes), bytes(totalBytes))
@@ -150,6 +152,7 @@ class ResourceDiagnosticText(private val context: Context) : DiagnosticText {
 
         fun recommendationRes(r: Recommendation): Int = when (r) {
             Recommendation.RESTART_ROUTER -> R.string.diag_rec_restart_router
+            Recommendation.SLOW_CONNECTION -> R.string.diag_rec_slow_connection
             Recommendation.SERVICE_UNREACHABLE_VPN -> R.string.diag_rec_service_vpn
             Recommendation.CHECK_ACCOUNT -> R.string.diag_rec_check_account
             Recommendation.ADD_PLAYLIST -> R.string.diag_rec_add_playlist

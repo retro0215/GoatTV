@@ -2074,10 +2074,28 @@ Resync and remove missing titles also allows removing titles the provider no lon
     <string name="diag_latency_value"><xliff:g id="ms">%1$s</xliff:g> ms</string>
     <string name="diag_latency_line">Latency: <xliff:g id="latency">%1$s</xliff:g></string>
     <string name="diag_label_latency">Latency</string>
-    <string name="diag_label_speed">Download speed</string>
+    <string name="diag_label_speed">Speed test</string>
     <string name="diag_speed_value"><xliff:g id="mbps">%1$s</xliff:g> Mbps (<xliff:g id="rating">%2$s</xliff:g>)</string>
     <string name="diag_speed_excellent">Excellent</string>
     <string name="diag_speed_good">Good</string>
     <string name="diag_speed_fair">Fair</string>
     <string name="diag_speed_poor">Poor</string>
+    <string name="diag_speed_title">Internet Speed Test</string>
+    <string name="diag_speed_intro">Measure your internet download speed and latency.</string>
+    <string name="diag_speed_run">Run speed test</string>
+    <string name="diag_speed_run_again">Run again</string>
+    <string name="diag_speed_testing_latency">Testing latency…</string>
+    <string name="diag_speed_testing_download">Testing download speed…</string>
+    <string name="diag_speed_download">Download</string>
+    <string name="diag_speed_latency">Latency</string>
+    <string name="diag_speed_connection">Connection</string>
+    <string name="diag_speed_mbps"><xliff:g id="mbps">%1$s</xliff:g> Mbps</string>
+    <string name="diag_speed_failed">Speed test could not be completed. Please try again later.</string>
+    <string name="diag_speed_disclaimer">Measured internet speed is only one factor in streaming performance.</string>
+    <string name="diag_speed_note_4k">Your measured speed is generally sufficient for HD and 4K streaming.</string>
+    <string name="diag_speed_note_hd">Your measured speed is generally sufficient for HD streaming.</string>
+    <string name="diag_speed_note_poor">Your measured speed may not be enough for reliable HD streaming.</string>
+    <string name="diag_speed_not_run">Not run</string>
+    <string name="diag_adv_last_speed">Last speed test: <xliff:g id="result">%1$s</xliff:g> · <xliff:g id="time">%2$s</xliff:g></string>
+    <string name="diag_rec_slow_connection">Your measured internet speed is low. Restart your modem/router and, if you use Wi-Fi, move the device closer to the router or use a wired connection.</string>
 </resources>

@@ -61,6 +61,20 @@ class DiagnosticReportTest {
     }
 
     @Test
+    fun `speed test not run is reported as such, and the endpoint never appears`() {
+        val notRun = report(healthy)
+        assertTrue(notRun.contains("SPEED: Not run"))
+        val ran = report(healthy.copy(speed = SpeedTestResult(28, 76.4, 30_000_000, 6_000, SpeedRating.EXCELLENT)))
+        val host = SpeedTestEndpoint.configured().baseUrl.substringAfter("://").substringBefore('/')
+        listOf(notRun, ran).forEach { r ->
+            assertFalse(r.contains(host))
+            assertFalse(r.contains("r2.dev"))
+            assertFalse(r.contains("ping.bin"))
+            assertFalse(r.contains("speedtest.bin"))
+        }
+    }
+
+    @Test
     fun `an unfinished run never claims all checks passed`() {
         val r = report(DiagnosticFacts(app = DiagnosticTestFacts.app), finished = false)
         assertTrue(r.contains("SUMMARY: Diagnostic not finished"))
