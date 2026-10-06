@@ -24,7 +24,7 @@ data class SpeedTestEndpoint(val baseUrl: String) {
     companion object {
         /** 1 KiB object: one latency sample per request. */
         const val PING_OBJECT = "ping.bin"
-        /** 32 MiB of incompressible data: larger than the 30 MB test cap, so a stream never runs dry. */
+        /** 32 MiB of incompressible data: larger than the 25 MiB test cap, so a stream never runs dry. */
         const val DOWNLOAD_OBJECT = "speedtest.bin"
         private const val SEPARATOR = "/"
 

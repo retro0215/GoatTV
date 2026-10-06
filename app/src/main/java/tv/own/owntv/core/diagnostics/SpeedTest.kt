@@ -33,7 +33,11 @@ data class SpeedTestConfig(
     val connections: Int = 3,
     val warmupMs: Long = 1_000,
     val maxDownloadMs: Long = 6_000,
-    val maxBytes: Long = 30L * 1024 * 1024,
+    /**
+     * Bytes counted by the engine. Data already in flight when the cap is hit still arrives (a few MB on
+     * a fast line with three streams), so 25 MiB keeps a completed test at roughly 30–32 MB on the wire.
+     */
+    val maxBytes: Long = 25L * 1024 * 1024,
     /** No byte at all within this long = the endpoint is not answering. */
     val firstByteTimeoutMs: Long = 5_000,
     /** If every stream failed, a measurement shorter than this is too short to trust. */

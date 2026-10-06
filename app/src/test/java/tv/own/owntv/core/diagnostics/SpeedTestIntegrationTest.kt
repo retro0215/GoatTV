@@ -93,6 +93,23 @@ class SpeedTestIntegrationTest {
         listOf("token", "key", "secret", "account", "access").forEach { assertFalse(url.lowercase().contains(it)) }
     }
 
+    @Test
+    fun `default limits - 25 MiB cap, 6 s, 3 streams, 1 s warm-up, 5 latency samples`() {
+        val c = SpeedTestConfig()
+        assertEquals(25L * 1024 * 1024, c.maxBytes)
+        assertEquals(6_000L, c.maxDownloadMs)
+        assertEquals(3, c.connections)
+        assertEquals(1_000L, c.warmupMs)
+        assertEquals(5, c.latencySamples)
+    }
+
+    @Test
+    fun `default cap - a completed test reads at most 25 MiB plus one chunk per stream`() = runBlocking {
+        val clock = AtomicLong()
+        val done = SpeedTestEngine(Scripted(clock, { _, _ -> 1 }), SpeedTestConfig()) { clock.get() / 3 }.run {} as SpeedTestState.Done
+        assertTrue("read ${done.result.bytesUsed}", done.result.bytesUsed in 25L * 1024 * 1024..25L * 1024 * 1024 + 3 * 65_536)
+    }
+
     // --- real transport ---
 
     @Test
@@ -253,7 +270,7 @@ class SpeedTestIntegrationTest {
     @Test
     fun `fast line reaching the byte cap before 1 s - connection set-up is still excluded`() = runBlocking {
         val clock = AtomicLong()
-        // 350 ms of set-up before the first byte, then 1 ms per 64 KiB chunk (~524 Mbps); the 30 MiB cap
+        // 350 ms of set-up before the first byte, then 1 ms per 64 KiB chunk (~524 Mbps); the 25 MiB cap
         // is reached well before the 1 s warm-up would end.
         var first = true
         val t = Scripted(clock, { _, _ -> if (first) { first = false; 350 } else 1 })

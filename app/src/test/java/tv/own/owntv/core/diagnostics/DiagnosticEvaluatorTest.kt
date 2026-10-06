@@ -193,6 +193,31 @@ class DiagnosticEvaluatorTest {
         assertEquals(listOf(Recommendation.SERVICE_UNREACHABLE_VPN), DiagnosticEvaluator.recommendations(f))
     }
 
+    // --- general internet latency vs speed-test endpoint latency are separate ---
+
+    @Test
+    fun `high speed-test endpoint latency does not suppress or trigger VPN advice - only the internet check's latency counts`() {
+        val r2Slow = SpeedTestResult(400, 80.0, 30_000_000, 6_000, SpeedRating.EXCELLENT)
+        // Healthy service: a slow test endpoint alone never brings VPN advice.
+        assertFalse(vpn(healthy.copy(speed = r2Slow)))
+        assertEquals(emptyList<Recommendation>(), DiagnosticEvaluator.recommendations(healthy.copy(speed = r2Slow)))
+        // Service failing twice on a fast general connection: same answer with or without the slow endpoint.
+        val failing = healthy.copy(service = repeatedOutage)
+        assertEquals(vpn(failing), vpn(failing.copy(speed = r2Slow)))
+        assertEquals(DiagnosticEvaluator.recommendations(failing), DiagnosticEvaluator.recommendations(failing.copy(speed = r2Slow)))
+    }
+
+    @Test
+    fun `slow general internet latency blocks VPN advice even when the speed test endpoint was fast`() {
+        val r2Fast = SpeedTestResult(20, 80.0, 30_000_000, 6_000, SpeedRating.EXCELLENT)
+        val f = healthy.copy(
+            internet = healthy.internet!!.copy(latencyMs = 400),
+            service = repeatedOutage,
+            speed = r2Fast,
+        )
+        assertFalse(vpn(f))
+    }
+
     @Test
     fun `a speed result never changes the check statuses or the issue count`() {
         assertEquals(summary(healthy).issues, summary(healthy.copy(speed = speed(3.0))).issues)
