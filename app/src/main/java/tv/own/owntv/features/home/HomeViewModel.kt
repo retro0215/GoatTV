@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tv.own.owntv.core.content.AdultContentPolicy
 import tv.own.owntv.core.customize.CustomizationStore
 import tv.own.owntv.core.customize.CustomizeKeys
 import tv.own.owntv.core.customize.SectionCustomizations
@@ -243,6 +244,9 @@ data class ContinueTarget(
 
 private const val SLICE_WINDOW_MS = 360 * 60_000L
 private const val RECENT_LIVE_ROW_LIMIT = 20
+private const val RECENT_ROW_LIMIT = 20
+/** Candidates per source (top rated / recently added / watched) scored for the Top 10 rails. */
+private const val TOP_CANDIDATES = 50
 
 class HomeViewModel(
     private val planner: LauncherRecommendationPlanner,
@@ -270,11 +274,13 @@ class HomeViewModel(
     private var cachedTopMovies: List<MovieEntity> = emptyList()
     private var cachedTopSeries: List<SeriesEntity> = emptyList()
 
-    private suspend fun getDynamicTopMovies(profileId: Long, sourceIds: List<Long>): List<MovieEntity> {
+    private suspend fun getDynamicTopMovies(profileId: Long, sourceIds: List<Long>, adultCats: Set<Long>): List<MovieEntity> {
         if (sourceIds.isEmpty()) return emptyList()
-        val topRated = movieDao.topRated(sourceIds, 50)
-        val recentlyAdded = movieDao.recentlyAdded(sourceIds, 50)
-        val watched = movieDao.recentlyWatchedSnapshot(profileId, sourceIds, 50)
+        val adult = { m: MovieEntity -> AdultContentPolicy.isAdultContent(m.categoryId, adultCats) }
+        val topRated = AdultContentPolicy.fillRail(TOP_CANDIDATES, adult) { offset, n -> movieDao.topRated(sourceIds, n, offset) }
+        val recentlyAdded = AdultContentPolicy.fillRail(TOP_CANDIDATES, adult) { offset, n -> movieDao.recentlyAdded(sourceIds, n, offset) }
+        // Watched titles stay in the history; an adult one is only kept out of this discovery rail.
+        val watched = movieDao.recentlyWatchedSnapshot(profileId, sourceIds, TOP_CANDIDATES).filterNot(adult)
         val watchedIds = watched.map { it.id }.toSet()
         val candidates = (topRated + recentlyAdded + watched).distinctBy { it.id }
 
@@ -299,11 +305,12 @@ class HomeViewModel(
         .map { it.first }
     }
 
-    private suspend fun getDynamicTopSeries(profileId: Long, sourceIds: List<Long>): List<SeriesEntity> {
+    private suspend fun getDynamicTopSeries(profileId: Long, sourceIds: List<Long>, adultCats: Set<Long>): List<SeriesEntity> {
         if (sourceIds.isEmpty()) return emptyList()
-        val topRated = seriesDao.topRated(sourceIds, 50)
-        val recentlyAdded = seriesDao.recentlyAdded(sourceIds, 50)
-        val watched = seriesDao.recentlyWatchedSnapshot(profileId, sourceIds, 50)
+        val adult = { s: SeriesEntity -> AdultContentPolicy.isAdultContent(s.categoryId, adultCats) }
+        val topRated = AdultContentPolicy.fillRail(TOP_CANDIDATES, adult) { offset, n -> seriesDao.topRated(sourceIds, n, offset) }
+        val recentlyAdded = AdultContentPolicy.fillRail(TOP_CANDIDATES, adult) { offset, n -> seriesDao.recentlyAdded(sourceIds, n, offset) }
+        val watched = seriesDao.recentlyWatchedSnapshot(profileId, sourceIds, TOP_CANDIDATES).filterNot(adult)
         val watchedIds = watched.map { it.id }.toSet()
         val candidates = (topRated + recentlyAdded + watched).distinctBy { it.id }
 
@@ -616,10 +623,15 @@ class HomeViewModel(
 
             // Hidden items / hidden categories (per profile) never surface on Home either.
             val hidden = hiddenState(profileId, allIds.toList())
+            // Adult (X-rated) provider categories never surface on the Home discovery rails, for any profile.
+            val adultMovieCats = adultCategoryIds(movieIds, MediaType.MOVIE)
+            val adultSeriesCats = adultCategoryIds(seriesIds, MediaType.SERIES)
             val trending = buildTrendingItems(
                 movieSourceIds = movieIds,
                 seriesSourceIds = seriesIds,
                 hidden = hidden,
+                adultMovieCats = adultMovieCats,
+                adultSeriesCats = adultSeriesCats,
                 sourceOrder = (movieIds + seriesIds).distinct().toList(),
                 metadataEnabled = metadataConfig.enabled,
                 preferredLanguage = preferredLanguage,
@@ -637,16 +649,21 @@ class HomeViewModel(
             val (topMovies, topSeries) = if (cacheValid) {
                 Pair(cachedTopMovies, cachedTopSeries)
             } else {
-                val computedMovies = getDynamicTopMovies(profileId, movieIds.toList())
-                val computedSeries = getDynamicTopSeries(profileId, seriesIds.toList())
+                val computedMovies = getDynamicTopMovies(profileId, movieIds.toList(), adultMovieCats)
+                val computedSeries = getDynamicTopSeries(profileId, seriesIds.toList(), adultSeriesCats)
                 cachedTop10ProfileId = profileId
                 lastTop10ComputeTimeMs = now
                 cachedTopMovies = computedMovies
                 cachedTopSeries = computedSeries
                 Pair(computedMovies, computedSeries)
             }
-            val recentMovies = if (movieIds.isNotEmpty()) movieDao.recentlyAdded(movieIds.toList(), 20) else emptyList()
-            val recentSeries = if (seriesIds.isNotEmpty()) seriesDao.recentlyAdded(seriesIds.toList(), 20) else emptyList()
+            // Filled past adult items, so the rail still holds RECENT_ROW_LIMIT titles when enough exist.
+            val recentMovies = if (movieIds.isEmpty()) emptyList() else AdultContentPolicy.fillRail(
+                RECENT_ROW_LIMIT, { m: MovieEntity -> AdultContentPolicy.isAdultContent(m.categoryId, adultMovieCats) },
+            ) { offset, n -> movieDao.recentlyAdded(movieIds.toList(), n, offset) }
+            val recentSeries = if (seriesIds.isEmpty()) emptyList() else AdultContentPolicy.fillRail(
+                RECENT_ROW_LIMIT, { s: SeriesEntity -> AdultContentPolicy.isAdultContent(s.categoryId, adultSeriesCats) },
+            ) { offset, n -> seriesDao.recentlyAdded(seriesIds.toList(), n, offset) }
 
             val allItems = planner.buildContinuationItems(profileId)
             val items = allItems
@@ -811,6 +828,10 @@ class HomeViewModel(
         )
     }
 
+    private suspend fun adultCategoryIds(sourceIds: Set<Long>, type: MediaType): Set<Long> =
+        if (sourceIds.isEmpty()) emptySet()
+        else AdultContentPolicy.adultCategoryIds(categoryDao.observe(sourceIds.toList(), type).first())
+
     private fun isChannelHidden(ch: ChannelEntity, h: HiddenState): Boolean =
         CustomizeKeys.channel(ch) in h.live.hiddenItems || (ch.categoryId != null && ch.categoryId in h.liveCats)
 
@@ -818,6 +839,8 @@ class HomeViewModel(
         movieSourceIds: Set<Long>,
         seriesSourceIds: Set<Long>,
         hidden: HiddenState,
+        adultMovieCats: Set<Long>,
+        adultSeriesCats: Set<Long>,
         sourceOrder: List<Long>,
         metadataEnabled: Boolean,
         preferredLanguage: String,
@@ -837,10 +860,12 @@ class HomeViewModel(
                 MediaType.MOVIE -> movieRows[snapshot.providerItemId]
                     ?.takeIf { it.sourceId in movieSourceIds }
                     ?.takeUnless { CustomizeKeys.movie(it) in hidden.movie.hiddenItems || (it.categoryId != null && it.categoryId in hidden.movieCats) }
+                    ?.takeUnless { AdultContentPolicy.isAdultContent(it.categoryId, adultMovieCats) }
                     ?.let { TrendingHomeItem.Movie(snapshot, it) }
                 MediaType.SERIES -> seriesRows[snapshot.providerItemId]
                     ?.takeIf { it.sourceId in seriesSourceIds }
                     ?.takeUnless { CustomizeKeys.series(it) in hidden.series.hiddenItems || (it.categoryId != null && it.categoryId in hidden.seriesCats) }
+                    ?.takeUnless { AdultContentPolicy.isAdultContent(it.categoryId, adultSeriesCats) }
                     ?.let { TrendingHomeItem.Series(snapshot, it) }
                 else -> null
             }

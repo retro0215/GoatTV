@@ -266,6 +266,10 @@
 1	technical	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	owntv-remote-restore
 1	file-path	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	remote-backup-export
 3	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionHtml.kt	\0
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
 1	log	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	Diagnostics
 1	compiler	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	InlinedApi
 1	protocol	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	Range
