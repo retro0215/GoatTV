@@ -168,9 +168,9 @@ android {
         // build never requests channel data (only flavors with a curated channel index set it).
         buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"\"")
         // Diagnostic Center speed test: the ONE place the public test-file host is set (no credentials —
-        // the objects are public). Temporary Cloudflare R2 development URL (rate-limited, not for production
-        // traffic); replace only this value with https://speed.<production-domain> before release.
-        buildConfigField("String", "SPEED_TEST_BASE_URL", "\"https://pub-4856b23b53c949db9f84637c61af6aec.r2.dev\"")
+        // the objects are public). Production Cloudflare R2 custom domain; ping.bin and speedtest.bin are
+        // derived from it (SpeedTestEndpoint). Never shown to customers or included in reports.
+        buildConfigField("String", "SPEED_TEST_BASE_URL", "\"https://goattv-speed.net\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -692,29 +692,9 @@ jobs:
           RC_CODE: ${{ steps.ver.outputs.code }}
         run: |
           set -o pipefail
-          BT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}/build-tools/36.0.0"
-          case "$RC_BRAND" in
-            goat) PKG="tv.own.owntv"
-                  # Certificate of every published GoatTV release (public fingerprint, not a secret).
-                  CERT="fd5f1a7ca403ecf7859744d4e3c4a7578f945ea720b4947be2a24efc5e706528" ;;
-            fivestar) PKG="tv.fivestar.ultra"; CERT="" ;;
-            allaccess) PKG="tv.allaccess.app"; CERT="" ;;
-            supreme) PKG="tv.supreme.app"; CERT="" ;;
-          esac
-          for APK in dist/*.apk; do
-            BADGING=$("$BT/aapt2" dump badging "$APK" | head -n1)
-            echo "$APK: $BADGING"
-            [[ "$BADGING" == *"name='$PKG' versionCode='$RC_CODE' versionName='$RC_NAME'"* ]] || {
-              echo "::error::$APK package/version does not match $PKG $RC_NAME ($RC_CODE)"; exit 1; }
-            CERTS=$("$BT/apksigner" verify --print-certs "$APK")
-            echo "$CERTS" | grep -E "certificate (DN|SHA-256)"
-            if echo "$CERTS" | grep -q "CN=Android Debug"; then
-              echo "::error::$APK is debug-signed"; exit 1
-            fi
-            if [ -n "$CERT" ] && ! echo "$CERTS" | grep -q "certificate SHA-256 digest: $CERT"; then
-              echo "::error::$APK is not signed with the published $RC_BRAND production certificate"; exit 1
-            fi
-          done
+          export BT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}/build-tools/36.0.0"
+          # Package, version, not debug-signed, and the brand's pinned production certificate (all four brands).
+          bash .github/scripts/verify-rc-apk.sh "$RC_BRAND" "$RC_NAME" "$RC_CODE" dist/*.apk
           echo "Release candidate verified: CI artifact only — no tag, no GitHub Release, invisible to the updater."
 
       - name: Upload APK artifact
