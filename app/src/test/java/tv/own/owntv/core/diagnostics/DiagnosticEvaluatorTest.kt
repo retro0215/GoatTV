@@ -242,8 +242,16 @@ class DiagnosticEvaluatorTest {
         val available = healthy.copy(update = UpdateFact.Available("4.4.25"))
         assertEquals(DiagStatus.WARNING, status(DiagCheck.APP_VERSION, available))
         assertEquals(listOf(Recommendation.UPDATE_APP), DiagnosticEvaluator.recommendations(available))
-        assertEquals(DiagStatus.WARNING, status(DiagCheck.APP_VERSION, healthy.copy(update = UpdateFact.CheckFailed)))
+        assertEquals(1, summary(available).issues)
         assertEquals(DiagStatus.NOT_CHECKED, status(DiagCheck.APP_VERSION, healthy.copy(update = UpdateFact.Busy)))
+    }
+
+    @Test
+    fun `unverifiable update status is not checked - no warning, no issue, no advice`() {
+        val unreachable = healthy.copy(update = UpdateFact.CheckFailed)
+        assertEquals(DiagStatus.NOT_CHECKED, status(DiagCheck.APP_VERSION, unreachable))
+        assertEquals(0, summary(unreachable).issues)
+        assertEquals(emptyList<Recommendation>(), DiagnosticEvaluator.recommendations(unreachable))
     }
 
     @Test

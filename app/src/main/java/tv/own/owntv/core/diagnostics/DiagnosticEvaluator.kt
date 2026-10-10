@@ -40,9 +40,11 @@ object DiagnosticEvaluator {
         }
         DiagCheck.PLAYER -> if (f.player != null) DiagStatus.PASS else DiagStatus.NOT_CHECKED
         DiagCheck.APP_VERSION -> when (f.update) {
-            null, UpdateFact.Busy -> DiagStatus.NOT_CHECKED
+            // GitHub unreachable says nothing about the app itself: not verified, not a warning.
+            null, UpdateFact.Busy, UpdateFact.CheckFailed -> DiagStatus.NOT_CHECKED
             UpdateFact.UpToDate -> DiagStatus.PASS
-            is UpdateFact.Available, UpdateFact.CheckFailed -> DiagStatus.WARNING
+            // A confirmed newer release is always surfaced.
+            is UpdateFact.Available -> DiagStatus.WARNING
         }
         DiagCheck.DEVICE -> f.device?.let { if (isLowStorage(it)) DiagStatus.WARNING else DiagStatus.PASS } ?: DiagStatus.NOT_CHECKED
     }
