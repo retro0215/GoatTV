@@ -9,6 +9,66 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.4.24 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## allaccess-v4.4.25 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## 5star-v4.4.25 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## supreme-v4.4.25 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
 ## allaccess-v4.4.24 — 2026-10-04
 
 ### ✨ New features
