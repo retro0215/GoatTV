@@ -44,6 +44,46 @@
         android:name="android.software.leanback"
         android:required="false" />
 
+    <!-- ExternalPlayerLauncher asks which installed apps can play a stream. From Android 11 that
+         answer only includes apps matching a declared query, so without these it reported "no
+         external player" with VLC or MX Player installed (upstream OwnTV_Core 1a79756a). One entry
+         per intent shape it tries: each MIME it offers, then the bare URI. Read-only visibility;
+         nothing is installed or started by declaring these. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/x-mpegURL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="rtsp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="rtmp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="udp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="mms" />
+        </intent>
+    </queries>
+
     <application
         android:name=".OwnTVApp"
         android:allowBackup="false"

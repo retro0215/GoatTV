@@ -1699,8 +1699,6 @@
 3	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	\0
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	${dohUrl.trimEnd('/')}?name=$hostname&type=$type
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	A
-1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	AAAA
-1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	Accept
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	Answer
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	Cloudflare
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	DnsConfig

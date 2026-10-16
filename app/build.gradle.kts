@@ -666,6 +666,10 @@ dependencies {
     // every JSONObject call into a silent null/0. Backup/restore is all JSON, so the unit tests need
     // the real implementation to mean anything.
     testImplementation(libs.org.json)
+    // Test-only, never packaged: backs the src/test android.util.JsonReader/JsonToken shims (Gson's
+    // streaming reader is the code android.util.JsonReader was taken from), so the Xtream parsers run
+    // on the JVM instead of android.jar's no-op stubs.
+    testImplementation(libs.gson)
     testImplementation("io.mockk:mockk:1.13.13")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

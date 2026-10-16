@@ -40,7 +40,14 @@ val dataModule = module {
     single {
         val proxyHolder = get<tv.own.owntv.core.network.ProxyConfigHolder>()
         val dnsHolder = get<tv.own.owntv.core.network.DnsConfigHolder>()
+        val trust = tv.own.owntv.core.network.ExtraTrustAnchors(
+            androidContext().resources.openRawResource(tv.own.owntv.R.raw.isrg_extra_roots),
+        )
         OkHttpClient.Builder()
+            // Platform trust plus the Let's Encrypt roots older/current devices lack (upstream
+            // OwnTV_Core 0b9f64bb). Clients derived with newBuilder() — streaming/ExoPlayer, Coil,
+            // Sports, Diagnostic Center, updates — inherit it. mpv's own TLS is not affected.
+            .sslSocketFactory(trust.sslSocketFactory, trust.trustManager)
             .connectTimeout(15, TimeUnit.SECONDS)  // fast fail on dead host
             .readTimeout(20, TimeUnit.SECONDS)    // detect mid-sync disconnect quickly
             .writeTimeout(20, TimeUnit.SECONDS)
