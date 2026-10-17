@@ -4237,7 +4237,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	4:3
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	5.1
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	5000000
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	60
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	7.1
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	8MiB
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	Android SDK built for
@@ -4369,7 +4368,6 @@
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	estimated-vf-fps
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo primary vod
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback
-2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exoplayer
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	failed to open|opening failed|could not open|loading failed|was aborted|finished playback
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	fast
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	fbo-format
@@ -4394,7 +4392,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	h265
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	handoff to exo
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardReset thrash guard — $consecutiveHardResets consecutive resets, aborting
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardReset: old mpv instance destroyed — core unblocked
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardware can't decode ${currentVideoCodec} at ${currentWidthPx}x${currentHeightPx}
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardware decoder produced no usable video on ExoPlayer
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hdmv_pgs_subtitle
@@ -4438,7 +4435,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpeg2
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpeg4
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpegts
-5	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv $why — reopening with tolerant demuxing (discardcorrupt/genpts/ignore_err)
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv level=$level $safe
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv live mid-play reconnects exhausted ($MAX_LIVE_RECONNECTS) — surfacing error
@@ -4451,7 +4447,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv_open hls=$effectiveHls live=$isLiveContent probe=trimmed tolerant=$tolerant
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	msg-level
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mute
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	network-timeout
 24	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no-video (mpv, Live) — audio progressing but no video frame after ~${elapsedMs}ms
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no-video (mpv, Live) — reconnect attempt $liveStallReconnects/$MAX_LIVE_RECONNECTS

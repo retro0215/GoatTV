@@ -377,6 +377,11 @@ fun OwnTVShell(
     LaunchedEffect(selectedSection, playerMode) {
         if (selectedSection != MainSection.LIVE_TV && playerMode == PlayerMode.NONE) player.stop()
         if (selectedSection != MainSection.HOME || playerMode != PlayerMode.NONE) homeVm.stopPreview()
+        // Settings never shows the live preview, yet a preview left running when the user came here would
+        // keep its decoder and provider connection behind the settings pages. Stopping frees both; the
+        // instance stays for the next preview. Live TV, Sports and Multiscreen draw this engine, and the mini player keeps playerMode
+        // non-NONE, so none of them is touched.
+        if (selectedSection == MainSection.SETTINGS && playerMode == PlayerMode.NONE) liveVm.stopPreview()
     }
 
     LaunchedEffect(selectedSection, playerMode, activeProfileId, activePlaylistId) {
