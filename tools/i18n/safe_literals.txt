@@ -549,7 +549,7 @@
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/live/SportsSlate.kt	sport:soccer
 1	regex	app/src/main/java/tv/own/owntv/features/sports/live/SportsWatchPresentation.kt	\\b(?:4k|uhd|2160p)\\b
 1	empty	app/src/main/java/tv/own/owntv/features/sports/live/SportsWatchUi.kt	\0
-1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${VOD_FIRST_FRAME_DEADLINE_MS / 1000}s on $engine — stopping both engines
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: stuck mpv still releasing after ${STUCK_MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
@@ -557,7 +557,8 @@
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardReset: old mpv instance destroyed — core unblocked (${tookMs}ms)
 6	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	network-timeout
-1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no picture or sound within ${VOD_FIRST_FRAME_DEADLINE_MS / 1000}s
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no picture or sound within ${budgetMs / 1000}s
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start budget: engine handover, deadline ${before / 1000}s → ${deadline.deadlineMs / 1000}s
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start timeout
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Error processing realtime message: ${e.message}
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Error processing realtime reaction: ${e.message}

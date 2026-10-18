@@ -315,4 +315,145 @@ class VodPlaybackGuardsTest {
         // ...but not before anything opened.
         assertEquals(FirstFrameDeadline.Verdict.WAIT, FirstFrameDeadline(45_000).check(2_000, signals(audioOnly = true, startPaused = true)))
     }
+
+    // --- start budget across an engine handover -------------------------------------------------------
+    //
+    // Timelines are replayed second by second exactly as OwnTVPlayer's 1 s poll sees them. Times are the
+    // worst case against a provider that never answers: mpv-first hands ExoPlayer the item at ~22 s (two
+    // 10 s T_OPEN strikes); ExoPlayer-first hands mpv the item at ~33 s (8 s hardware + 25 s software
+    // no-frame rungs). Constants mirror OwnTVPlayer's.
+
+    private val total = 45_000L
+    private val handoverBudget = 40_000L
+    private val hardCap = 90_000L
+    private fun budget() = FirstFrameDeadline(total, handoverBudget, hardCap)
+
+    /** Replays a start: [handoversAt] are fallback times, [at] gives the signals seen at each second.
+     *  Returns the first verdict that ends the poll and when it happened (null if the timeline ran out). */
+    private fun replay(
+        d: FirstFrameDeadline,
+        handoversAt: List<Long> = emptyList(),
+        untilMs: Long = 120_000,
+        at: (Long) -> FirstFrameDeadline.Signals = { signals() },
+    ): Pair<FirstFrameDeadline.Verdict, Long>? {
+        var t = 1_000L
+        while (t <= untilMs) {
+            handoversAt.filter { it in (t - 1_000) until t }.forEach { d.onHandover(it) }
+            val v = d.check(t, at(t))
+            if (v != FirstFrameDeadline.Verdict.WAIT && v != FirstFrameDeadline.Verdict.ERROR_SHOWN) return v to t
+            t += 1_000
+        }
+        return null
+    }
+
+    @Test
+    fun `mpv first, success`() {
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 3_000L, replay(budget()) { signals(videoFrame = it >= 3_000) })
+    }
+
+    @Test
+    fun `mpv first, open timeout, ExoPlayer fallback plays on its software rung`() {
+        // ExoPlayer starts ~26 s (4 s bounded release + settle), its software rung renders at ~55 s.
+        val r = replay(budget(), handoversAt = listOf(22_000)) { signals(videoFrame = it >= 55_000) }
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 55_000L, r)
+        // Without the handover grant the same start was cut off at 45 s.
+        assertEquals(FirstFrameDeadline.Verdict.EXPIRED to 45_000L, replay(budget()) { signals(videoFrame = it >= 55_000) })
+    }
+
+    @Test
+    fun `ExoPlayer first, success`() {
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 2_000L, replay(budget()) { signals(videoFrame = it >= 2_000) })
+    }
+
+    @Test
+    fun `ExoPlayer first, timeout, mpv fallback gets its own open ladder`() {
+        // mpv takes the item at 33 s; its first open hangs (T_OPEN at 43 s), the silent retry opens and
+        // renders at 52 s. Before this fix the deadline killed it at 45 s, right after the silent reset.
+        val r = replay(budget(), handoversAt = listOf(33_000)) { signals(videoFrame = it >= 52_000) }
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 52_000L, r)
+        assertEquals(FirstFrameDeadline.Verdict.EXPIRED to 45_000L, replay(budget()) { signals(videoFrame = it >= 52_000) })
+    }
+
+    @Test
+    fun `both engines fail - a dead stream still ends on an error`() {
+        // Spinner left up by both ladders: the deadline ends it at handover + budget.
+        assertEquals(FirstFrameDeadline.Verdict.EXPIRED to 62_000L, replay(budget(), handoversAt = listOf(22_000)))
+        assertEquals(FirstFrameDeadline.Verdict.EXPIRED to 73_000L, replay(budget(), handoversAt = listOf(33_000)))
+        // The second engine's own combined error is left on screen and never overwritten.
+        assertEquals(null, replay(budget(), handoversAt = listOf(33_000)) { signals(errorShown = it >= 55_000) })
+    }
+
+    @Test
+    fun `the handover grant is bounded - repeated handovers never pass the hard cap`() {
+        val r = replay(budget(), handoversAt = listOf(20_000, 40_000, 60_000, 80_000, 89_000))
+        assertEquals(FirstFrameDeadline.Verdict.EXPIRED to 90_000L, r)
+    }
+
+    @Test
+    fun `an early handover never shortens the budget`() {
+        val d = budget()
+        d.onHandover(1_000)
+        assertEquals(45_000L, d.deadlineMs)
+        d.onHandover(30_000)
+        assertEquals(70_000L, d.deadlineMs)
+        d.onHandover(10_000) // a late-reported earlier handover cannot pull it back in
+        assertEquals(70_000L, d.deadlineMs)
+    }
+
+    @Test
+    fun `a deadline built without a handover budget keeps its fixed total`() {
+        val d = FirstFrameDeadline(45_000)
+        d.onHandover(40_000)
+        assertEquals(45_000L, d.deadlineMs)
+    }
+
+    @Test
+    fun `slow but successful stream is not cut off`() {
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 44_000L, replay(budget()) { signals(videoFrame = it >= 44_000) })
+        // On the fallback engine, audio first: the playhead advancing counts as started.
+        val r = replay(budget(), handoversAt = listOf(33_000)) {
+            signals(streamOpened = it >= 50_000, positionMs = if (it >= 50_000) it - 50_000 else 0)
+        }
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 52_000L, r)
+    }
+
+    @Test
+    fun `paused playback restoration counts as started once either engine opens`() {
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 4_000L, replay(budget()) { signals(streamOpened = it >= 4_000, startPaused = true) })
+        val r = replay(budget(), handoversAt = listOf(33_000)) { signals(streamOpened = it >= 48_000, startPaused = true) }
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 48_000L, r)
+    }
+
+    @Test
+    fun `Back during a fallback cancels it and the next title gets a fresh budget`() = runBlocking {
+        val p = Player()
+        val handover = EngineHandover(this) { p.generation }
+        val first = budget()
+        first.onHandover(33_000) // title A: ExoPlayer-first gave up, mpv fallback starting
+        val pending = CompletableDeferred<Unit>()
+        handover.start(release = { pending }, releaseTimeoutMs = 4_000, settleMs = 500) { p.armed += "A" }
+        p.supersede() // Back
+        handover.cancel()
+        pending.complete(Unit)
+        yield()
+        assertTrue(p.armed.isEmpty())
+        assertFalse(handover.inFlight)
+        // Title B (or Retry) arms a new deadline: none of A's grant carries over.
+        assertEquals(45_000L, budget().deadlineMs)
+        assertEquals(73_000L, first.deadlineMs)
+    }
+
+    @Test
+    fun `switching titles during a fallback starts only the new title`() = runBlocking {
+        val p = Player()
+        val handover = EngineHandover(this) { p.generation }
+        val pendingA = CompletableDeferred<Unit>()
+        handover.start(release = { pendingA }, releaseTimeoutMs = 4_000, settleMs = 0) { p.armed += "A" }
+        p.supersede() // title B loads
+        handover.start(release = { released() }, releaseTimeoutMs = 4_000, settleMs = 0) { p.armed += "B" }
+        pendingA.complete(Unit)
+        delay(10)
+        assertEquals(listOf("B"), p.armed)
+        assertEquals(FirstFrameDeadline.Verdict.STARTED to 5_000L, replay(budget()) { signals(videoFrame = it >= 5_000) })
+    }
 }

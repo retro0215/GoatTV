@@ -109,9 +109,28 @@ internal class EngineHandover(
  * - the playhead advancing on two consecutive checks after an engine opened the stream (audio is
  *   playing, so the decoder ladder — not this — owns whatever is wrong with the picture), or
  * - an opened stream that has no video track, or one that was asked to start paused.
+ *
+ * An engine handover ([onHandover]) guarantees the incoming engine [handoverBudgetMs] of its own: the
+ * outgoing engine's ladder can use up most of [totalMs] before it gives up (ExoPlayer-first spends ~33 s
+ * on its hardware and software rungs), and expiring then would cut mpv off a few seconds into the
+ * fallback it was handed. The extension only ever moves the deadline later, and never past [hardCapMs],
+ * so however many handovers happen the start stays bounded.
  */
-internal class FirstFrameDeadline(private val totalMs: Long) {
+internal class FirstFrameDeadline(
+    private val totalMs: Long,
+    private val handoverBudgetMs: Long = 0,
+    private val hardCapMs: Long = totalMs,
+) {
     enum class Verdict { WAIT, STARTED, ERROR_SHOWN, EXPIRED }
+
+    /** When the current attempt expires, measured from the start of the item. */
+    @Volatile var deadlineMs: Long = totalMs
+        private set
+
+    /** An engine handed the item to the other engine at [elapsedMs]. */
+    fun onHandover(elapsedMs: Long) {
+        deadlineMs = minOf(hardCapMs, maxOf(deadlineMs, elapsedMs + handoverBudgetMs))
+    }
 
     data class Signals(
         val videoFrame: Boolean,
@@ -142,7 +161,7 @@ internal class FirstFrameDeadline(private val totalMs: Long) {
             lastPositionMs = null
             advancingChecks = 0
         }
-        return if (elapsedMs >= totalMs) Verdict.EXPIRED else Verdict.WAIT
+        return if (elapsedMs >= deadlineMs) Verdict.EXPIRED else Verdict.WAIT
     }
 
     private companion object {

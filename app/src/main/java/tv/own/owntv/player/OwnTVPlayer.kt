@@ -354,6 +354,13 @@ class OwnTVPlayer(
         // Total budget for a Movies/Series start across BOTH engines (open watchdog, silent reset, ExoPlayer
         // fallback). The ladders normally finish well inside it; it exists so nothing can spin forever.
         const val VOD_FIRST_FRAME_DEADLINE_MS = 45_000L
+        // An automatic engine handover guarantees the incoming engine this much of the budget, so the
+        // deadline cannot expire a few seconds into the fallback (ExoPlayer-first hands mpv the item at
+        // ~33 s; mpv's open ladder needs ~22 s). Exo's own ladder (8 s hardware + 25 s software) plus the
+        // bounded mpv release fits inside it on the mpv-first side.
+        const val VOD_HANDOVER_BUDGET_MS = 40_000L
+        // However many handovers happen, a start never spins longer than this.
+        const val VOD_START_HARD_CAP_MS = 90_000L
         const val FIRST_FRAME_CHECK_MS = 1_000L
         // mpv's `network-timeout` (FFmpeg's connect and read wait) while a film is opening, and the value
         // restored once it has loaded. mpv fixes the timeout when it opens a connection, so the opening
@@ -1104,6 +1111,8 @@ class OwnTVPlayer(
     // bounds the whole start across both engines.
     private val engineHandover = EngineHandover(scope) { loadGeneration }
     private var firstFrameJob: Job? = null
+    private var firstFrameDeadline: FirstFrameDeadline? = null
+    private var firstFrameStartedAt = 0L
     // Catch-up/VOD streams that start mid-GOP (no H.264 SPS/PPS yet) can play audio with a blank video.
     // We try a software-decode reload once before surfacing an error, tracked per item.
     @Volatile private var triedSoftwareForVideo = false
@@ -1867,6 +1876,7 @@ class OwnTVPlayer(
         mpvFailureBeforeFallback = mpvError
         android.util.Log.i(TAG, "MPV_FALLBACK_TO_EXO: reason=$mpvError")
         android.util.Log.w(TAG, "VOD terminally failed on mpv ($mpvError) — falling back to ExoPlayer")
+        extendFirstFrameDeadlineForHandover()
         // Resume where mpv got to only if the file actually opened; otherwise _position is stale from the
         // previous item — use the intended start position instead.
         val pos = if (fileLoaded && _position.value > 0) _position.value else pendingSeekMs
@@ -1939,9 +1949,12 @@ class OwnTVPlayer(
     private fun armFirstFrameDeadline(isLive: Boolean, startPaused: Boolean) {
         firstFrameJob?.cancel()
         firstFrameJob = null
+        firstFrameDeadline = null
         if (isLive) return
-        val deadline = FirstFrameDeadline(VOD_FIRST_FRAME_DEADLINE_MS)
+        val deadline = FirstFrameDeadline(VOD_FIRST_FRAME_DEADLINE_MS, VOD_HANDOVER_BUDGET_MS, VOD_START_HARD_CAP_MS)
         val startedAt = android.os.SystemClock.elapsedRealtime()
+        firstFrameDeadline = deadline
+        firstFrameStartedAt = startedAt
         firstFrameJob = scope.launch {
             while (true) {
                 delay(FIRST_FRAME_CHECK_MS)
@@ -1962,7 +1975,7 @@ class OwnTVPlayer(
                     FirstFrameDeadline.Verdict.WAIT, FirstFrameDeadline.Verdict.ERROR_SHOWN -> continue
                     FirstFrameDeadline.Verdict.STARTED -> return@launch
                     FirstFrameDeadline.Verdict.EXPIRED -> {
-                        onFirstFrameDeadlineExpired()
+                        onFirstFrameDeadlineExpired(deadline.deadlineMs)
                         return@launch
                     }
                 }
@@ -1970,17 +1983,29 @@ class OwnTVPlayer(
         }
     }
 
+    /** An automatic engine handover for the current item: give the incoming engine its own (bounded)
+     *  share of the start budget. A no-op once the deadline is gone (played, stopped, live). */
+    private fun extendFirstFrameDeadlineForHandover() {
+        val deadline = firstFrameDeadline ?: return
+        if (firstFrameJob?.isActive != true) return
+        val before = deadline.deadlineMs
+        deadline.onHandover(android.os.SystemClock.elapsedRealtime() - firstFrameStartedAt)
+        if (deadline.deadlineMs != before) {
+            android.util.Log.i(TAG, "start budget: engine handover, deadline ${before / 1000}s → ${deadline.deadlineMs / 1000}s")
+        }
+    }
+
     /**
      * Neither engine produced anything within the start budget. Stop both — so no connection outlives the
      * attempt — and say so, instead of leaving the spinner up. The item stays current, so Retry works.
      */
-    private fun onFirstFrameDeadlineExpired() {
+    private fun onFirstFrameDeadlineExpired(budgetMs: Long) {
         val engine = if (exoActive) "exoplayer" else "mpv"
-        android.util.Log.w(TAG, "VOD_START_TIMEOUT: nothing played within ${VOD_FIRST_FRAME_DEADLINE_MS / 1000}s on $engine — stopping both engines")
+        android.util.Log.w(TAG, "VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines")
         PlaybackErrorLog.event(
             context, engine, live = false,
             reason = PlayerFailureReason.NETWORK,
-            detail = "no picture or sound within ${VOD_FIRST_FRAME_DEADLINE_MS / 1000}s",
+            detail = "no picture or sound within ${budgetMs / 1000}s",
         )
         loadGeneration++ // supersede every watchdog, retry and handover still working on this item
         engineHandover.cancel()
@@ -2009,6 +2034,7 @@ class OwnTVPlayer(
         if (!exoActive) return
         val url = currentUrl ?: return
         android.util.Log.w(TAG, "VOD terminally failed on ExoPlayer ($exoError) — falling back to mpv")
+        extendFirstFrameDeadlineForHandover()
         val pos = engineSwitchResumePos()
         exoFailureBeforeMpv = exoError
         exoPrimaryThisItem = false
@@ -3375,6 +3401,7 @@ class OwnTVPlayer(
         loadGeneration++ // cancels any queued-but-not-yet-executed load
         engineHandover.cancel() // a fallback waiting to start ExoPlayer for the item being left
         firstFrameJob?.cancel()
+        firstFrameDeadline = null
         expectingPlayback = false
         errorCheckJob?.cancel()
         videoCheckJob?.cancel()
