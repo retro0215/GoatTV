@@ -210,12 +210,14 @@ class AndroidDiagnosticProbes(
         val ids = list.map { it.id }
         val programmes = if (ids.isEmpty()) 0 else epgDao.countForSources(ids)
         val guideChannels = if (ids.isEmpty()) 0 else epgDao.countGuideChannels(ids)
+        val lastSyncAt = list.mapNotNull { it.lastSyncAt }.maxOrNull()
         return EpgFact(
             sourceCount = list.size,
             programmes = programmes,
             guideChannels = guideChannels,
-            lastSyncAtMs = list.mapNotNull { it.lastSyncAt }.maxOrNull(),
+            lastSyncAtMs = lastSyncAt,
             lastSyncFailed = list.any { it.lastError != null },
+            lastSyncAgeMs = lastSyncAt?.let { (System.currentTimeMillis() - it).coerceAtLeast(0L) },
         )
     }
 

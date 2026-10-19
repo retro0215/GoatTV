@@ -456,4 +456,160 @@ class VodPlaybackGuardsTest {
         assertEquals(listOf("B"), p.armed)
         assertEquals(FirstFrameDeadline.Verdict.STARTED to 5_000L, replay(budget()) { signals(videoFrame = it >= 5_000) })
     }
+
+    // --- resume positions: one session per title ----------------------------------------------------
+    //
+    // Mirrors OwnTVPlayer: `position`/`duration` are the shared fields every engine writes; a new session
+    // clears them (onLoad returned true); saves go through persistable(). The device bug: Teen Titans played
+    // to 6:22, Bad Apples was opened but never played, and was saved at 6:22 into Continue Watching.
+
+    private class Playback {
+        val session = VodSession()
+        var position = 0L
+        var duration = 0L
+        val saved = mutableMapOf<String, Long>()
+        var current: String? = null
+
+        /** play()/next()/Retry (userInitiated) or an internal reload (retry rung, fallback, engine toggle). */
+        fun load(title: String, startMs: Long, userInitiated: Boolean = true) {
+            if (session.onLoad(title, startMs, userInitiated)) { position = 0; duration = 0 }
+            current = title
+        }
+        fun playTo(posMs: Long, durMs: Long = 1_300_000) { session.onStarted(); position = posMs; duration = durMs }
+        /** The 10 s tick, pause, and leaving the player all call this (Movie/SeriesViewModel). */
+        fun save() { session.persistable(position, duration)?.let { saved[current!!] = it.first } }
+        fun stop() = session.onStop()
+    }
+
+    @Test
+    fun `a title that never starts is not saved and never inherits the previous title's position`() {
+        val p = Playback()
+        p.load("teen-titans-s01e02", 0); p.playTo(382_000); p.save()
+        p.stop()
+        p.load("bad-apples", 0) // opened, stalls, never plays
+        repeat(6) { p.save() }  // the 10 s ticks while it spins
+        p.stop(); p.save()      // Back
+        assertEquals(mapOf("teen-titans-s01e02" to 382_000L), p.saved)
+        assertEquals(0L, p.position) // nothing of Teen Titans left on the player for the new title
+    }
+
+    @Test
+    fun `switching titles without Back also starts a fresh session`() {
+        val p = Playback()
+        p.load("ep1", 0); p.playTo(600_000)
+        p.load("ep2", 0) // auto-play next / next button: no stop in between
+        p.save()
+        assertEquals(null, p.saved["ep2"])
+        assertEquals(0L, p.position)
+    }
+
+    @Test
+    fun `a legitimate resume is preserved and reopened where it stopped`() {
+        val p = Playback()
+        p.load("film", 1_000_000) // Continue Watching at 16:40
+        assertEquals(1_000_000L, p.session.resumePositionMs(p.position))
+        p.playTo(1_060_000); p.save(); p.stop(); p.save()
+        assertEquals(1_060_000L, p.saved["film"])
+        p.load("film", 1_060_000) // reopened later: a new session at its own saved point
+        assertEquals(0L, p.position)
+        assertEquals(1_060_000L, p.session.resumePositionMs(p.position))
+    }
+
+    @Test
+    fun `a failed stream and its Retry reopen at the title's own start, not another title's position`() {
+        val p = Playback()
+        p.load("a", 0); p.playTo(382_000); p.stop()
+        p.load("b", 50_000) // b's own resume point
+        p.position = 382_000 // a late report from the outgoing engine
+        assertEquals(50_000L, p.session.resumePositionMs(p.position)) // what Retry reloads at
+        p.load("b", p.session.resumePositionMs(p.position)) // Retry: user-initiated, same title, not stopped
+        p.save()
+        assertEquals(null, p.saved["b"])
+        assertFalse(p.session.started)
+    }
+
+    @Test
+    fun `Retry mid-film keeps the session and resumes where it stopped`() {
+        val p = Playback()
+        p.load("film", 0); p.playTo(2_400_000)
+        val at = p.session.resumePositionMs(p.position)
+        p.load("film", at) // Retry
+        assertEquals(2_400_000L, at)
+        assertEquals(2_400_000L, p.position) // not cleared: same session
+        p.save()
+        assertEquals(2_400_000L, p.saved["film"])
+    }
+
+    @Test
+    fun `engine fallback and internal retries never start a new session`() {
+        val p = Playback()
+        p.load("film", 300_000)
+        p.load("film", 300_000, userInitiated = false) // T_OPEN silent retry
+        p.load("film", 300_000, userInitiated = false) // ExoPlayer to mpv fallback
+        p.playTo(310_000); p.save()
+        assertEquals(310_000L, p.saved["film"])
+        p.load("film", 310_000, userInitiated = false) // engine toggle mid-film
+        assertEquals(310_000L, p.position)
+        assertTrue(p.session.started)
+    }
+
+    @Test
+    fun `Back before anything played saves nothing, Back after playback saves the last position`() {
+        val p = Playback()
+        p.load("x", 0); p.stop(); p.save()
+        assertEquals(emptyMap<String, Long>(), p.saved)
+        p.load("y", 0); p.playTo(90_000); p.stop(); p.save() // the save that follows stop() still lands
+        assertEquals(mapOf("y" to 90_000L), p.saved)
+    }
+
+    @Test
+    fun `a restored paused start counts once the stream opens, at its restore point`() {
+        val p = Playback()
+        p.load("film", 1_234_000)
+        p.save()
+        assertEquals(emptyMap<String, Long>(), p.saved)
+        p.playTo(1_234_000) // FirstFrameDeadline: stream opened + startPaused gives STARTED
+        p.save()
+        assertEquals(1_234_000L, p.saved["film"])
+    }
+
+    @Test
+    fun `nothing is persisted without both a position and a duration`() {
+        val s = VodSession()
+        s.onLoad("t", 0, userInitiated = true); s.onStarted()
+        assertEquals(null, s.persistable(0, 1_000))
+        assertEquals(null, s.persistable(1_000, 0))
+        assertEquals(1_000L to 2_000L, s.persistable(1_000, 2_000))
+    }
+
+    // --- failure wording ------------------------------------------------------------------------------
+
+    @Test
+    fun `a stream ExoPlayer never received is a connection failure, not audio-without-video`() {
+        assertEquals(PlaybackFailure.StreamUnavailable(false), VodFailureWording.noFrame(streamOpened = false))
+        assertEquals(PlaybackFailure.AudioNoVideo, VodFailureWording.noFrame(streamOpened = true))
+    }
+
+    @Test
+    fun `mpv-first - both failing to connect reads as an unavailable stream, a real decode failure keeps both-engines`() {
+        assertEquals(
+            PlaybackFailure.StreamUnavailable(true),
+            VodFailureWording.bothEnginesMpvFirst(PlaybackFailure.StreamUnavailable(false), customUserAgentHint = true),
+        )
+        assertEquals(
+            PlaybackFailure.BothEnginesMpvFirst(PlaybackFailure.AudioNoVideo),
+            VodFailureWording.bothEnginesMpvFirst(PlaybackFailure.AudioNoVideo, customUserAgentHint = false),
+        )
+    }
+
+    @Test
+    fun `ExoPlayer-first - connection failure on both is an unavailable stream, anything else stays both-engines`() {
+        val unavailable = PlaybackFailure.StreamUnavailable(false)
+        assertEquals(unavailable, VodFailureWording.bothEnginesExoFirst(unavailable, PlaybackFailure.FileCorrupt, mpvOpenedFile = false, customUserAgentHint = false))
+        // mpv did open the file: whatever went wrong is the file or decoder, not the connection.
+        assertEquals(PlaybackFailure.BothEnginesExoFirst, VodFailureWording.bothEnginesExoFirst(unavailable, PlaybackFailure.FileCorrupt, mpvOpenedFile = true, customUserAgentHint = false))
+        assertEquals(PlaybackFailure.BothEnginesExoFirst, VodFailureWording.bothEnginesExoFirst(PlaybackFailure.AudioNoVideo, PlaybackFailure.FileCorrupt, mpvOpenedFile = false, customUserAgentHint = false))
+        // ExoPlayer never ran: mpv's own failure stands.
+        assertEquals(PlaybackFailure.FileCorrupt, VodFailureWording.bothEnginesExoFirst(null, PlaybackFailure.FileCorrupt, mpvOpenedFile = false, customUserAgentHint = false))
+    }
 }

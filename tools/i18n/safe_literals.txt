@@ -301,6 +301,7 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/network/ExtraTrustAnchors.kt	TLS
 1	protocol	app/src/main/java/tv/own/owntv/core/network/ExtraTrustAnchors.kt	X.509
 1	technical	app/src/main/java/tv/own/owntv/core/network/ExtraTrustAnchors.kt	isrg-$i
+5	empty	app/src/main/java/tv/own/owntv/core/network/ProxyConfig.kt	\0
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	auth
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title

@@ -824,7 +824,7 @@ class OwnTVPlayer(
             if (gen != loadGeneration) return@launch
             // Section 6: Settle delay for engine reloads on Shield
             delay(CORE_RESET_SETTLE_MS)
-            loadUrl(url, currentMetaSnapshot(), isLiveContent, if (isLiveContent) 0L else _position.value, resetRetries = false)
+            loadUrl(url, currentMetaSnapshot(), isLiveContent, if (isLiveContent) 0L else vodSession.resumePositionMs(_position.value), resetRetries = false)
         }
     }
 
@@ -1112,6 +1112,7 @@ class OwnTVPlayer(
     private val engineHandover = EngineHandover(scope) { loadGeneration }
     private var firstFrameJob: Job? = null
     private var firstFrameDeadline: FirstFrameDeadline? = null
+    private val vodSession = VodSession()
     private var firstFrameStartedAt = 0L
     // Catch-up/VOD streams that start mid-GOP (no H.264 SPS/PPS yet) can play audio with a blank video.
     // We try a software-decode reload once before surfacing an error, tracked per item.
@@ -1973,7 +1974,10 @@ class OwnTVPlayer(
                     // An error on screen is the answer for now, but a ladder may clear it and retry, so
                     // keep watching rather than stand down for good.
                     FirstFrameDeadline.Verdict.WAIT, FirstFrameDeadline.Verdict.ERROR_SHOWN -> continue
-                    FirstFrameDeadline.Verdict.STARTED -> return@launch
+                    FirstFrameDeadline.Verdict.STARTED -> {
+                        vodSession.onStarted() // from here on the position is this title's own
+                        return@launch
+                    }
                     FirstFrameDeadline.Verdict.EXPIRED -> {
                         onFirstFrameDeadlineExpired(deadline.deadlineMs)
                         return@launch
@@ -2141,7 +2145,7 @@ class OwnTVPlayer(
     private fun vodErrorMessage(mpvMsg: PlaybackFailure): PlaybackFailure {
         val exoErr = exoFailureBeforeMpv ?: return mpvMsg
         android.util.Log.w(TAG, "VOD failed on BOTH engines — exo first: '$exoErr' / mpv: '$mpvMsg'")
-        return PlaybackFailure.BothEnginesExoFirst
+        return VodFailureWording.bothEnginesExoFirst(exoErr, mpvMsg, mpvOpenedFile = fileLoaded, customUserAgentHint = triedUaFallback)
     }
 
     /**
@@ -2176,7 +2180,7 @@ class OwnTVPlayer(
         deactivateExo()
         _isPlaying.value = false
         _buffering.value = false
-        _error.value = PlaybackFailure.BothEnginesMpvFirst(exoError)
+        _error.value = VodFailureWording.bothEnginesMpvFirst(exoError, customUserAgentHint = triedUaFallback)
     }
 
     /** ExoPlayer reached end-of-file while it owned VOD playback: mirror mpv's END_FILE auto-play-next
@@ -2640,6 +2644,12 @@ class OwnTVPlayer(
         // Internal retries keep the current item's notice; a new item must never inherit it.
         if (resetRetries) clearToast()
         ensureInit()
+        // A new title must not inherit the previous title's position or duration: until the new one
+        // reports its own, they would be saved as its resume point and reopened by Retry/restore.
+        if (vodSession.onLoad(meta.contentKey ?: url, startPositionMs, userInitiated = resetRetries)) {
+            _position.value = 0L
+            _duration.value = 0L
+        }
         fileLoaded = false
         loadStartTime = System.currentTimeMillis()
         pendingStartPaused = startPaused
@@ -3353,6 +3363,14 @@ class OwnTVPlayer(
     }
 
     /**
+     * Position and duration to save for the current Movies/Series title, or null until that title has
+     * genuinely started (picture, sound, or an opened paused start). A title that never played is never
+     * written, and nothing can carry over from the title before it — see [VodSession].
+     */
+    fun persistableVodProgress(): Pair<Long, Long>? =
+        if (isLiveContent) null else vodSession.persistable(_position.value, _duration.value)
+
+    /**
      * HUD "Retry" on an error. The HUD offers it for *any* failed playback, so this must not assume
      * live: reloading a movie through the live path restarted it at 00:00 with live demuxer settings
      * and the live watchdogs attached, and — with a stale Stalker [reconnectUrlProvider] left over
@@ -3378,7 +3396,7 @@ class OwnTVPlayer(
      * a movie 40 minutes in.
      */
     private fun reload(url: String, isLive: Boolean, resetRetries: Boolean) {
-        val startAt = if (isLive) 0L else _position.value
+        val startAt = if (isLive) 0L else vodSession.resumePositionMs(_position.value)
         val provider = reconnectUrlProvider
         if (provider == null) {
             loadUrl(url, currentMetaSnapshot(), isLive = isLive, startPositionMs = startAt, resetRetries = resetRetries)
@@ -3402,6 +3420,7 @@ class OwnTVPlayer(
         engineHandover.cancel() // a fallback waiting to start ExoPlayer for the item being left
         firstFrameJob?.cancel()
         firstFrameDeadline = null
+        vodSession.onStop() // position stays readable for the save that follows; the next title starts fresh
         expectingPlayback = false
         errorCheckJob?.cancel()
         videoCheckJob?.cancel()
@@ -3520,7 +3539,7 @@ class OwnTVPlayer(
             // position. (Live just re-tunes; the archive/VOD stream is freed for memory while invisible.)
             backgroundRestore = if (!isLiveContent) {
                 BackgroundRestore(
-                    url, currentMetaSnapshot(), _position.value, _isPlaying.value,
+                    url, currentMetaSnapshot(), vodSession.resumePositionMs(_position.value), _isPlaying.value,
                     tunedUserAgent, tunedHttpHeaders, reconnectUrlProvider,
                 )
             } else null

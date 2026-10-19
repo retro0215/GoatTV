@@ -153,6 +153,23 @@ class DiagnosticEvaluatorTest {
     }
 
     @Test
+    fun `EPG - a guide not refreshed for days warns and suggests a re-sync even though its counts look healthy`() {
+        val day = 24L * 60 * 60 * 1000
+        // The onn on 2026-10-19: auto-refresh off, last successful sync ten days earlier, no error recorded.
+        val tenDays = healthy.copy(epg = healthy.epg!!.copy(lastSyncAgeMs = 10 * day))
+        assertEquals(DiagStatus.WARNING, status(DiagCheck.EPG, tenDays))
+        assertEquals(listOf(Recommendation.RESYNC_EPG), DiagnosticEvaluator.recommendations(tenDays))
+
+        val fresh = healthy.copy(epg = healthy.epg!!.copy(lastSyncAgeMs = 2 * day))
+        assertEquals(DiagStatus.PASS, status(DiagCheck.EPG, fresh))
+        assertEquals(emptyList<Recommendation>(), DiagnosticEvaluator.recommendations(fresh))
+
+        // Exactly at the threshold is still fine; a missing age (never synced, or not measured) is not "stale".
+        assertEquals(DiagStatus.PASS, status(DiagCheck.EPG, healthy.copy(epg = healthy.epg!!.copy(lastSyncAgeMs = DiagnosticEvaluator.STALE_EPG_MS))))
+        assertEquals(DiagStatus.PASS, status(DiagCheck.EPG, healthy.copy(epg = healthy.epg!!.copy(lastSyncAgeMs = null))))
+    }
+
+    @Test
     fun `movies and series - library PASS is availability only, sections off are not checked`() {
         assertEquals(DiagStatus.PASS, status(DiagCheck.VOD, healthy))
         assertEquals(DiagStatus.WARNING, status(DiagCheck.VOD, healthy.copy(playlist = playlist.copy(movies = 0, series = 0))))

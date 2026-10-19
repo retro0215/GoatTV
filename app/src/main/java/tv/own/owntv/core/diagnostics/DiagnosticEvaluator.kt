@@ -18,6 +18,15 @@ object DiagnosticEvaluator {
     /** Below this much free storage the device check warns (updates, EPG and artwork need room). */
     const val LOW_STORAGE_BYTES: Long = 500L * 1024 * 1024
 
+    /**
+     * A guide not refreshed for this long is reported, not passed. EPG auto-refresh is off unless the user
+     * picks an interval per source, so a guide can silently age for weeks: provider feeds typically cover
+     * about a week ahead, and a stale one runs out of programmes while every count still looks healthy.
+     */
+    const val STALE_EPG_MS: Long = 3L * 24 * 60 * 60 * 1000
+
+    fun isEpgStale(e: EpgFact): Boolean = (e.lastSyncAgeMs ?: 0L) > STALE_EPG_MS
+
     fun status(check: DiagCheck, f: DiagnosticFacts): DiagStatus = when (check) {
         DiagCheck.INTERNET -> f.internet?.let { if (it.reachable) DiagStatus.PASS else DiagStatus.FAILED } ?: DiagStatus.NOT_CHECKED
         DiagCheck.SERVICE -> when (f.service) {
@@ -29,7 +38,7 @@ object DiagnosticEvaluator {
             if (!p.hasSource || p.total == 0) DiagStatus.FAILED else DiagStatus.PASS
         } ?: DiagStatus.NOT_CHECKED
         DiagCheck.EPG -> f.epg?.let { e ->
-            if (e.sourceCount == 0 || e.programmes == 0 || e.lastSyncFailed) DiagStatus.WARNING else DiagStatus.PASS
+            if (e.sourceCount == 0 || e.programmes == 0 || e.lastSyncFailed || isEpgStale(e)) DiagStatus.WARNING else DiagStatus.PASS
         } ?: DiagStatus.NOT_CHECKED
         DiagCheck.LIVE_TV -> liveStatus(f)
         DiagCheck.VOD -> vodStatus(f)
@@ -103,7 +112,7 @@ object DiagnosticEvaluator {
         val e = f.epg
         if (e != null && p?.hasSource == true) {
             if (e.sourceCount == 0) add(Recommendation.ADD_EPG)
-            else if (e.programmes == 0 || e.lastSyncFailed) add(Recommendation.RESYNC_EPG)
+            else if (e.programmes == 0 || e.lastSyncFailed || isEpgStale(e)) add(Recommendation.RESYNC_EPG)
         }
         if (f.sports == SportsFact.Unavailable && internetOk == true) add(Recommendation.SPORTS_LATER)
         if (f.update is UpdateFact.Available) add(Recommendation.UPDATE_APP)

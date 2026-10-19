@@ -1279,8 +1279,10 @@ class SettingsViewModel(
 
     // --- Global proxy (Approach 1 — one app-wide HTTP proxy) ---
 
-    val proxyConfig: StateFlow<tv.own.owntv.core.network.ProxyConfig> = settings.proxyConfig
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), tv.own.owntv.core.network.ProxyConfig())
+    /** The persisted proxy config; null until it has been read. Never a placeholder default — a screen
+     *  seeded from one shows "Off" over an active proxy and can save that over the real settings. */
+    val proxyConfig: StateFlow<tv.own.owntv.core.network.ProxyConfig?> = settings.proxyConfig
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun saveProxy(enabled: Boolean, host: String, port: Int, username: String, password: String) {
         viewModelScope.launch { settings.saveProxy(enabled, host, port, username, password) }

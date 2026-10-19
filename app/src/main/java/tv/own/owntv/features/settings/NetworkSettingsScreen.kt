@@ -56,13 +56,16 @@ fun NetworkSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     var port by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
+    // Seed once, and only from the persisted value: `config` is null until DataStore has been read.
     LaunchedEffect(config) {
+        val persisted = config ?: return@LaunchedEffect
         if (!seeded) {
-            enabled = config.enabled
-            host = config.host
-            port = if (config.port > 0) config.port.toString() else ""
-            user = config.username
-            pass = config.password
+            val form = tv.own.owntv.core.network.ProxyForm.from(persisted)
+            enabled = form.enabled
+            host = form.host
+            port = form.port
+            user = form.username
+            pass = form.password
             seeded = true
         }
     }
@@ -72,9 +75,13 @@ fun NetworkSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     BackHandler { onBack() }
 
     val portInt = port.trim().toIntOrNull() ?: 0
+    // Nothing is written until the form holds the saved settings: a press during the first frames would
+    // otherwise persist the blank form over them.
     val save = {
-        vm.saveProxy(enabled, host, portInt, user, pass)
-        vm.resetProxyTest()
+        if (seeded) {
+            vm.saveProxy(enabled, host, portInt, user, pass)
+            vm.resetProxyTest()
+        }
     }
 
     Column(
@@ -97,7 +104,7 @@ fun NetworkSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             desc = stringResource(R.string.settings_proxy_description, stringResource(R.string.app_name)),
             chip = if (enabled) stringResource(R.string.common_on) else stringResource(R.string.common_off), primaryChip = enabled,
             modifier = Modifier.focusRequester(firstFocus),
-            onClick = { enabled = !enabled; save() },
+            onClick = { if (seeded) { enabled = !enabled; save() } },
         )
 
         Spacer(Modifier.height(12.dp))

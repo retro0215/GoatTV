@@ -99,6 +99,88 @@ internal class EngineHandover(
 }
 
 /**
+ * Which words a Movies/Series failure gets. A stream that never connected must not be described as a
+ * decoding problem: "Audio is playing, but video could not be rendered" and "the file may be corrupted"
+ * are both claims about a file the player actually received.
+ */
+internal object VodFailureWording {
+    /** ExoPlayer's no-frame timer fired. Only a stream that reached READY can be "audio without video";
+     *  one that never did was never received at all. */
+    fun noFrame(streamOpened: Boolean): PlaybackFailure =
+        if (streamOpened) PlaybackFailure.AudioNoVideo else PlaybackFailure.StreamUnavailable(customUserAgentHint = false)
+
+    /** mpv failed first, then ExoPlayer. When ExoPlayer could not even connect, the honest answer is
+     *  "couldn't play this stream", not "both engines failed / the file may be corrupted". */
+    fun bothEnginesMpvFirst(exoError: PlaybackFailure, customUserAgentHint: Boolean): PlaybackFailure =
+        if (exoError is PlaybackFailure.StreamUnavailable) PlaybackFailure.StreamUnavailable(customUserAgentHint)
+        else PlaybackFailure.BothEnginesMpvFirst(exoError)
+
+    /** ExoPlayer failed first ([exoError], null when it never ran), then mpv with [mpvError]. If ExoPlayer
+     *  never connected and mpv never opened the file either, it is a connection failure. */
+    fun bothEnginesExoFirst(
+        exoError: PlaybackFailure?,
+        mpvError: PlaybackFailure,
+        mpvOpenedFile: Boolean,
+        customUserAgentHint: Boolean,
+    ): PlaybackFailure = when {
+        exoError == null -> mpvError
+        exoError is PlaybackFailure.StreamUnavailable && !mpvOpenedFile -> PlaybackFailure.StreamUnavailable(customUserAgentHint)
+        else -> PlaybackFailure.BothEnginesExoFirst
+    }
+}
+
+/**
+ * One viewing session of one title: which title the player's position and duration belong to, whether
+ * that title has genuinely started, and where it was asked to start.
+ *
+ * The player's position and duration are plain fields that every engine writes into. Without a session
+ * boundary they kept the previous title's values until the new one reported its own, so a title that
+ * never started was saved with the previous title's resume point (and so appeared in Continue Watching),
+ * and Retry / screensaver restore reopened it at that foreign position.
+ *
+ * - A session begins on a user-initiated load ([onLoad] with `userInitiated`) of a different title, or of
+ *   any title after [onStop]. Internal reloads — retries, decoder rungs, engine fallback and the engine
+ *   toggle — never begin one, so a title that is playing keeps its own position across them.
+ * - Retry is user-initiated but continues the same session: same title, not stopped.
+ * - [persistable] yields nothing until [onStarted]; a title that never played is never written.
+ */
+internal class VodSession {
+    var identity: String? = null
+        private set
+    var started: Boolean = false
+        private set
+    /** Where the session's title was asked to start (its saved resume point, or 0). */
+    var requestedStartMs: Long = 0L
+        private set
+    private var stopped = true
+
+    /** @return true when this load begins a new session: the caller must clear position and duration. */
+    fun onLoad(identity: String, startPositionMs: Long, userInitiated: Boolean): Boolean {
+        if (!userInitiated || (!stopped && identity == this.identity)) return false
+        this.identity = identity
+        started = false
+        requestedStartMs = startPositionMs.coerceAtLeast(0L)
+        stopped = false
+        return true
+    }
+
+    /** The current title produced picture, sound, or an opened paused start. */
+    fun onStarted() { started = true }
+
+    /** The player was stopped (Back, Home, leaving the player). The next user load is a new session. */
+    fun onStop() { stopped = true }
+
+    /** Position and duration that may be saved for the current title, or null when nothing may be. */
+    fun persistable(positionMs: Long, durationMs: Long): Pair<Long, Long>? =
+        if (started && positionMs > 0 && durationMs > 0) positionMs to durationMs else null
+
+    /** Where to reopen the current title (Retry, restore): its own position once it has played, else
+     *  the point it was asked to start from — never another title's position. */
+    fun resumePositionMs(currentPositionMs: Long): Long =
+        if (started && currentPositionMs > 0) currentPositionMs else requestedStartMs
+}
+
+/**
  * Bounds a Movies/Series start across both engines, so a stream that never produces anything ends on an
  * error instead of an endless spinner. The engines' own ladders (open watchdog, silent reset, decoder
  * rungs, ExoPlayer fallback) run inside this budget untouched; this only catches the case where all of
