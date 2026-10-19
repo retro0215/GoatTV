@@ -46,6 +46,8 @@ import androidx.tv.material3.Text
 import tv.own.owntv.R
 import tv.own.owntv.core.epg.EpgSource
 import tv.own.owntv.features.settings.data.EpgAutoRefresh
+import tv.own.owntv.core.epg.EpgAutoRefreshPolicy
+import tv.own.owntv.core.epg.EpgUrlMask
 import tv.own.owntv.ui.components.FocusableSurface
 import tv.own.owntv.ui.components.OwnTVButton
 import tv.own.owntv.ui.components.OwnTVButtonStyle
@@ -128,7 +130,8 @@ fun EpgSourcesScreen(onBack: () -> Unit, modifier: Modifier = Modifier, startOnA
     if (adding || editing != null) {
         EpgSourceForm(
             initial = editing,
-            initialAutoRefresh = editing?.let { autoRefreshMap[it.id] } ?: EpgAutoRefresh.OFF,
+            // A source with no stored choice (and a new one) shows, and saves, the 24-hour default.
+            initialAutoRefresh = editing?.let { EpgAutoRefreshPolicy.effective(autoRefreshMap, it.id) } ?: EpgAutoRefreshPolicy.DEFAULT,
             initialUseLogos = editing?.let { it.id in useLogosIds } ?: false,
             loadPlaylistOptions = { vm.playlistEpgOptions() },
             onSave = { name, url, ua, autoRefresh, useLogos ->
@@ -185,7 +188,7 @@ fun EpgSourcesScreen(onBack: () -> Unit, modifier: Modifier = Modifier, startOnA
                         .collectAsStateWithLifecycle(EpgSyncState.Idle)
                     EpgRow(
                         source = source,
-                        autoRefresh = autoRefreshMap[source.id] ?: EpgAutoRefresh.OFF,
+                        autoRefresh = EpgAutoRefreshPolicy.effective(autoRefreshMap, source.id),
                         counts = { vm.counts(source.id) },
                         syncState = syncState,
                         deleting = source.id in deletingIds,
@@ -295,7 +298,8 @@ private fun EpgRow(
                     )
                 }
             }
-            Text(source.url, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Never the account's user name and password: an Xtream guide address carries both.
+            Text(EpgUrlMask.display(source.url), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(4.dp))
             val catchupNote = count?.third?.takeIf { it > 0 }?.let {
                 pluralStringResource(R.plurals.settings_epg_sources_catchup, it, it)
@@ -365,7 +369,9 @@ internal fun EpgSourceForm(
 ) {
     val colors = OwnTVTheme.colors
     var name by remember { mutableStateOf(initial?.name ?: "") }
-    var url by remember { mutableStateOf(initial?.url ?: "") }
+    // The field holds the masked address; [storedUrl] keeps the real one so untouched masks are refilled on save.
+    var storedUrl by remember { mutableStateOf(initial?.url ?: "") }
+    var url by remember { mutableStateOf(EpgUrlMask.display(storedUrl)) }
     var ua by remember { mutableStateOf(initial?.userAgent ?: "") }
     var autoRefresh by remember { mutableStateOf(initialAutoRefresh) }
     var useLogos by remember { mutableStateOf(initialUseLogos) }
@@ -402,14 +408,14 @@ internal fun EpgSourceForm(
         Spacer(Modifier.height(24.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OwnTVButton(stringResource(R.string.common_cancel), onClick = onCancel, style = OwnTVButtonStyle.SECONDARY)
-            OwnTVButton(stringResource(if (initial == null) R.string.settings_epg_sources_add_sync else R.string.settings_epg_sources_save_sync), onClick = { onSave(name, url, ua, autoRefresh, useLogos) }, enabled = url.isNotBlank())
+            OwnTVButton(stringResource(if (initial == null) R.string.settings_epg_sources_add_sync else R.string.settings_epg_sources_save_sync), onClick = { onSave(name, EpgUrlMask.restore(url, storedUrl), ua, autoRefresh, useLogos) }, enabled = url.isNotBlank())
         }
     }
 
     if (showPlaylistPicker) {
         PlaylistEpgPicker(
             load = loadPlaylistOptions,
-            onPick = { opt -> if (name.isBlank()) name = opt.name; url = opt.url; showPlaylistPicker = false },
+            onPick = { opt -> if (name.isBlank()) name = opt.name; storedUrl = opt.url; url = EpgUrlMask.display(opt.url); showPlaylistPicker = false },
             onDismiss = { showPlaylistPicker = false },
         )
     }
@@ -512,7 +518,7 @@ private fun PlaylistEpgPicker(
                         ) { _ ->
                             Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
                                 Text(opt.name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                                Text(opt.url, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(EpgUrlMask.display(opt.url), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }

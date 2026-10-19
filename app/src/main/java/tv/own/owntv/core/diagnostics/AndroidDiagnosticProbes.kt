@@ -218,6 +218,9 @@ class AndroidDiagnosticProbes(
             lastSyncAtMs = lastSyncAt,
             lastSyncFailed = list.any { it.lastError != null },
             lastSyncAgeMs = lastSyncAt?.let { (System.currentTimeMillis() - it).coerceAtLeast(0L) },
+            autoRefreshOff = list.isNotEmpty() && settings.epgAutoRefresh.first().let { modes ->
+                list.all { tv.own.owntv.core.epg.EpgAutoRefreshPolicy.effective(modes, it.id) == tv.own.owntv.features.settings.data.EpgAutoRefresh.OFF }
+            },
         )
     }
 

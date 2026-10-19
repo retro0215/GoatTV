@@ -370,6 +370,8 @@ private fun detailLines(check: DiagCheck, status: DiagStatus, f: DiagnosticFacts
                     add(stringResource(R.string.diag_epg_programmes, text.count(e.programmes)))
                     add(e.lastSyncAtMs?.let { stringResource(R.string.diag_last_refresh, text.timestamp(it)) } ?: stringResource(R.string.diag_last_refresh_unknown))
                     if (e.lastSyncFailed) add(stringResource(R.string.diag_epg_failed))
+                    // Tells "refresh is failing" apart from "refresh was turned off" for a stale guide.
+                    if (e.autoRefreshOff) add(stringResource(R.string.diag_report_line, stringResource(R.string.settings_epg_sources_auto_refresh_title), stringResource(R.string.settings_sources_refresh_off)))
                 }
             }
         }.orEmpty()

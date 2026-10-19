@@ -32,7 +32,7 @@ import tv.own.owntv.core.sync.ImportFinalizer
 import tv.own.owntv.core.sync.work.CatalogSyncScheduler
 import tv.own.owntv.core.sync.work.EpgSyncScheduler
 import tv.own.owntv.core.database.dao.EpgDao
-import tv.own.owntv.features.settings.data.EpgAutoRefresh
+import tv.own.owntv.core.epg.EpgAutoRefreshPolicy
 import tv.own.owntv.features.settings.data.PlaylistAutoRefresh
 import tv.own.owntv.features.settings.data.SettingsRepository
 import tv.own.owntv.ui.theme.AccentColor
@@ -122,6 +122,9 @@ class ShellViewModel(
          *  close to a prior check (rotation, rapid background/foreground). Cold-start checks are NOT
          *  throttled by time — see [coldStartCheckDone]. */
         private const val RESUME_THROTTLE_MS = 60_000L
+
+        /** Process-wide, so a recreated shell does not re-download a guide that keeps failing. */
+        private val epgAttemptSpacing = EpgAutoRefreshPolicy.AttemptSpacing()
     }
 
     /** Cold-start pass runs exactly once per process — STARTUP sources rely on this. Not time-throttled. */
@@ -201,22 +204,21 @@ class ShellViewModel(
                     }
                 }
             }
-            // --- EPG sources ---
+            // --- EPG sources --- (a source with no stored choice refreshes every 24 h; an explicit Off stays off)
             val epgModes = settings.epgAutoRefresh.first()
-            if (epgModes.isNotEmpty()) {
-                val epgSources = epgSourceStore.getAll()
-                epgSources.forEach { src ->
-                    val mode = epgModes[src.id] ?: EpgAutoRefresh.OFF
-                    if (shouldRefreshEpg(mode, src.lastSyncAt, nowMs, includeStartup)) {
-                        val base = epgDao.countForSources(listOf(src.id))
-                        Log.d(TAG, "checkAutoRefresh epg sourceId=${src.id} mode=$mode — enqueuing")
-                        epgSyncScheduler.enqueueSync(
-                            src.id,
-                            reason = "auto_refresh",
-                            baseProgrammes = base,
-                            policy = ExistingWorkPolicy.KEEP,
-                        )
-                    }
+            epgSourceStore.getAll().forEach { src ->
+                val mode = EpgAutoRefreshPolicy.effective(epgModes, src.id)
+                if (EpgAutoRefreshPolicy.isDue(mode, src.lastSyncAt, nowMs, includeStartup) &&
+                    epgAttemptSpacing.tryAcquire(src.id, SystemClock.elapsedRealtime())
+                ) {
+                    val base = epgDao.countForSources(listOf(src.id))
+                    Log.d(TAG, "checkAutoRefresh epg sourceId=${src.id} mode=$mode — enqueuing")
+                    epgSyncScheduler.enqueueSync(
+                        src.id,
+                        reason = "auto_refresh",
+                        baseProgrammes = base,
+                        policy = ExistingWorkPolicy.KEEP,
+                    )
                 }
             }
             if (includeStartup) refillGuideEmptiedByMigration()
@@ -272,18 +274,6 @@ class ShellViewModel(
     ): Boolean = when (mode) {
         PlaylistAutoRefresh.OFF -> false
         PlaylistAutoRefresh.STARTUP -> includeStartup
-        else -> (now - (lastSyncAt ?: 0L)) >= (mode.thresholdMs ?: Long.MAX_VALUE)
-    }
-
-    /** EPG equivalent of [shouldRefresh]. */
-    private fun shouldRefreshEpg(
-        mode: EpgAutoRefresh,
-        lastSyncAt: Long?,
-        now: Long,
-        includeStartup: Boolean,
-    ): Boolean = when (mode) {
-        EpgAutoRefresh.OFF -> false
-        EpgAutoRefresh.STARTUP -> includeStartup
         else -> (now - (lastSyncAt ?: 0L)) >= (mode.thresholdMs ?: Long.MAX_VALUE)
     }
 

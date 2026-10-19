@@ -143,15 +143,38 @@ class EpgRepository(
         return refreshUrl(source.id, url, source.userAgent, onProgress)
     }
 
+    /** Every guide import goes through here, one at a time (see [EpgImportGate]). */
+    private val importGate = tv.own.owntv.core.epg.EpgImportGate()
+
     /**
      * Download [url] (XMLTV, gzip-aware) into the guide tables keyed by [storeId], keeping only the
      * rolling window. Used for standalone EPG sources (negative ids). Throws on network/parse failure.
+     * Waits for any import already running.
      */
     suspend fun refreshUrl(
         storeId: Long,
         url: String,
         userAgent: String?,
         onProgress: (channels: Int, programmes: Int) -> Unit = { _, _ -> },
+    ): Int = importGate.exclusive { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
+
+    /**
+     * [refreshUrl] for automatic runs: once it has its turn, [stillNeeded] decides whether the import is
+     * still worth doing (another import may have refreshed this source while it waited). Null = skipped.
+     */
+    suspend fun refreshUrlIfStillNeeded(
+        storeId: Long,
+        url: String,
+        userAgent: String?,
+        stillNeeded: suspend () -> Boolean,
+        onProgress: (channels: Int, programmes: Int) -> Unit = { _, _ -> },
+    ): Int? = importGate.exclusiveIfStillNeeded(stillNeeded) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
+
+    private suspend fun refreshUrlExclusive(
+        storeId: Long,
+        url: String,
+        userAgent: String?,
+        onProgress: (channels: Int, programmes: Int) -> Unit,
     ): Int = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         val startedAt = SystemClock.elapsedRealtime()

@@ -7,6 +7,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.CancellationException
+import tv.own.owntv.core.epg.EpgAutoRefreshPolicy
 import tv.own.owntv.core.epg.EpgSourceStore
 import tv.own.owntv.core.network.ConnectivityObserver
 import tv.own.owntv.core.repository.EpgRepository
@@ -41,8 +42,23 @@ class EpgSyncWorker(
         activityTracker.started(source.id, source.name)
 
         try {
-            val programmes = epgRepository.refreshUrl(source.id, source.url, source.userAgent) { channels, count ->
-                progress.publish(channels, count)
+            val onProgress: (Int, Int) -> Unit = { channels, count -> progress.publish(channels, count) }
+            val programmes = if (reason in AUTOMATIC_REASONS) {
+                // Only one guide import runs at a time; an automatic one that waited behind another import of
+                // this source (onboarding, a manual re-sync) has nothing left to do.
+                epgRepository.refreshUrlIfStillNeeded(
+                    source.id, source.url, source.userAgent,
+                    stillNeeded = {
+                        val lastSyncAt = store.getAll().firstOrNull { it.id == source.id }?.lastSyncAt
+                        EpgAutoRefreshPolicy.stillNeeded(lastSyncAt, System.currentTimeMillis())
+                    },
+                    onProgress = onProgress,
+                ) ?: run {
+                    Log.i(TAG, "EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile")
+                    return Result.success()
+                }
+            } else {
+                epgRepository.refreshUrl(source.id, source.url, source.userAgent, onProgress)
             }
             progress.flush()
             store.setSynced(source.id, System.currentTimeMillis(), null)
@@ -134,6 +150,8 @@ class EpgSyncWorker(
     companion object {
         const val TAG = "EpgSyncWorker"
         private const val MAX_RETRY_ATTEMPTS = 3
+        /** Enqueue reasons that are not a user's request: these may be skipped when already fresh. */
+        private val AUTOMATIC_REASONS = setOf("auto_refresh", "migration_refill")
         private const val PROGRESS_MIN_INTERVAL_MS = 750L
         const val KEY_SOURCE_ID = "sourceId"
         const val KEY_REASON = "reason"

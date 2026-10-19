@@ -19,9 +19,10 @@ object DiagnosticEvaluator {
     const val LOW_STORAGE_BYTES: Long = 500L * 1024 * 1024
 
     /**
-     * A guide not refreshed for this long is reported, not passed. EPG auto-refresh is off unless the user
-     * picks an interval per source, so a guide can silently age for weeks: provider feeds typically cover
-     * about a week ahead, and a stale one runs out of programmes while every count still looks healthy.
+     * A guide not refreshed for this long is reported, not passed. Sources refresh every 24 h unless the
+     * user turned that off, and a refresh can keep failing, so a guide can still age for weeks: provider
+     * feeds typically cover about a week ahead, and a stale one runs out of programmes while every count
+     * still looks healthy.
      */
     const val STALE_EPG_MS: Long = 3L * 24 * 60 * 60 * 1000
 

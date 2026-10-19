@@ -60,6 +60,8 @@ data class EpgFact(
     val lastSyncFailed: Boolean,
     /** How old [lastSyncAtMs] was when the facts were collected; null = no successful sync recorded. */
     val lastSyncAgeMs: Long? = null,
+    /** Every source has automatic refresh turned off by an explicit choice, so a stale guide is expected. */
+    val autoRefreshOff: Boolean = false,
 )
 
 /** The global "Movies & Series player". [exclusive] = no automatic hand-over to the other engine. */

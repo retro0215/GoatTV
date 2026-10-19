@@ -292,6 +292,16 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	identity
 1	url	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	ping.bin
 1	url	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	speedtest.bin
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${p.groupValues[2]}/${p.groupValues[3]}/
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}=${value}
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)($NAMES)=([^&]*)
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)($NAMES)=\\*\\*\\*(?=&|$|#)
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)(://[^/]+/(?:live|movie|series|vod|timeshift)/)([^/]+)/([^/]+)/
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)(://[^/]+/(?:live|movie|series|vod|timeshift)/)•••/•••/
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://${u.groupValues[1]}@
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://([^/@:]+(?::[^/@]*)?)@
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://\\*\\*\\*@
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	username|password|user|pass|token|data|auth|signature|sig|key
 1	url	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	$base${if ('?' in base) '&' else '?'}dns=$query
 2	protocol	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	AAAA
 2	protocol	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	Accept
@@ -305,6 +315,9 @@
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	auth
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	auto_refresh
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	migration_refill
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	CHAT
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	LIVE
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Viewer
