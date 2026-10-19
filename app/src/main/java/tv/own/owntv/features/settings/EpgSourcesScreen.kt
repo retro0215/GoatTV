@@ -369,9 +369,10 @@ internal fun EpgSourceForm(
 ) {
     val colors = OwnTVTheme.colors
     var name by remember { mutableStateOf(initial?.name ?: "") }
-    // The field holds the masked address; [storedUrl] keeps the real one so untouched masks are refilled on save.
+    // The field shows credentials as •••; [storedUrl] keeps the real address so EpgUrlMask.restore can put back
+    // every credential the user did not fully replace.
     var storedUrl by remember { mutableStateOf(initial?.url ?: "") }
-    var url by remember { mutableStateOf(EpgUrlMask.display(storedUrl)) }
+    var url by remember { mutableStateOf(EpgUrlMask.editable(storedUrl)) }
     var ua by remember { mutableStateOf(initial?.userAgent ?: "") }
     var autoRefresh by remember { mutableStateOf(initialAutoRefresh) }
     var useLogos by remember { mutableStateOf(initialUseLogos) }
@@ -415,7 +416,7 @@ internal fun EpgSourceForm(
     if (showPlaylistPicker) {
         PlaylistEpgPicker(
             load = loadPlaylistOptions,
-            onPick = { opt -> if (name.isBlank()) name = opt.name; storedUrl = opt.url; url = EpgUrlMask.display(opt.url); showPlaylistPicker = false },
+            onPick = { opt -> if (name.isBlank()) name = opt.name; storedUrl = opt.url; url = EpgUrlMask.editable(opt.url); showPlaylistPicker = false },
             onDismiss = { showPlaylistPicker = false },
         )
     }

@@ -96,6 +96,11 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
                     on || BuildConfig.DEBUG || BuildConfig.DIAGNOSTIC_BUILD
             }
         }
+        // Hourly background check that refreshes a due TV guide even when the app is never restarted. Unique
+        // work: re-registering on every launch never adds a second schedule.
+        appScope.launch {
+            runCatching { GlobalContext.get().get<tv.own.owntv.core.sync.work.EpgSyncScheduler>().schedulePeriodicCheck() }
+        }
         // Seed the one persisted playback quirk (panels whose catch-up archive needs a software
         // decoder) off the main thread. One small DataStore read, fire-and-forget: nothing on the
         // launch path waits for it, and the value is only consulted when an archive is opened.

@@ -3650,8 +3650,7 @@
 6	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	\0
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	OwnTVHome
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	activeProfileChanged profile=$pid androidTvHomeEnabled=${settings.androidTvHomeEnabled.first()}
-2	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	auto_refresh
-1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	checkAutoRefresh epg sourceId=${src.id} mode=$mode — enqueuing
+1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	auto_refresh
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	checkAutoRefresh playlist sourceId=${source.id} mode=$mode — enqueuing
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill check failed
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill sourceId=${src.id} — synced before but guide is empty, re-fetching

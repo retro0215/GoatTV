@@ -32,7 +32,6 @@ import tv.own.owntv.core.sync.ImportFinalizer
 import tv.own.owntv.core.sync.work.CatalogSyncScheduler
 import tv.own.owntv.core.sync.work.EpgSyncScheduler
 import tv.own.owntv.core.database.dao.EpgDao
-import tv.own.owntv.core.epg.EpgAutoRefreshPolicy
 import tv.own.owntv.features.settings.data.PlaylistAutoRefresh
 import tv.own.owntv.features.settings.data.SettingsRepository
 import tv.own.owntv.ui.theme.AccentColor
@@ -109,6 +108,7 @@ class ShellViewModel(
     private val epgSyncScheduler: EpgSyncScheduler,
     private val epgSourceStore: EpgSourceStore,
     private val epgDao: EpgDao,
+    private val epgAutoRefreshCheck: tv.own.owntv.core.sync.work.EpgAutoRefreshCheck,
     private val importFinalizer: ImportFinalizer,
     private val weatherRepository: WeatherRepository,
     private val channelDao: tv.own.owntv.core.database.dao.ChannelDao,
@@ -122,9 +122,6 @@ class ShellViewModel(
          *  close to a prior check (rotation, rapid background/foreground). Cold-start checks are NOT
          *  throttled by time — see [coldStartCheckDone]. */
         private const val RESUME_THROTTLE_MS = 60_000L
-
-        /** Process-wide, so a recreated shell does not re-download a guide that keeps failing. */
-        private val epgAttemptSpacing = EpgAutoRefreshPolicy.AttemptSpacing()
     }
 
     /** Cold-start pass runs exactly once per process — STARTUP sources rely on this. Not time-throttled. */
@@ -204,23 +201,9 @@ class ShellViewModel(
                     }
                 }
             }
-            // --- EPG sources --- (a source with no stored choice refreshes every 24 h; an explicit Off stays off)
-            val epgModes = settings.epgAutoRefresh.first()
-            epgSourceStore.getAll().forEach { src ->
-                val mode = EpgAutoRefreshPolicy.effective(epgModes, src.id)
-                if (EpgAutoRefreshPolicy.isDue(mode, src.lastSyncAt, nowMs, includeStartup) &&
-                    epgAttemptSpacing.tryAcquire(src.id, SystemClock.elapsedRealtime())
-                ) {
-                    val base = epgDao.countForSources(listOf(src.id))
-                    Log.d(TAG, "checkAutoRefresh epg sourceId=${src.id} mode=$mode — enqueuing")
-                    epgSyncScheduler.enqueueSync(
-                        src.id,
-                        reason = "auto_refresh",
-                        baseProgrammes = base,
-                        policy = ExistingWorkPolicy.KEEP,
-                    )
-                }
-            }
+            // --- EPG sources --- (no stored choice = every 24 h; an explicit Off stays off). The same check
+            // also runs hourly from WorkManager, so a guide refreshes even if the app is never reopened.
+            epgAutoRefreshCheck.run(coldStart = includeStartup, trigger = if (includeStartup) "cold_start" else "resume")
             if (includeStartup) refillGuideEmptiedByMigration()
         }
     }

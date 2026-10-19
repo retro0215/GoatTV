@@ -72,6 +72,86 @@ class EpgAutoRefreshPolicyTest {
         assertTrue(spacing.tryAcquire(-1L, hour))
     }
 
+    // ---- Continuous refresh: the periodic check runs about hourly while the app stays open. ----
+
+    /** Runs the check every [periodMs] for [hours] (clock-controlled) and returns when each source was enqueued. */
+    private fun simulateAppLeftOpen(
+        sources: List<EpgAutoRefreshPolicy.SourceState>,
+        stored: Map<Long, EpgAutoRefresh>,
+        hours: Int,
+        periodMs: Long = EpgAutoRefreshPolicy.CHECK_INTERVAL_MS,
+        syncSucceeds: Boolean = true,
+    ): Map<Long, List<Long>> {
+        val spacing = EpgAutoRefreshPolicy.AttemptSpacing()
+        val last = sources.associate { it.id to it.lastSyncAt }.toMutableMap()
+        val enqueued = sources.associate { it.id to mutableListOf<Long>() }
+        var t = 0L
+        while (t <= hours * hour) {
+            val state = last.map { (id, at) -> EpgAutoRefreshPolicy.SourceState(id, at) }
+            for (id in EpgAutoRefreshPolicy.dueSources(state, stored, now + t, coldStart = false, spacing, elapsedMs = t)) {
+                enqueued.getValue(id) += t
+                if (syncSucceeds) last[id] = now + t
+            }
+            t += periodMs
+        }
+        return enqueued
+    }
+
+    @Test
+    fun `an unset source refreshes after 24 hours with the app never closed`() {
+        val runs = simulateAppLeftOpen(listOf(EpgAutoRefreshPolicy.SourceState(-1L, now)), emptyMap(), hours = 72)
+        assertEquals(listOf(24 * hour, 48 * hour, 72 * hour), runs.getValue(-1L))
+    }
+
+    @Test
+    fun `a stale guide refreshes on the first check, then daily`() {
+        val runs = simulateAppLeftOpen(listOf(EpgAutoRefreshPolicy.SourceState(-1L, now - 10 * 24 * hour)), emptyMap(), hours = 30)
+        assertEquals(listOf(0L, 24 * hour), runs.getValue(-1L))
+    }
+
+    @Test
+    fun `explicit Off never refreshes and custom intervals keep their period while open`() {
+        val stored = mapOf(-1L to EpgAutoRefresh.OFF, -2L to EpgAutoRefresh.HOURS_6, -3L to EpgAutoRefresh.HOURS_48)
+        val sources = listOf(-1L, -2L, -3L).map { EpgAutoRefreshPolicy.SourceState(it, now) }
+        val runs = simulateAppLeftOpen(sources, stored, hours = 48)
+        assertEquals(emptyList<Long>(), runs.getValue(-1L))
+        assertEquals((1..8).map { it * 6 * hour }, runs.getValue(-2L))
+        assertEquals(listOf(48 * hour), runs.getValue(-3L))
+    }
+
+    @Test
+    fun `a periodic run arriving a little early does not skip a failing source for two hours`() {
+        val runs = simulateAppLeftOpen(
+            listOf(EpgAutoRefreshPolicy.SourceState(-1L, null)), emptyMap(), hours = 4,
+            periodMs = 55 * 60_000L, syncSucceeds = false,
+        )
+        assertEquals("a failing feed is retried about hourly, never more", 5, runs.getValue(-1L).size)
+    }
+
+    @Test
+    fun `resume right after a periodic check does not enqueue the same source twice`() {
+        val spacing = EpgAutoRefreshPolicy.AttemptSpacing()
+        val stale = listOf(EpgAutoRefreshPolicy.SourceState(-1L, now - 30 * hour))
+        assertEquals(listOf(-1L), EpgAutoRefreshPolicy.dueSources(stale, emptyMap(), now, false, spacing, 0L))
+        assertEquals(emptyList<Long>(), EpgAutoRefreshPolicy.dueSources(stale, emptyMap(), now + 60_000L, false, spacing, 60_000L))
+    }
+
+    @Test
+    fun `after an app restart only persisted state decides - a fresh guide is not re-downloaded`() {
+        val restarted = EpgAutoRefreshPolicy.AttemptSpacing() // a new process remembers no attempts
+        val stored = mapOf(-2L to EpgAutoRefresh.OFF) // persisted choices survive the restart
+        val sources = listOf(EpgAutoRefreshPolicy.SourceState(-1L, now - 2 * hour), EpgAutoRefreshPolicy.SourceState(-2L, now - 30 * hour))
+        assertEquals(emptyList<Long>(), EpgAutoRefreshPolicy.dueSources(sources, stored, now, coldStart = true, restarted, 0L))
+    }
+
+    @Test
+    fun `failed refresh - network errors retry a bounded number of times, other errors do not`() {
+        assertTrue(EpgAutoRefreshPolicy.shouldRetry(networkError = true, runAttemptCount = 0))
+        assertTrue(EpgAutoRefreshPolicy.shouldRetry(networkError = true, runAttemptCount = 2))
+        assertFalse(EpgAutoRefreshPolicy.shouldRetry(networkError = true, runAttemptCount = 3))
+        assertFalse(EpgAutoRefreshPolicy.shouldRetry(networkError = false, runAttemptCount = 0))
+    }
+
     @Test
     fun `imports never overlap`() = runBlocking(Dispatchers.Default) {
         val gate = EpgImportGate()

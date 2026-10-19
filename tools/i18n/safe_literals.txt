@@ -292,16 +292,20 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	identity
 1	url	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	ping.bin
 1	url	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	speedtest.bin
-1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${p.groupValues[2]}/${p.groupValues[3]}/
-1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}=${value}
-1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)($NAMES)=([^&]*)
-1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)($NAMES)=\\*\\*\\*(?=&|$|#)
+2	empty	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	\0
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}$PLACEHOLDER/$PLACEHOLDER/
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${m.groupValues[2]}=
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${m.groupValues[2]}=$PLACEHOLDER
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${m.groupValues[2]}=$storedValue
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${seg(2)}/${seg(3)}/
 1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)(://[^/]+/(?:live|movie|series|vod|timeshift)/)([^/]+)/([^/]+)/
-1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)(://[^/]+/(?:live|movie|series|vod|timeshift)/)•••/•••/
-1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://${u.groupValues[1]}@
-1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://([^/@:]+(?::[^/@]*)?)@
-1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://\\*\\*\\*@
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	(?i)([?&;])($NAMES)=([^&#]*)
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://$PLACEHOLDER@
+1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://$storedUserInfo@
+1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://([^/@?#]+)@
 1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	username|password|user|pass|token|data|auth|signature|sig|key
+1	technical	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	•••
 1	url	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	$base${if ('?' in base) '&' else '?'}dns=$query
 2	protocol	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	AAAA
 2	protocol	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	Accept
@@ -315,6 +319,12 @@
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	auth
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title
+2	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	EpgAutoRefresh
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	auto_refresh
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	epg auto-refresh due sourceId=$id trigger=$trigger — enqueuing
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	periodic
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	periodic check failed
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncScheduler.kt	epg-auto-refresh-check
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	auto_refresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	migration_refill
@@ -325,6 +335,8 @@
 1	mime	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterScreen.kt	text/plain
 1	log	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterViewModel.kt	diagnostic_resync
 1	locale	app/src/main/java/tv/own/owntv/features/settings/ResourceDiagnosticText.kt	yMMMd
+1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	cold_start
+1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	resume
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	boxing
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	channels:
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	mma

@@ -82,7 +82,7 @@ class EpgSyncWorker(
             store.markError(source.id, rawMessage)
             // Transient network trouble → WorkManager retry with backoff instead of staying stale
             // until the next scheduled window. Permanent errors (bad URL, malformed XML) stay terminal.
-            return if ((e is java.io.IOException || isTransientSyncError(e.message, online)) && runAttemptCount < MAX_RETRY_ATTEMPTS) {
+            return if (EpgAutoRefreshPolicy.shouldRetry(e is java.io.IOException || isTransientSyncError(e.message, online), runAttemptCount)) {
                 Log.w(TAG, "EPG sync failed transiently sourceId=${source.id} reason=$reason attempt=$runAttemptCount — will retry", e)
                 Result.retry()
             } else {
@@ -149,7 +149,6 @@ class EpgSyncWorker(
 
     companion object {
         const val TAG = "EpgSyncWorker"
-        private const val MAX_RETRY_ATTEMPTS = 3
         /** Enqueue reasons that are not a user's request: these may be skipped when already fresh. */
         private val AUTOMATIC_REASONS = setOf("auto_refresh", "migration_refill")
         private const val PROGRESS_MIN_INTERVAL_MS = 750L

@@ -236,6 +236,8 @@ val dataModule = module {
     single { UpdateManager(androidContext(), get()) }
     single { CatalogSyncScheduler(androidContext()) }
     single { EpgSyncScheduler(androidContext()) }
+    // settings, epgSourceStore, epgDao, epgSyncScheduler — one per process so every trigger shares its spacing.
+    single { tv.own.owntv.core.sync.work.EpgAutoRefreshCheck(get(), get(), get(), get()) }
     // Settings → Diagnostic Center: read-only probes over the clients registered above.
     single {
         tv.own.owntv.core.diagnostics.AndroidDiagnosticProbes(
