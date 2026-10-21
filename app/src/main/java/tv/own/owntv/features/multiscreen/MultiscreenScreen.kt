@@ -1114,10 +1114,22 @@ private fun MultiscreenChannelPicker(
     val channels = vm.pickerChannels.collectAsLazyPagingItems()
     
     val searchRequester = remember { FocusRequester() }
-    
-    LaunchedEffect(Unit) {
+    val categoryRequesters = remember { mutableMapOf<LiveKey, FocusRequester>() }
+    var panelHasFocus by remember { mutableStateOf(false) }
+    var panelWasFocused by remember { mutableStateOf(false) }
+
+    // Opens on the search bar. After that, focus must never be lost inside the picker: if the focused
+    // row leaves the composition (the list refreshing or switching to its empty state), nothing is
+    // focused and the D-pad goes nowhere on a TV. Put focus back on the selected category instead.
+    LaunchedEffect(panelHasFocus) {
+        if (panelHasFocus) {
+            panelWasFocused = true
+            return@LaunchedEffect
+        }
         kotlinx.coroutines.delay(100.milliseconds)
-        runCatching { searchRequester.requestFocus() }
+        val category = categoryRequesters[selectedCategory]
+        val restored = panelWasFocused && category != null && runCatching { category.requestFocus() }.isSuccess
+        if (!restored) runCatching { searchRequester.requestFocus() }
     }
 
     Box(
@@ -1132,6 +1144,7 @@ private fun MultiscreenChannelPicker(
             modifier = Modifier
                 .dialogPanel(width = 800.dp, scroll = false)
                 .fillMaxHeight(0.85f)
+                .onFocusChanged { panelHasFocus = it.hasFocus }
                 .focusGroup()
                 .clickable(enabled = false) {},
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1153,10 +1166,14 @@ private fun MultiscreenChannelPicker(
                 ) {
                     items(categories) { item ->
                         val active = item.key == selectedCategory && searchQuery.isBlank()
+                        val requester = remember(item.key) { categoryRequesters.getOrPut(item.key) { FocusRequester() } }
                         FocusableSurface(
                             onClick = { vm.setPickerCategory(item.key); vm.setPickerSearch("") },
                             selected = active,
-                            modifier = Modifier.fillMaxWidth().height(40.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .focusRequester(requester),
                             shape = RoundedCornerShape(20.dp),
                             focusedContainerColor = OwnTVTheme.colors.primaryContainer,
                             selectedContainerColor = OwnTVTheme.colors.primary,
