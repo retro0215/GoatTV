@@ -1040,6 +1040,39 @@ private fun BoxScope.MultiscreenControlStrip(
     }
 }
 
+/**
+ * What a Multiscreen dialog does with a remote key. Compose turns an unhandled Back into a focus "exit"
+ * move before the activity's back dispatcher sees it, so inside these dialogs Back only moved focus onto
+ * the backdrop and the dialog stayed open. The dialog handles Back itself: the press is consumed (so no
+ * focus move happens) and the release dismisses — on release, so it can never reach the screen behind.
+ */
+internal object MultiscreenDialogKeys {
+    enum class Action { PASS, CONSUME, DISMISS }
+
+    fun backAction(key: Key, type: KeyEventType): Action = when {
+        key != Key.Back && key != Key.Escape -> Action.PASS
+        type == KeyEventType.KeyUp -> Action.DISMISS
+        else -> Action.CONSUME
+    }
+}
+
+/**
+ * The full-screen backdrop behind a Multiscreen dialog (apply after `modalScrim()`): Back and a tap
+ * outside dismiss, D-pad focus stays inside the dialog, and the backdrop itself can never take focus —
+ * a focused backdrop is invisible and left the remote looking dead.
+ */
+private fun Modifier.multiscreenDialogBackdrop(onDismiss: () -> Unit): Modifier = this
+    .trapAllFocusExit()
+    .onKeyEvent { event ->
+        when (MultiscreenDialogKeys.backAction(event.key, event.type)) {
+            MultiscreenDialogKeys.Action.PASS -> false
+            MultiscreenDialogKeys.Action.CONSUME -> true
+            MultiscreenDialogKeys.Action.DISMISS -> { onDismiss(); true }
+        }
+    }
+    .focusProperties { canFocus = false }
+    .clickable(onClick = onDismiss)
+
 @Composable
 private fun MultiscreenActionMenu(
     channelName: String,
@@ -1059,15 +1092,12 @@ private fun MultiscreenActionMenu(
         runCatching { initialFocus.requestFocus() }
     }
 
-    BackHandler { onDismiss() }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .modalScrim()
-            .trapAllFocusExit()
             .longPressMenuGuard()
-            .clickable { onDismiss() },
+            .multiscreenDialogBackdrop(onDismiss),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -1114,6 +1144,7 @@ private fun MultiscreenChannelPicker(
     val channels = vm.pickerChannels.collectAsLazyPagingItems()
     
     val searchRequester = remember { FocusRequester() }
+    val cancelRequester = remember { FocusRequester() }
     val categoryRequesters = remember { mutableMapOf<LiveKey, FocusRequester>() }
     var panelHasFocus by remember { mutableStateOf(false) }
     var panelWasFocused by remember { mutableStateOf(false) }
@@ -1136,8 +1167,7 @@ private fun MultiscreenChannelPicker(
         modifier = Modifier
             .fillMaxSize()
             .modalScrim()
-            .trapAllFocusExit()
-            .clickable { onDismiss() },
+            .multiscreenDialogBackdrop(onDismiss),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -1149,14 +1179,43 @@ private fun MultiscreenChannelPicker(
                 .clickable(enabled = false) {},
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(if (replaceMode) R.string.content_multiscreen_replace_channel else R.string.content_multiscreen_picker_title), style = MaterialTheme.typography.titleLarge, color = OwnTVTheme.colors.onSurface)
-            
+            // Cancel sits in the header, not below lists that can run to thousands of rows: Up from the
+            // search bar or Left from any category reaches it, so it is never more than two presses away.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                OwnTVButton(
+                    label = stringResource(R.string.common_cancel),
+                    onClick = onDismiss,
+                    icon = OwnTVIcon.BACK,
+                    style = OwnTVButtonStyle.SECONDARY,
+                    modifier = Modifier
+                        .focusRequester(cancelRequester)
+                        .focusProperties {
+                            down = searchRequester
+                            right = searchRequester
+                        },
+                )
+                Text(
+                    stringResource(if (replaceMode) R.string.content_multiscreen_replace_channel else R.string.content_multiscreen_picker_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = OwnTVTheme.colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
             SearchBar(
                 query = searchQuery,
                 onQueryChange = vm::setPickerSearch,
                 placeholder = stringResource(R.string.common_search_hint),
                 surface = GlassSurface.DIALOGS,
-                modifier = Modifier.fillMaxWidth().focusRequester(searchRequester)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(searchRequester)
+                    .focusProperties { up = cancelRequester }
             )
 
             Row(modifier = Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1173,7 +1232,8 @@ private fun MultiscreenChannelPicker(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(40.dp)
-                                .focusRequester(requester),
+                                .focusRequester(requester)
+                                .focusProperties { left = cancelRequester },
                             shape = RoundedCornerShape(20.dp),
                             focusedContainerColor = OwnTVTheme.colors.primaryContainer,
                             selectedContainerColor = OwnTVTheme.colors.primary,
@@ -1233,8 +1293,6 @@ private fun MultiscreenChannelPicker(
                     }
                 }
             }
-            
-            OwnTVButton(label = stringResource(R.string.common_cancel), onClick = onDismiss, modifier = Modifier.fillMaxWidth(), style = OwnTVButtonStyle.SECONDARY)
         }
     }
 }
