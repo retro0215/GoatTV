@@ -328,6 +328,9 @@
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	auto_refresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	migration_refill
+7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
+1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
+1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_RESUMED channelId=$id name=${channelNames[id]}
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	CHAT
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	LIVE
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Viewer

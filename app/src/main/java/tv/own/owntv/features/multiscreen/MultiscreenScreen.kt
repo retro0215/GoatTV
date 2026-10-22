@@ -120,12 +120,17 @@ private class MultiscreenExoEngine(
     override val subDelayMs = MutableStateFlow(0).asStateFlow()
     override val seekStepMs = MutableStateFlow(10000L).asStateFlow()
 
-    init {
-        player.addListener(object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) { _isPlaying.value = isPlaying }
-            override fun onPlaybackStateChanged(state: Int) { _buffering.value = state == Player.STATE_BUFFERING }
-        })
+    private val listener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) { _isPlaying.value = isPlaying }
+        override fun onPlaybackStateChanged(state: Int) { _buffering.value = state == Player.STATE_BUFFERING }
     }
+
+    init {
+        player.addListener(listener)
+    }
+
+    /** The HUD closed: stop listening, so the tile's player keeps no reference to this engine. */
+    fun dispose() = player.removeListener(listener)
 
     override fun togglePlayPause() { if (player.playWhenReady) player.pause() else player.play() }
     override fun retry() { player.prepare(); player.play() }
@@ -226,13 +231,38 @@ private fun buildMultiscreenPlayer(
         }
 }
 
+/** Builds a tile's player, already loaded with the channel and prepared. */
+internal typealias MultiscreenPlayerFactory =
+    (channel: ChannelEntity, source: SourceEntity?, surroundMode: tv.own.owntv.player.SurroundMode, hwDecoding: Boolean) -> ExoPlayer
+
 @Stable
-class MultiscreenState(
-    private val context: Context,
-    private val streamingHttp: StreamingHttpClient,
+class MultiscreenState internal constructor(
+    private val newPlayer: MultiscreenPlayerFactory,
 ) {
+    constructor(context: Context, streamingHttp: StreamingHttpClient) : this({ channel, source, surroundMode, hwDecoding ->
+        val headers = StreamHeaders.decode(channel.httpHeaders)
+        val ua = StreamHeaders.userAgentOf(headers)
+            ?: source?.userAgent
+            ?: HttpClient.DEFAULT_USER_AGENT
+
+        buildMultiscreenPlayer(
+            context = context,
+            streamingHttp = streamingHttp,
+            ua = ua,
+            headers = headers,
+            surroundMode = surroundMode,
+            hwDecoding = hwDecoding
+        ).apply {
+            setMediaItem(MediaItem.fromUri(channel.playStreamUrl(source)))
+            prepare()
+        }
+    })
+
     val players = mutableStateMapOf<Long, ExoPlayer>()
     private val channelNames = mutableMapOf<Long, String>()
+
+    /** Tiles stopped while another tile is fullscreen: no decoder, no connection, player kept for the grid. */
+    private val parked = mutableSetOf<Long>()
 
     fun getOrCreatePlayer(
         channel: ChannelEntity,
@@ -241,22 +271,29 @@ class MultiscreenState(
         hwDecoding: Boolean
     ): ExoPlayer {
         channelNames[channel.id] = channel.name
-        return players.getOrPut(channel.id) {
-            val headers = StreamHeaders.decode(channel.httpHeaders)
-            val ua = StreamHeaders.userAgentOf(headers)
-                ?: source?.userAgent
-                ?: HttpClient.DEFAULT_USER_AGENT
+        return players.getOrPut(channel.id) { newPlayer(channel, source, surroundMode, hwDecoding) }
+    }
 
-            buildMultiscreenPlayer(
-                context = context,
-                streamingHttp = streamingHttp,
-                ua = ua,
-                headers = headers,
-                surroundMode = surroundMode,
-                hwDecoding = hwDecoding
-            ).apply {
-                setMediaItem(MediaItem.fromUri(channel.playStreamUrl(source)))
-                prepare()
+    fun isParked(channelId: Long): Boolean = channelId in parked
+
+    /**
+     * Only the tiles in [activeIds] keep a decoder (see [MultiscreenDecoders]). The others are stopped,
+     * which releases their MediaCodec and stream; once active again they are prepared from the live edge.
+     *
+     * Hidden tiles used to keep running: when the grid made way for a fullscreen tile, Media3 moved each
+     * hidden decoder onto a placeholder surface and kept decoding, then moved it onto a new SurfaceView on
+     * the way back. Every round trip re-allocated four hardware decoders' output buffers, and on the onn
+     * the second trip exhausted the Amlogic codec memory (codec_mm "No mem") and failed every tile.
+     */
+    fun setActive(activeIds: Set<Long>) {
+        players.forEach { (id, player) ->
+            val active = id in activeIds
+            if (!active && parked.add(id)) {
+                player.stop()
+                android.util.Log.d("MultiscreenDiag", "TILE_PARKED channelId=$id name=${channelNames[id]}")
+            } else if (active && parked.remove(id)) {
+                player.prepare()
+                android.util.Log.d("MultiscreenDiag", "TILE_RESUMED channelId=$id name=${channelNames[id]}")
             }
         }
     }
@@ -286,6 +323,7 @@ class MultiscreenState(
             players[id]?.release()
             players.remove(id)
             channelNames.remove(id)
+            parked.remove(id)
         }
     }
 
@@ -293,12 +331,14 @@ class MultiscreenState(
     fun release(channelId: Long) {
         players.remove(channelId)?.release()
         channelNames.remove(channelId)
+        parked.remove(channelId)
     }
 
     fun releaseAll() {
         players.values.forEach { it.release() }
         players.clear()
         channelNames.clear()
+        parked.clear()
     }
 }
 
@@ -389,6 +429,26 @@ fun MultiscreenScreen(
     fun focusAudibleTile() {
         val id = channels.getOrNull(audioFocusIndex)?.id ?: channels.firstOrNull()?.id
         id?.let { tileRequesters[it] }?.let { runCatching { it.requestFocus() } }
+    }
+
+    // Park the hidden tiles before the grid recomposes, so their decoders are stopped rather than moved
+    // onto a placeholder surface when their views leave.
+    fun enterFullscreen(channelId: Long) {
+        msState.setActive(MultiscreenDecoders.activeIds(channels.map { it.id }, channelId))
+        fullscreenChannelId = channelId
+    }
+
+    // A fullscreen tile removed from the grid ends fullscreen; otherwise every tile would stay parked.
+    LaunchedEffect(channels) {
+        if (fullscreenChannelId != null && MultiscreenDecoders.shownFullscreen(channels.map { it.id }, fullscreenChannelId) == null) {
+            fullscreenChannelId = null
+        }
+    }
+
+    // Back in the grid, parked tiles resume — after recomposition, so their new views are already there
+    // and the decoders start on the tile's own surface.
+    LaunchedEffect(channels, fullscreenChannelId) {
+        msState.setActive(MultiscreenDecoders.activeIds(channels.map { it.id }, fullscreenChannelId))
     }
 
     // Recovery Handler: Ensure Back button ALWAYS works from Multiscreen.
@@ -559,72 +619,64 @@ fun MultiscreenScreen(
                     false
                 }
             ) {
-                if (fullscreenChannelId != null) {
-                    val idx = channels.indexOfFirst { it.id == fullscreenChannelId }
-                    if (idx >= 0) {
-                        val channel = channels[idx]
-                        val requester = remember(channel.id) { tileRequesters.getOrPut(channel.id) { FocusRequester() } }
+                val shownFullscreenId = MultiscreenDecoders.shownFullscreen(channels.map { it.id }, fullscreenChannelId)
+                // Fullscreen is the same tile, grown to the whole screen: its PlayerView and surface stay
+                // put, so its decoder never changes surface on the way in or out.
+                MultiscreenGrid(
+                    channels = channels,
+                    sources = sources,
+                    msState = msState,
+                    surroundMode = surroundMode,
+                    hwDecoding = hwDecoding,
+                    audibleId = focusedId,
+                    fullscreenId = shownFullscreenId,
+                    moveModeIndex = moveModeIndex,
+                    moveTargetIndex = moveTargetIndex,
+                    // As before, the fullscreen tile stays focusable under its HUD and menu.
+                    isModalOpen = activeModal != MultiscreenModal.NONE && shownFullscreenId == null,
+                    tileRequesters = tileRequesters,
+                    onTileFocused = {
+                        if (shownFullscreenId == null && activeModal == MultiscreenModal.NONE && !focusRestore.pending) vm.setAudioFocus(it)
+                        onChildFocused()
+                    },
+                    onTileClick = {
+                        if (shownFullscreenId != null) {
+                            activeModal = MultiscreenModal.FULLSCREEN_HUD
+                        } else if (activeModal == MultiscreenModal.NONE && moveModeIndex == null) {
+                            actionMenuChannelId = channels[it].id
+                            enterFullscreen(channels[it].id)
+                        }
+                    },
+                    onTileLongClick = {
+                        if (activeModal == MultiscreenModal.NONE && moveModeIndex == null) {
+                            actionMenuChannelId = channels[it].id
+                            activeModal = MultiscreenModal.ACTION_MENU
+                        }
+                    },
+                    onTopEdgeUp = {
+                        if (shownFullscreenId == null) {
+                            pokeStrip()
+                            if (canAddMore) stripFocusPending = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
 
-                        MultiscreenTile(
-                            channel = channel,
-                            player = msState.getOrCreatePlayer(channel, sources[channel.sourceId], surroundMode, hwDecoding),
-                            isAudible = true,
-                            onFocused = {},
-                            onClick = { activeModal = MultiscreenModal.FULLSCREEN_HUD },
-                            onLongClick = { actionMenuChannelId = channel.id; activeModal = MultiscreenModal.ACTION_MENU },
-                            modifier = Modifier.fillMaxSize(),
-                            focusRequester = requester
-                        )
-
-                        if (activeModal == MultiscreenModal.FULLSCREEN_HUD) {
+                val hudChannel = channels.firstOrNull { it.id == shownFullscreenId }
+                if (hudChannel != null && activeModal == MultiscreenModal.FULLSCREEN_HUD) {
                     // Multiscreen is ExoPlayer only: the HUD drives this tile's own player.
-                    val engine = remember(channel.id) {
-                        MultiscreenExoEngine(msState.getOrCreatePlayer(channel, sources[channel.sourceId], surroundMode, hwDecoding), channel)
+                    val engine = remember(hudChannel.id) {
+                        MultiscreenExoEngine(msState.getOrCreatePlayer(hudChannel, sources[hudChannel.sourceId], surroundMode, hwDecoding), hudChannel)
                     }
+                    DisposableEffect(engine) { onDispose { engine.dispose() } }
                     val favoriteIds by vm.favoriteIds.collectAsStateWithLifecycle()
 
                     tv.own.owntv.player.PlayerHud(
                         player = engine,
                         onBack = { activeModal = MultiscreenModal.NONE },
-                        onToggleFavorite = { vm.toggleFavorite(channel) },
-                        favorite = favoriteIds.contains(channel.id),
+                        onToggleFavorite = { vm.toggleFavorite(hudChannel) },
+                        favorite = favoriteIds.contains(hudChannel.id),
                         // No engine switch: Multiscreen tiles never move to mpv.
-                    )
-                }
-                    }
-                } else {
-                    MultiscreenGrid(
-                        channels = channels,
-                        sources = sources,
-                        msState = msState,
-                        surroundMode = surroundMode,
-                        hwDecoding = hwDecoding,
-                        audibleId = focusedId,
-                        moveModeIndex = moveModeIndex,
-                        moveTargetIndex = moveTargetIndex,
-                        isModalOpen = activeModal != MultiscreenModal.NONE,
-                        tileRequesters = tileRequesters,
-                        onTileFocused = {
-                            if (activeModal == MultiscreenModal.NONE && !focusRestore.pending) vm.setAudioFocus(it)
-                            onChildFocused()
-                        },
-                        onTileClick = {
-                            if (activeModal == MultiscreenModal.NONE && moveModeIndex == null) {
-                                fullscreenChannelId = channels[it].id
-                                actionMenuChannelId = channels[it].id
-                            }
-                        },
-                        onTileLongClick = {
-                            if (activeModal == MultiscreenModal.NONE && moveModeIndex == null) {
-                                actionMenuChannelId = channels[it].id
-                                activeModal = MultiscreenModal.ACTION_MENU
-                            }
-                        },
-                        onTopEdgeUp = {
-                            pokeStrip()
-                            if (canAddMore) stripFocusPending = true
-                        },
-                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
@@ -650,7 +702,7 @@ fun MultiscreenScreen(
                     channelName = channels[idx].name,
                     onRemove = { vm.removeChannel(channels[idx].id); activeModal = MultiscreenModal.NONE },
                     onMove = { originalChannels = channels; moveModeIndex = idx; moveTargetIndex = idx; activeModal = MultiscreenModal.NONE },
-                    onFullscreen = { fullscreenChannelId = channels[idx].id; activeModal = MultiscreenModal.NONE },
+                    onFullscreen = { enterFullscreen(channels[idx].id); activeModal = MultiscreenModal.NONE },
                     onAdd = if (canAddMore) {
                         { activeModal = MultiscreenModal.CHANNEL_PICKER }
                     } else null,
@@ -717,6 +769,8 @@ private fun MultiscreenGrid(
     surroundMode: tv.own.owntv.player.SurroundMode,
     hwDecoding: Boolean,
     audibleId: Long?,
+    /** The tile shown fullscreen: composed alone at full size; the others leave (their players are parked). */
+    fullscreenId: Long?,
     moveModeIndex: Int?,
     moveTargetIndex: Int?,
     isModalOpen: Boolean,
@@ -744,16 +798,18 @@ private fun MultiscreenGrid(
             // slot shifted (an earlier tile removed or replaced) lost its group and was rebuilt.
             key(id) {
                 val idx = channels.indexOfFirst { it.id == id }
-                val r = rects.getOrNull(idx)
-                if (idx >= 0 && r != null) {
+                val fullscreen = fullscreenId == id
+                val r = if (fullscreen) TileRect(0f, 0f, maxWidth.value, maxHeight.value) else rects.getOrNull(idx)
+                if (idx >= 0 && r != null && (fullscreenId == null || fullscreen)) {
                     val channel = channels[idx]
                     val requester = remember(channel.id) { tileRequesters.getOrPut(channel.id) { FocusRequester() } }
                     fun neighbourRequester(direction: MultiscreenDirection): FocusRequester =
-                        MultiscreenLayout.neighbour(shape, idx, direction)
+                        if (fullscreen) FocusRequester.Cancel
+                        else MultiscreenLayout.neighbour(shape, idx, direction)
                             ?.let { channels.getOrNull(it)?.id }
                             ?.let { tileRequesters[it] }
                             ?: FocusRequester.Cancel
-                    val topRow = MultiscreenLayout.isTopRow(shape, idx)
+                    val topRow = !fullscreen && MultiscreenLayout.isTopRow(shape, idx)
                     MultiscreenTile(
                         channel = channel,
                         player = msState.getOrCreatePlayer(channel, sources[channel.sourceId], surroundMode, hwDecoding),
@@ -766,7 +822,7 @@ private fun MultiscreenGrid(
                         modifier = Modifier
                             .offset(r.left.dp, r.top.dp)
                             .size(r.width.dp, r.height.dp)
-                            .padding(TILE_INSET)
+                            .padding(if (fullscreen) 0.dp else TILE_INSET)
                             // Spatial D-pad from the same geometry the grid is drawn with.
                             .focusProperties {
                                 left = neighbourRequester(MultiscreenDirection.LEFT)
@@ -903,6 +959,9 @@ private fun MultiscreenTile(
                     view.player = player
                 }
             },
+            // A tile leaving the screen (parked behind fullscreen, removed, Multiscreen closed) lets go of
+            // its player, so the player holds no surface or callback of a view that no longer exists.
+            onRelease = { view -> view.player = null },
             modifier = Modifier.fillMaxSize()
         )
 

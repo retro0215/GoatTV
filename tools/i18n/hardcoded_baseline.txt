@@ -3110,7 +3110,6 @@
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Building LoadControl: min=$minBufferMs, max=$maxBufferMs, constrained=$isOnn
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MULTISCREEN_AUDIO channelId=$id ($name) enabled=$focused volume=${player.volume} handleFocus=$focused
 2	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	Multiscreen
-5	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_DECODER channelId=${channel.id} name=${channel.name} decoder=$decoderName
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_DROPPED channelId=${channel.id} name=${channel.name} dropped=$droppedFrames over ${elapsedMs}ms
 1	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_ERROR channelId=${channel.id} name=${channel.name} errorCode=${e.errorCode} message=${e.message}
