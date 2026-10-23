@@ -29,6 +29,7 @@ import tv.own.owntv.features.settings.LanguageSettingsViewModel
 import tv.own.owntv.features.settings.OpenSubtitlesViewModel
 import tv.own.owntv.features.settings.SettingsViewModel
 import tv.own.owntv.features.settings.data.SettingsRepository
+import tv.own.owntv.features.tutorials.VideoTutorialsViewModel
 import tv.own.owntv.features.setup.SetupViewModel
 import tv.own.owntv.features.shell.ShellViewModel
 import tv.own.owntv.features.subtitles.SubtitleSearchViewModel
@@ -107,6 +108,7 @@ val appModule = module {
     viewModelOf(::LanguageSettingsViewModel)
     viewModelOf(::OpenSubtitlesViewModel)
     viewModelOf(::DeleteSubtitlesViewModel)
+    viewModelOf(::VideoTutorialsViewModel)
     viewModelOf(::SubtitleSearchViewModel)
     viewModelOf(::DownloadsViewModel)
     viewModelOf(::EpgViewModel)

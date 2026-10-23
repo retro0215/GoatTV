@@ -18,5 +18,16 @@
             android:name="tv.own.owntv.features.sports.live.GameCenterFixtureInstaller"
             android:authorities="${applicationId}.sportsgcfixtures"
             android:exported="false" />
+        <!-- Video Tutorials staging catalog switch (debug builds only): adb-toggled, never in release. -->
+        <activity
+            android:name="tv.own.owntv.features.tutorials.VideoTutorialsStagingActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <provider
+            android:name="tv.own.owntv.features.tutorials.VideoTutorialsStagingInstaller"
+            android:authorities="${applicationId}.tutorialsstaging"
+            android:exported="false" />
     </application>
 </manifest>

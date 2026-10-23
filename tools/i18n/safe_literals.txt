@@ -578,6 +578,53 @@
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/live/SportsSlate.kt	sport:soccer
 1	regex	app/src/main/java/tv/own/owntv/features/sports/live/SportsWatchPresentation.kt	\\b(?:4k|uhd|2160p)\\b
 1	empty	app/src/main/java/tv/own/owntv/features/sports/live/SportsWatchUi.kt	\0
+1	url	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	/rest/v1/rpc/get_video_tutorials
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	Accept
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	VideoTutorials
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	apikey
+1	mime	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	application/json
+1	mime	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	application/json; charset=utf-8
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	catalog request error: ${e.javaClass.simpleName}
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	catalog request failed: ${e.javaClass.simpleName}
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	catalog → ${it.reason} (HTTP ${response.code})
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsApi.kt	p_brand_id
+1	empty	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	\0
+1	regex	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	^[A-Za-z0-9_-]{11}$
+1	regex	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	^[a-z0-9-]{1,40}$
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	category
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	description
+2	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	duration_seconds
+1	url	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	https://i.ytimg.com/vi/$id/hqdefault.jpg
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	id
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	sort_order
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	title
+1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	youtube_video_id
+1	regex	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	^https://([a-z0-9]{20})[.]supabase[.]co$
+1	preference-key	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	production
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	sb_secret_
+1	preference-key	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	staging
+2	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsRepository.kt	body
+2	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsRepository.kt	brand
+1	preference-key	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsRepository.kt	catalog_${endpoint.cacheScope}_$brandId
+2	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsRepository.kt	fetchedAt
+2	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsRepository.kt	scope
+1	preference-key	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsRepository.kt	video_tutorials_cache
+1	empty	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	\0
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	getting-started
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	live-tv
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	movies-series
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	multiscreen
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	settings
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	sports
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsScreen.kt	troubleshooting
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	VideoTutorials
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	com.amazon.firetv.youtube
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	com.google.android.youtube
+1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	com.google.android.youtube.tv
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	handler
+1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	https://www.youtube.com/watch?v=$videoId
+1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	launch refused by ${candidate.packageName ?: "handler"}
+1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	vnd.youtube:$videoId
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway

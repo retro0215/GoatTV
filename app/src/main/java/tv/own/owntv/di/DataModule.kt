@@ -92,6 +92,14 @@ val dataModule = module {
     // Per-item zoom/volume the player remembers (playbackPrefsDao, settings).
     single { tv.own.owntv.core.player.PlaybackPrefsStore(get(), get()) }
     single { tv.own.owntv.core.player.ExternalPlayerLauncher(androidContext()) }
+    // Settings → Video Tutorials: public catalog RPC on the shared client + a small per-brand offline cache.
+    single { tv.own.owntv.features.tutorials.VideoTutorialsApi(get()) }
+    single {
+        tv.own.owntv.features.tutorials.VideoTutorialsRepository(
+            get<tv.own.owntv.features.tutorials.VideoTutorialsApi>(),
+            tv.own.owntv.features.tutorials.SharedPrefsVideoTutorialsCacheStore(androidContext()),
+        )
+    }
     // store, sourceDao, epgRepository
     single { tv.own.owntv.core.epg.EpgMigration(get(), get(), get()) }
     single { M3uParser() }

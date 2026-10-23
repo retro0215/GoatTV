@@ -124,7 +124,7 @@ import java.util.Locale
 
 private enum class TileTone { PRIMARY, SECONDARY, TERTIARY }
 
-private enum class SettingsTab { ROOT, LANGUAGE, SOURCES, EPG, PROFILES, BACKUP, VIDEO, MINI_PLAYER, CUSTOMIZE, HOME, NETWORK, DNS, METADATA, OPEN_SUBTITLES, WEATHER, NAV_MENU, CH_NAV, PANEL_WIDTH, DIAGNOSTICS }
+private enum class SettingsTab { ROOT, LANGUAGE, SOURCES, EPG, PROFILES, BACKUP, VIDEO, MINI_PLAYER, CUSTOMIZE, HOME, NETWORK, DNS, METADATA, OPEN_SUBTITLES, WEATHER, NAV_MENU, CH_NAV, PANEL_WIDTH, DIAGNOSTICS, TUTORIALS }
 
 @Composable
 private fun surroundModeLabel(mode: SurroundMode): String = stringResource(
@@ -361,6 +361,7 @@ fun SettingsScreen(
         SettingsTab.CH_NAV to FocusRequester(),
         SettingsTab.PANEL_WIDTH to FocusRequester(),
         SettingsTab.DIAGNOSTICS to FocusRequester(),
+        SettingsTab.TUTORIALS to FocusRequester(),
     ) }
     val open: (SettingsTab) -> Unit = { lastTab = it; tab = it }
     // Restore focus to the row a sub-screen was opened from when the user navigates back. Fresh entry
@@ -395,6 +396,7 @@ fun SettingsScreen(
         SettingsTab.CH_NAV -> { tv.own.owntv.features.settings.ChNavSettingsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.PANEL_WIDTH -> { tv.own.owntv.features.settings.PanelWidthSettingsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.DIAGNOSTICS -> { tv.own.owntv.features.settings.DiagnosticCenterScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
+        SettingsTab.TUTORIALS -> { tv.own.owntv.features.tutorials.VideoTutorialsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.ROOT -> Unit
     }
 
@@ -786,6 +788,12 @@ fun SettingsScreen(
             modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.DIAGNOSTICS)),
         )
         SettingsRow(
+            tone = TileTone.SECONDARY, icon = OwnTVIcon.PLAY,
+            title = stringResource(R.string.settings_video_tutorials), desc = stringResource(R.string.settings_video_tutorials_description, stringResource(R.string.app_name)),
+            onClick = { open(SettingsTab.TUTORIALS) }, showChevron = true,
+            modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.TUTORIALS)),
+        )
+        SettingsRow(
             tone = TileTone.SECONDARY, icon = OwnTVIcon.HOME,
             title = stringResource(R.string.settings_app_startup), desc = stringResource(R.string.settings_app_startup_description, stringResource(R.string.app_name)),
             chip = if (startupMode == tv.own.owntv.features.settings.data.StartupMode.SPECIFIC_CHANNEL) {
@@ -894,6 +902,7 @@ fun SettingsScreen(
                 SettingsSearchEntry(stringResource(R.string.settings_group_network), stringResource(R.string.common_proxy), stringResource(R.string.settings_search_keywords_proxy), OwnTVIcon.SHARE, TileTone.SECONDARY) { open(SettingsTab.NETWORK) },
                 SettingsSearchEntry(stringResource(R.string.settings_group_network), stringResource(R.string.settings_dns), stringResource(R.string.settings_search_keywords_dns), OwnTVIcon.SEARCH, TileTone.SECONDARY) { open(SettingsTab.DNS) },
                 SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.diag_title), stringResource(R.string.diag_settings_search_keywords), OwnTVIcon.INFO, TileTone.PRIMARY) { open(SettingsTab.DIAGNOSTICS) },
+                SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.settings_video_tutorials), stringResource(R.string.settings_search_keywords_video_tutorials), OwnTVIcon.PLAY, TileTone.SECONDARY) { open(SettingsTab.TUTORIALS) },
                 SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.settings_app_startup), stringResource(R.string.settings_search_keywords_startup), OwnTVIcon.HOME, TileTone.SECONDARY,
                     chip = startupLabel(startupMode)) { savedScroll = scrollState.value; dialogReturn = searchFieldFocus; showStartup = true },
                 SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.settings_check_updates), stringResource(R.string.settings_search_keywords_updates), OwnTVIcon.DOWNLOADS, TileTone.PRIMARY,

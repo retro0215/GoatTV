@@ -1,4 +1,5 @@
 import java.io.ByteArrayOutputStream
+import java.util.Base64
 import java.util.Properties
 import javax.inject.Inject
 import org.gradle.process.ExecOperations
@@ -89,6 +90,12 @@ android {
         if (f.isFile) f.inputStream().use { load(it) }
     }
 
+    // Video Tutorials staging catalog (DEBUG builds only, see VideoTutorialsEndpoints). Resolved inside
+    // defaultConfig (next to the production Supabase values it is checked against) and applied only to
+    // the debug build type below; release variants always get empty strings.
+    var tutorialsStagingUrl = ""
+    var tutorialsStagingKey = ""
+
     defaultConfig {
         minSdk = 24
         targetSdk = 36
@@ -150,6 +157,42 @@ android {
             ?: localProperties.getProperty("supabaseAnonKey")
             ?: ""
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"${supabaseAnonKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+
+        // Never in the repo: Gradle property > the out-of-repo properties file > local.properties. Blank =
+        // no staging; a debug build then reads production exactly like a release build.
+        tutorialsStagingUrl = (
+            providers.gradleProperty("owntv.tutorialsStagingUrl").orNull
+                ?: localSigningProps.getProperty("owntv.tutorialsStagingUrl")
+                ?: localProperties.getProperty("TUTORIALS_STAGING_URL")
+                ?: ""
+            ).trim().trimEnd('/')
+        tutorialsStagingKey = (
+            providers.gradleProperty("owntv.tutorialsStagingAnonKey").orNull
+                ?: localSigningProps.getProperty("owntv.tutorialsStagingAnonKey")
+                ?: localProperties.getProperty("TUTORIALS_STAGING_ANON_KEY")
+                ?: ""
+            ).trim()
+        if (tutorialsStagingUrl.isNotEmpty() || tutorialsStagingKey.isNotEmpty()) {
+            val refPattern = Regex("^https://([a-z0-9]{20})[.]supabase[.]co$")
+            val stagingRef = refPattern.matchEntire(tutorialsStagingUrl)?.groupValues?.get(1)
+                ?: throw GradleException("Video Tutorials staging URL must be https://<project-ref>.supabase.co")
+            if (stagingRef == refPattern.matchEntire(supabaseUrl.trim().trimEnd('/'))?.groupValues?.get(1)) {
+                throw GradleException("Video Tutorials staging URL is the PRODUCTION Supabase project; refusing.")
+            }
+            if (tutorialsStagingKey.isEmpty() || tutorialsStagingKey.startsWith("sb_secret_")) {
+                throw GradleException("Video Tutorials staging key must be the staging anon/publishable key, never a secret key.")
+            }
+            if (tutorialsStagingKey.startsWith("eyJ")) {
+                val payload: String = runCatching {
+                    String(Base64.getUrlDecoder().decode(tutorialsStagingKey.split(".")[1]))
+                }.getOrDefault("")
+                if (!Regex("\"role\"[ ]*:[ ]*\"anon\"").containsMatchIn(payload)) {
+                    throw GradleException("Video Tutorials staging key is not an anon key (service_role keys are refused).")
+                }
+            }
+        }
+        buildConfigField("String", "TUTORIALS_STAGING_URL", "\"\"")
+        buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"\"")
 
         if (supabaseUrl.isBlank() || supabaseAnonKey.isBlank()) {
             throw GradleException(
@@ -328,8 +371,15 @@ android {
             // block at the bottom of this file (see docs/internationalization.md 0b, "Pseudolocales must
             // survive the filter").
             isPseudoLocalesEnabled = true
+            // Video Tutorials staging catalog: debug only, and only used after the adb switch in the
+            // debug source set turns it on (VideoTutorialsStagingActivity).
+            buildConfigField("String", "TUTORIALS_STAGING_URL", "\"${tutorialsStagingUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"${tutorialsStagingKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         }
         release {
+            // Customer builds never carry the staging catalog settings.
+            buildConfigField("String", "TUTORIALS_STAGING_URL", "\"\"")
+            buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"\"")
 
             // Stable AGP release optimization API. Keep both code and resource shrinking enabled;
             // the optimized default rules are extended by OwnTV's project-specific keep rules.
