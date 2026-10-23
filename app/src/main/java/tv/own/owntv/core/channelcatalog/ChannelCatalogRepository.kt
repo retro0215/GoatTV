@@ -44,6 +44,10 @@ class ChannelCatalogRepository(
     private val client = SupabaseClientProvider.client
 
     suspend fun syncSourceCatalog(source: SourceEntity) {
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) {
+            Log.i("ChannelCatalog", "Catalog upload skipped: ${tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED}")
+            return
+        }
         val typeStr = when (source.type) {
             SourceType.XTREAM -> "XTREAM"
             SourceType.M3U -> "M3U"

@@ -25,10 +25,27 @@ class VideoTutorialsCatalogTest {
 
     @Test
     fun `brand mapping covers the four production app ids`() {
-        assertEquals("goat", BrandResolver.resolveBrandId("tv.own.owntv"))
-        assertEquals("allaccess", BrandResolver.resolveBrandId("tv.allaccess.app"))
-        assertEquals("fivestar", BrandResolver.resolveBrandId("tv.fivestar.ultra"))
-        assertEquals("supreme", BrandResolver.resolveBrandId("tv.supreme.app"))
+        assertEquals("goat", BrandResolver.resolveBrandId("tv.own.owntv", flavorBrand = ""))
+        assertEquals("allaccess", BrandResolver.resolveBrandId("tv.allaccess.app", flavorBrand = ""))
+        assertEquals("fivestar", BrandResolver.resolveBrandId("tv.fivestar.ultra", flavorBrand = ""))
+        assertEquals("supreme", BrandResolver.resolveBrandId("tv.supreme.app", flavorBrand = ""))
+    }
+
+    @Test
+    fun `the brand flavor decides, so a suffixed test application id keeps its brand`() {
+        for ((appId, brand) in listOf(
+            "tv.own.owntv.tutorialtest" to "goat",
+            "tv.allaccess.app.tutorialtest" to "allaccess",
+            "tv.fivestar.ultra.tutorialtest" to "fivestar",
+            "tv.supreme.app.tutorialtest" to "supreme",
+        )) {
+            assertEquals(appId, brand, BrandResolver.resolveBrandId(appId, flavorBrand = brand))
+            assertEquals(appId, brand, BrandResolver.resolveBrandId(appId, flavorBrand = ""))
+        }
+        // The flavor wins over an application id that disagrees with it.
+        assertEquals("supreme", BrandResolver.resolveBrandId("tv.own.owntv", flavorBrand = "supreme"))
+        // The build under test resolves to its own flavor.
+        assertEquals(tv.own.owntv.BuildConfig.FLAVOR_brand, BrandResolver.resolveBrandId())
     }
 
     @Test

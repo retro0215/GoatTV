@@ -29,7 +29,11 @@ object VideoTutorialsEndpoints {
         stagingKey = BuildConfig.TUTORIALS_STAGING_ANON_KEY,
         productionUrl = BuildConfig.SUPABASE_URL,
         productionKey = BuildConfig.SUPABASE_ANON_KEY,
+        isolatedTestBuild = BuildConfig.ISOLATED_TEST_BUILD,
     )
+
+    /** Where the isolated test APK points when it was built without staging values: never resolves. */
+    internal const val UNREACHABLE_URL = "https://isolated-test-build.invalid"
 
     internal fun resolve(
         isDebugBuild: Boolean,
@@ -38,7 +42,15 @@ object VideoTutorialsEndpoints {
         stagingKey: String,
         productionUrl: String,
         productionKey: String,
+        isolatedTestBuild: Boolean = false,
     ): VideoTutorialsEndpoint {
+        // The isolated test APK reads staging only (no switch needed) and has no production fallback:
+        // without valid staging values it points at a host that never resolves ("couldn't load").
+        if (isolatedTestBuild) {
+            val usable = projectRef(stagingUrl) != null && stagingKey.isNotBlank() && !stagingKey.startsWith(SECRET_KEY_PREFIX)
+            return if (usable) VideoTutorialsEndpoint(stagingUrl.trimEnd('/'), stagingKey, isStaging = true)
+            else VideoTutorialsEndpoint(UNREACHABLE_URL, "", isStaging = true)
+        }
         val production = VideoTutorialsEndpoint(productionUrl.trimEnd('/'), productionKey, isStaging = false)
         if (!isDebugBuild || !stagingRequested) return production
         return if (isUsableStaging(stagingUrl, stagingKey, productionUrl)) {

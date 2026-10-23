@@ -245,6 +245,8 @@
 1	regex	app/src/main/java/tv/own/owntv/core/catalog/ProviderCatalogMetadata.kt	^\\s*($LANGUAGE_CODES)(?=\\s*[|:_-])
 1	technical	app/src/main/java/tv/own/owntv/core/catalog/ProviderCatalogMetadata.kt	__unmatchable_${rawName.hashCode().toUInt().toString(16)}
 1	technical	app/src/main/java/tv/own/owntv/core/catalog/ProviderCatalogMetadata.kt	•
+1	log	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Catalog upload skipped: ${tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED}
+6	log	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	ChannelCatalog
 4	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	\0
 1	technical	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	(unnamed)
 1	technical	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	.$extension
@@ -306,6 +308,7 @@
 1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	://([^/@?#]+)@
 1	regex	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	username|password|user|pass|token|data|auth|signature|sig|key
 1	technical	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	•••
+1	log	app/src/main/java/tv/own/owntv/core/isolation/IsolatedTestBuild.kt	disabled in the isolated test build
 1	url	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	$base${if ('?' in base) '&' else '?'}dns=$query
 2	protocol	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	AAAA
 2	protocol	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	Accept
@@ -599,7 +602,9 @@
 1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	sort_order
 1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	title
 1	json	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsCatalog.kt	youtube_video_id
+1	empty	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	\0
 1	regex	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	^https://([a-z0-9]{20})[.]supabase[.]co$
+1	url	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	https://isolated-test-build.invalid
 1	preference-key	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	production
 1	protocol	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	sb_secret_
 1	preference-key	app/src/main/java/tv/own/owntv/features/tutorials/VideoTutorialsEndpoint.kt	staging
@@ -636,6 +641,11 @@
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no picture or sound within ${budgetMs / 1000}s
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start budget: engine handover, deadline ${before / 1000}s → ${deadline.deadlineMs / 1000}s
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start timeout
+1	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	.tutorialtest
+2	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	allaccess
+2	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	fivestar
+3	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	goat
+2	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	supreme
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Error processing realtime message: ${e.message}
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	Error processing realtime reaction: ${e.message}
 1	log	app/src/main/java/tv/own/owntv/rooms/RoomRealtimeSession.kt	RoomRealtimeSession

@@ -83,6 +83,8 @@ class UpdateManager(
 
     /** Queries GitHub's latest release for THIS brand; moves to Available / UpToDate / a semantic failure. */
     fun check() {
+        // The isolated test APK never offers (or installs) a customer release over anything.
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) { _state.value = State.UpToDate; return }
         if (_state.value is State.Checking || _state.value is State.Downloading) return
         _state.value = State.Checking
         scope.launch {
@@ -121,6 +123,7 @@ class UpdateManager(
 
     /** Downloads the release APK with progress, then opens the system installer. */
     fun downloadAndInstall() {
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) return
         val info = (_state.value as? State.Available)?.info ?: return
         _state.value = State.Downloading(0)
         scope.launch {

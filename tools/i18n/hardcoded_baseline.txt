@@ -29,7 +29,6 @@
 1	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Batch ${index + 1}/${batches.size} submitted for brand=$brandId type=$typeStr size=${batch.size} status=$code client=$clientPrefix...
 1	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Bearer $accessToken
 1	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Catalog ingestion error code $code: $respBody
-5	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	ChannelCatalog
 1	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	M3U
 1	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Network error submitting catalog batch ${index + 1}: ${e.message}
 1	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Rate limited (429). Stopping remaining batches for this sync.
@@ -4754,10 +4753,6 @@
 1	app/src/main/java/tv/own/owntv/player/SubtitleShift.kt	webvtt
 1	app/src/main/java/tv/own/owntv/player/VolumeBoost.kt	volume boost failed: ${it.javaClass.simpleName}
 1	app/src/main/java/tv/own/owntv/player/VolumeBoost.kt	volume boost unavailable: ${it.javaClass.simpleName}
-1	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	allaccess
-1	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	fivestar
-2	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	goat
-1	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	supreme
 1	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.allaccess.app
 1	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.fivestar.ultra
 1	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	tv.own.owntv

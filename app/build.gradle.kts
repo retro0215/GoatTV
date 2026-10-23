@@ -193,6 +193,8 @@ android {
         }
         buildConfigField("String", "TUTORIALS_STAGING_URL", "\"\"")
         buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"\"")
+        // True only in the `tutorialTest` build type below (isolated side-by-side test APK).
+        buildConfigField("boolean", "ISOLATED_TEST_BUILD", "false")
 
         if (supabaseUrl.isBlank() || supabaseAnonKey.isBlank()) {
             throw GradleException(
@@ -376,6 +378,33 @@ android {
             buildConfigField("String", "TUTORIALS_STAGING_URL", "\"${tutorialsStagingUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
             buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"${tutorialsStagingKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
         }
+        // Isolated test APK (`assembleStandard<Brand>TutorialTest`): installs NEXT TO the customer app
+        // (own application id, debug signature, own data) and cannot reach production Supabase at all —
+        // its SUPABASE_URL / SUPABASE_ANON_KEY are the staging values, or a host that never resolves
+        // when no staging values were supplied, so the production project settings are not in the APK.
+        // Pushwoosh/Firebase are left out of its runtime classpath (configurations block below), its
+        // google-services task is disabled, and src/tutorialTest/AndroidManifest.xml drops the owntv://
+        // deep links, push metadata, TV-provider and package-install permissions. Code paths that write
+        // (catalog upload, pairing, Rooms, anonymous sign-in, launcher rows, updater) check
+        // BuildConfig.ISOLATED_TEST_BUILD as well (core/isolation/IsolatedTestBuild.kt).
+        create("tutorialTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".tutorialtest"
+            versionNameSuffix = "-tutorialtest"
+            matchingFallbacks += listOf("debug")
+            signingConfig = signingConfigs.getByName("debug")
+            isPseudoLocalesEnabled = false
+            val isolatedUrl = tutorialsStagingUrl.ifEmpty { "https://isolated-test-build.invalid" }
+            val isolatedKey = tutorialsStagingKey.ifEmpty { "isolated-test-build" }
+            buildConfigField("boolean", "ISOLATED_TEST_BUILD", "true")
+            buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
+            buildConfigField("String", "SUPABASE_URL", "\"${isolatedUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY", "\"${isolatedKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "TUTORIALS_STAGING_URL", "\"${tutorialsStagingUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"${tutorialsStagingKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            // The Pushwoosh device API token must not be embedded in the test APK.
+            manifestPlaceholders["pushwooshDeviceApiToken"] = ""
+        }
         release {
             // Customer builds never carry the staging catalog settings.
             buildConfigField("String", "TUTORIALS_STAGING_URL", "\"\"")
@@ -396,6 +425,8 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        // Only the isolated test APK defines a resValue (its "<Brand> Test" launcher label).
+        resValues = true
     }
 
     androidResources {
@@ -463,10 +494,33 @@ androidComponents {
         variant.androidResources.localeFilters.addAll("en-rXA", "ar-rXB")
     }
 
+    // Unit tests also run against the isolated test APK's build config (core/isolation tests assert it).
+    beforeVariants(selector().withBuildType("tutorialTest")) { variantBuilder ->
+        variantBuilder.hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
+    }
+
+    // Isolated test APK: a launcher label that cannot be mistaken for the customer app ("GoatTV Test").
+    onVariants(selector().withBuildType("tutorialTest")) { variant ->
+        val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
+        val label = when (brand) {
+            "goat" -> "GoatTV"
+            "allaccess" -> "AllAccess"
+            "fivestar" -> "5Star Ultra"
+            "supreme" -> "Supreme TV"
+            else -> "OwnTV"
+        }
+        variant.resValues.put(
+            variant.makeResValueKey("string", "isolated_test_app_name"),
+            com.android.build.api.variant.ResValue("$label Test", "Launcher label of the isolated test APK"),
+        )
+    }
+
     // Disable google-services tasks for variants without Pushwoosh to prevent "missing JSON" errors.
+    // The isolated test build type never has push (no Firebase config, no Pushwoosh token check).
     onVariants { variant ->
         val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
-        val isPushEnabled = brand == "allaccess" || brand == "goat" || brand == "fivestar" || brand == "supreme"
+        val isPushEnabled = variant.buildType != "tutorialTest" &&
+            (brand == "allaccess" || brand == "goat" || brand == "fivestar" || brand == "supreme")
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
 
         if (!isPushEnabled) {
@@ -490,6 +544,18 @@ androidComponents {
                 it.name.contains(variantName) && it.name.startsWith("process") && it.name.endsWith("Manifest")
             }.configureEach { dependsOn(verifyTask) }
         }
+    }
+}
+
+// Isolated test APK: Pushwoosh and Firebase stay on the COMPILE classpath (the brand source sets'
+// PushNotifications compile against them) but are left out of the runtime classpath, so the APK holds
+// none of their code, init providers, boot receivers or messaging services. PushNotifications.init is
+// never called in that build (OwnTVApp + PUSHWOOSH_ENABLED=false), so nothing references them at runtime.
+configurations.configureEach {
+    if (name.endsWith("TutorialTestRuntimeClasspath")) {
+        exclude(group = "com.pushwoosh")
+        exclude(group = "com.google.firebase")
+        exclude(group = "com.google.android.datatransport")
     }
 }
 

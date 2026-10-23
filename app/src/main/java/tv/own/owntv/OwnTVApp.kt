@@ -76,8 +76,9 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
         Perf.begin() // zero-point for the OwnTVPerf startup timeline (adb logcat -s OwnTVPerf)
         super.onCreate()
 
-        // Pushwoosh initialization (flavor-isolated via source sets)
-        PushNotifications.init(this)
+        // Pushwoosh initialization (flavor-isolated via source sets). Never in the isolated test APK,
+        // which does not even carry the Pushwoosh/Firebase libraries.
+        if (!tv.own.owntv.core.isolation.IsolatedTestBuild.active) PushNotifications.init(this)
 
         startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.ERROR else Level.NONE)

@@ -53,6 +53,7 @@ class SupabaseTvPairingService(
     private val jsonLenient = Json { ignoreUnknownKeys = true }
 
     override suspend fun createPairingSession(roomId: String?): RoomResult<TvPairingInfo> {
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) return RoomResult.Error(tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED)
         return runCatching {
             val authResult = socialAuthRepository.ensureTvAuthenticated()
             if (authResult.isFailure) {

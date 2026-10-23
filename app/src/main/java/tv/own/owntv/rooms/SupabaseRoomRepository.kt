@@ -233,6 +233,7 @@ class SupabaseRoomRepository(
         displayName: String?,
         stamp: RoomSyncStamp
     ): RoomResult<SyncedRoomMessage> {
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) return RoomResult.Error(tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED)
         val userId = client.auth.currentUserOrNull()?.id
             ?: return RoomResult.Error("User not authenticated")
 
@@ -271,6 +272,7 @@ class SupabaseRoomRepository(
         emoji: String,
         stamp: RoomSyncStamp
     ): RoomResult<SyncedRoomReaction> {
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) return RoomResult.Error(tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED)
         val userId = client.auth.currentUserOrNull()?.id
             ?: return RoomResult.Error("User not authenticated")
 

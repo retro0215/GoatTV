@@ -64,6 +64,10 @@ class SupabaseSocialAuthRepository(
     }
 
     override suspend fun ensureTvAuthenticated(): Result<UserInfo> {
+        // Anonymous sign-in creates a backend user; the isolated test APK never does that.
+        if (tv.own.owntv.core.isolation.IsolatedTestBuild.active) {
+            return Result.failure(IllegalStateException(tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED))
+        }
         val existing = userProvider(client)
         if (existing != null) {
             Log.d("SocialAuth", "ROOM_AUTH_REUSE: existing session valid userId=${existing.id}")
