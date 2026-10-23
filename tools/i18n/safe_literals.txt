@@ -268,8 +268,12 @@
 1	technical	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	owntv-remote-restore
 1	file-path	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	remote-backup-export
 3	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionHtml.kt	\0
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE id = :id
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE sourceId = :sourceId AND programStartMs > :startAfterMs
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	UPDATE reminders SET channelId = :channelId WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
 1	log	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	Diagnostics
@@ -322,6 +326,9 @@
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	auth
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title
+1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink failed sourceId=${source.id}
+1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink sourceId=${source.id} ${it.values.groupingBy { o -> o }.eachCount()}
+1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder snapshot failed sourceId=${source.id}
 2	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	EpgAutoRefresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	auto_refresh
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	epg auto-refresh due sourceId=$id trigger=$trigger — enqueuing
@@ -331,6 +338,19 @@
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	auto_refresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	migration_refill
+1	empty	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	\0
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	#
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	2
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	REMINDER_RELINK
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	channel already missing
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	duplicate M3U name in group
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	no provider id
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reason=$it
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder relink failed id=${snap.reminderId} sourceId=$sourceId
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder relink id=${snap.reminderId} sourceId=$sourceId outcome=$outcome
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=channel missing
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=other playlist
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	unsupported source type
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_RESUMED channelId=$id name=${channelNames[id]}

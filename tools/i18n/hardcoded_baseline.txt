@@ -2614,9 +2614,7 @@
 1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	autotune
 2	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	channel_id
 1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	epg_autotune_${channelId}_$programStartMs
-1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	epg_autotune_${reminder.channelId}_${reminder.programStartMs}
 1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	epg_warning_${channelId}_$programStartMs
-1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	epg_warning_${reminder.channelId}_${reminder.programStartMs}
 2	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	program_start_ms
 2	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	reminder_id
 1	app/src/main/java/tv/own/owntv/core/sync/work/ReminderScheduler.kt	warning

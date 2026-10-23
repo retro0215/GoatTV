@@ -32,4 +32,15 @@ interface ReminderDao {
 
     @Query("SELECT * FROM reminders")
     suspend fun getAll(): List<ReminderEntity>
+
+    @Query("SELECT * FROM reminders WHERE id = :id")
+    suspend fun getById(id: Long): ReminderEntity?
+
+    /** Reminders on [sourceId]'s channels whose start is after [startAfterMs] (playlist-refresh re-link). */
+    @Query("SELECT * FROM reminders WHERE sourceId = :sourceId AND programStartMs > :startAfterMs")
+    suspend fun getForSourceStartingAfter(sourceId: Long, startAfterMs: Long): List<ReminderEntity>
+
+    /** Points a reminder at its channel's new row after a playlist refresh renumbered the channels. */
+    @Query("UPDATE reminders SET channelId = :channelId WHERE id = :id")
+    suspend fun updateChannelId(id: Long, channelId: Long)
 }

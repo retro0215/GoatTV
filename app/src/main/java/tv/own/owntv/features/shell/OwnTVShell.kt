@@ -653,19 +653,12 @@ fun OwnTVShell(
             if (isFull) {
                 var showLiveGuide by remember { mutableStateOf(false) }
                 val reminderDao = koinInject<tv.own.owntv.core.database.dao.ReminderDao>()
+                val reminderRelinker = koinInject<tv.own.owntv.core.sync.work.ReminderRelinker>()
                 val context = androidx.compose.ui.platform.LocalContext.current
                 var activeReminderBanner by remember { mutableStateOf<tv.own.owntv.core.database.entity.ReminderEntity?>(null) }
                 LaunchedEffect(Unit) {
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        val now = System.currentTimeMillis()
-                        val allReminders = reminderDao.getAll()
-                        for (reminder in allReminders) {
-                            if (reminder.programStartMs <= now) {
-                                reminderDao.delete(reminder.channelId, reminder.programStartMs)
-                            } else {
-                                tv.own.owntv.core.sync.work.ReminderScheduler.schedule(context, reminder)
-                            }
-                        }
+                        reminderRelinker.restoreAfterRestart()
                     }
                     launch {
                         tv.own.owntv.core.notification.ReminderEventBus.reminderEvents.collect { reminder ->
@@ -675,7 +668,9 @@ fun OwnTVShell(
                     launch {
                         tv.own.owntv.core.notification.ReminderEventBus.autotuneEvents.collect { reminder ->
                             scope.launch {
-                                val success = liveVm.ensurePlayingByIdAsync(reminder.channelId)
+                                // Only the reminder's own playlist channel; an orphaned reminder tunes nothing.
+                                val channelId = reminderRelinker.safeTuneChannelId(reminder)
+                                val success = channelId != null && liveVm.ensurePlayingByIdAsync(channelId)
                                 if (success) {
                                     openFullscreen(MainSection.LIVE_TV)
                                 }
@@ -826,12 +821,12 @@ fun OwnTVShell(
                                     label = stringResource(R.string.content_reminder_watch),
                                     onClick = {
                                         scope.launch {
-                                            val success = liveVm.ensurePlayingByIdAsync(reminder.channelId)
-                                            if (success) {
+                                            val channelId = reminderRelinker.safeTuneChannelId(reminder)
+                                            if (channelId != null && liveVm.ensurePlayingByIdAsync(channelId)) {
                                                 openFullscreen(MainSection.LIVE_TV)
                                                 activeReminderBanner = null
-                                                reminderDao.delete(reminder.channelId, reminder.programStartMs)
-                                                tv.own.owntv.core.sync.work.ReminderScheduler.cancel(context, reminder.channelId, reminder.programStartMs)
+                                                reminderDao.deleteById(reminder.id)
+                                                tv.own.owntv.core.sync.work.ReminderScheduler.cancel(context, channelId, reminder.programStartMs)
                                             } else {
                                                 localSubToast.show(unavailableMsg)
                                                 activeReminderBanner = null

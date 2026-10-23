@@ -66,6 +66,10 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId LIMIT 1")
     suspend fun findByRemote(sourceId: Long, remoteId: String): ChannelEntity?
 
+    /** Every row with this provider id (no LIMIT), so a caller that must not guess can see duplicates. */
+    @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId")
+    suspend fun findAllByRemote(sourceId: Long, remoteId: String): List<ChannelEntity>
+
     @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND name = :name LIMIT 1")
     suspend fun findByName(sourceId: Long, name: String): ChannelEntity?
 

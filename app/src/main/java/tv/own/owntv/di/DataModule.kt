@@ -172,8 +172,13 @@ val dataModule = module {
     // context, channelDao, movieDao, seriesDao, profileDao, favoriteDao, historyDao, progressDao,
     // contentOrderDao, customCategoryDao, seriesSortOrderDao, db
     single { UserDataResolver(androidContext(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    // sourceDao, syncManager, userDataResolver, channelDao, movieDao, seriesDao, categoryDao
-    single { SourceRepository(get(), get(), get(), get(), get(), get(), get()) }
+    // sourceDao, syncManager, userDataResolver, channelDao, movieDao, seriesDao, categoryDao, reminderRelinker
+    single { SourceRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        tv.own.owntv.core.sync.work.ReminderRelinker(
+            get(), get(), tv.own.owntv.core.sync.work.WorkManagerReminderJobs(androidContext()),
+        )
+    }
     single {
         SyncManager(
             context = androidContext(),

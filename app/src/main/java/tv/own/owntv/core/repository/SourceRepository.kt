@@ -26,6 +26,7 @@ class SourceRepository(
     private val movieDao: tv.own.owntv.core.database.dao.MovieDao,
     private val seriesDao: tv.own.owntv.core.database.dao.SeriesDao,
     private val categoryDao: tv.own.owntv.core.database.dao.CategoryDao,
+    private val reminderRelinker: tv.own.owntv.core.sync.work.ReminderRelinker,
 ) {
     fun observeSources(profileId: Long): Flow<List<SourceEntity>> = sourceDao.observeForProfile(profileId)
 
@@ -109,6 +110,10 @@ class SourceRepository(
             .onSuccess { Log.i(TAG, "userData export sourceId=${source.id} rows=${it.length()} ${it.typeCounts()} ms=${SystemClock.elapsedRealtime() - snapshotStartedAt}") }
             .onFailure { Log.w(TAG, "userData export failed sourceId=${source.id} ms=${SystemClock.elapsedRealtime() - snapshotStartedAt}", it) }
             .getOrNull()
+        // Reminders hold a channel id too; capture each one's provider id while the old rows exist.
+        val reminderSnapshot = runCatching { reminderRelinker.snapshot(source.id, source.type) }
+            .onFailure { Log.w(TAG, "reminder snapshot failed sourceId=${source.id}", it) }
+            .getOrNull()
         val coreStartedAt = SystemClock.elapsedRealtime()
         val (result, _) = syncManager.sync(source, onProgress, contentTypes, forcePrune)
         Log.i(TAG, "core sync sourceId=${source.id} result=${result.name()} ms=${SystemClock.elapsedRealtime() - coreStartedAt}")
@@ -127,6 +132,11 @@ class SourceRepository(
             runCatching { userData.relinkAfterSync(snapshot ?: org.json.JSONArray(), purge = purge) }
                 .onSuccess { Log.i(TAG, "userData relink sourceId=${source.id} rows=${snapshot?.length() ?: 0} purge=$purge ms=${SystemClock.elapsedRealtime() - relinkStartedAt}") }
                 .onFailure { Log.w(TAG, "userData relink failed sourceId=${source.id} ms=${SystemClock.elapsedRealtime() - relinkStartedAt}", it) }
+            if (!reminderSnapshot.isNullOrEmpty()) {
+                runCatching { reminderRelinker.relink(source.id, source.type, reminderSnapshot) }
+                    .onSuccess { Log.i(TAG, "reminder relink sourceId=${source.id} ${it.values.groupingBy { o -> o }.eachCount()}") }
+                    .onFailure { Log.w(TAG, "reminder relink failed sourceId=${source.id}", it) }
+            }
         }
         // Episodes are fetched lazily on show-open, never by the syncer, so a resync would otherwise
         // leave every already-opened show frozen on the episode list it cached the first time (S8).
