@@ -56,6 +56,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -652,24 +653,52 @@ fun EpgScreen(
                                 val dot = channel.categoryId?.let { categoryDots[it] }
                                 val windowStart = state.windowStart
                                 val windowEnd = state.windowEnd
-                                // The whole row is one Canvas. Everything that changes while browsing — the
-                                // highlight, scroll, clock, reminders, prepared data, logo — is read while
-                                // drawing, so it redraws this row and recomposes nothing.
-                                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(GuideGridDefaults.RowHeight)) {
-                                    with(rowRenderer) {
-                                        drawRow(
-                                            channel = channel,
-                                            numberText = numberText,
-                                            categoryDot = dot,
-                                            logo = logoCache[channel.logoUrl],
-                                            data = rowStore[channel.id],
-                                            highlight = highlight.value,
-                                            now = nowState.longValue,
-                                            scrollPx = hScroll.value.toFloat(),
-                                            windowStart = windowStart,
-                                            windowEnd = windowEnd,
-                                            reminderSlots = reminderSlotsState.value,
-                                        )
+                                // This row's OWN states: a write to another channel's data, logo or reminders
+                                // never invalidates this row (Phase 3D shared one map across all rows).
+                                val rowData = remember(channel.id) { rowStore.state(channel.id) }
+                                val logo = remember(channel.logoUrl) { channel.logoUrl?.let { logoCache.state(it) } }
+                                val reminderStarts = remember(channel.id) {
+                                    androidx.compose.runtime.derivedStateOf { GuideNav.reminderStarts(reminderSlotsState.value, channel.id) }
+                                }
+                                Box(Modifier.fillMaxWidth().height(GuideGridDefaults.RowHeight)) {
+                                    // Static content in its own cached layer: re-recorded when this row's data,
+                                    // logo or reminders change, or the timeline scrolls / the clock ticks — not
+                                    // when the cursor moves.
+                                    androidx.compose.foundation.Canvas(Modifier.matchParentSize().graphicsLayer()) {
+                                        with(rowRenderer) {
+                                            drawRowBase(
+                                                channel = channel,
+                                                numberText = numberText,
+                                                categoryDot = dot,
+                                                logo = logo?.value,
+                                                data = rowData.value,
+                                                now = nowState.longValue,
+                                                scrollPx = hScroll.value.toFloat(),
+                                                windowStart = windowStart,
+                                                windowEnd = windowEnd,
+                                                reminderStarts = reminderStarts.value,
+                                            )
+                                        }
+                                    }
+                                    // Focus overlay: only the focused channel cell and programme cell. Rows
+                                    // without the cursor read nothing else, so scrolls and data don't touch them.
+                                    androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+                                        val hl = highlight.value ?: return@Canvas
+                                        with(rowRenderer) {
+                                            drawRowFocus(
+                                                channel = channel,
+                                                numberText = numberText,
+                                                categoryDot = dot,
+                                                logo = logo?.value,
+                                                data = rowData.value,
+                                                highlight = hl,
+                                                now = nowState.longValue,
+                                                scrollPx = hScroll.value.toFloat(),
+                                                windowStart = windowStart,
+                                                windowEnd = windowEnd,
+                                                reminderStarts = reminderStarts.value,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -681,6 +710,7 @@ fun EpgScreen(
                 GuideDetailsPanel(
                     cursor = { panelCursor },
                     rows = rows,
+                    programmesOf = { programmesOf(it) },
                     now = now,
                     reminderSlots = reminderSlots,
                     hiddenEmpty = hiddenEmpty,
@@ -1009,6 +1039,8 @@ private fun CenterBox(content: @Composable androidx.compose.foundation.layout.Co
 private fun GuideDetailsPanel(
     cursor: () -> GuideNav.Cursor?,
     rows: List<ChannelEntity>,
+    // The row's drawn (normalized) programmes, so the panel describes the cell that is highlighted.
+    programmesOf: (ChannelEntity) -> List<EpgProgrammeEntity>,
     now: Long,
     reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
     hiddenEmpty: Boolean,
@@ -1020,7 +1052,7 @@ private fun GuideDetailsPanel(
     val c = cursor()
     val channel = c?.row?.let { rows.getOrNull(it) }
     val cursorTime = c?.timeMs ?: now
-    val programmes = remember(channel?.id, cacheRevision) { channel?.let { vm.cachedProgrammes(it) }.orEmpty() }
+    val programmes = channel?.let { programmesOf(it) }.orEmpty()
     val reminderStarts = remember(reminderSlots, channel?.id) { channel?.let { GuideNav.reminderStarts(reminderSlots, it.id) }.orEmpty() }
     val programme = remember(programmes, cursorTime) { GuideNav.programmeAt(programmes, cursorTime) }
     val next = remember(programmes, programme) { GuideNav.nextAfter(programmes, programme) }

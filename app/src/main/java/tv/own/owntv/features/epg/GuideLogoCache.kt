@@ -1,7 +1,7 @@
 package tv.own.owntv.features.epg
 
 import android.content.Context
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.State
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import coil3.SingletonImageLoader
@@ -13,22 +13,23 @@ import kotlinx.coroutines.CancellationException
 
 /**
  * Channel logos for the guide grid, decoded once at row size through the app's shared Coil loader (its
- * disk and memory caches still apply) and drawn as bitmaps. Replaces one AsyncImage composable per
- * row, which on the onn was a large part of composing a row. Bounded: [maxLogos] bitmaps of about
- * 72×54 px each (≈ 15 KB), the least recently shown dropped first.
+ * disk and memory caches still apply) and drawn as bitmaps. Each logo URL has its own state (see
+ * [KeyedStates]), so a logo landing redraws only the rows showing it. Bounded: [maxLogos] bitmaps of
+ * about 72×54 px each (≈ 15 KB), the least recently decoded dropped first.
  */
-internal class GuideLogoCache(private val context: Context, private val sizePx: Int, private val maxLogos: Int = 160) {
-    private val bitmaps = mutableStateMapOf<String, ImageBitmap>()
-    private val recency = ArrayDeque<String>()
+internal class GuideLogoCache(private val context: Context, private val sizePx: Int, maxLogos: Int = 160) {
+    private val bitmaps = KeyedStates<String, ImageBitmap>(maxLogos)
     private val failed = BoundedLru<String, Unit>(512)
     private val inFlight = HashSet<String>()
 
-    /** The logo for [url] if decoded (a snapshot read: a row reading it while drawing redraws when it lands). */
+    /** The state for [url] — read its value while drawing. */
+    fun state(url: String): State<ImageBitmap?> = bitmaps.state(url)
+
     operator fun get(url: String?): ImageBitmap? = url?.let { bitmaps[it] }
 
     /** Decodes [url] unless it is cached, loading, or already failed. Call from the main thread. */
     suspend fun load(url: String?) {
-        if (url.isNullOrBlank() || bitmaps.containsKey(url) || failed[url] != null || !inFlight.add(url)) return
+        if (url.isNullOrBlank() || bitmaps[url] != null || failed[url] != null || !inFlight.add(url)) return
         try {
             val request = ImageRequest.Builder(context)
                 .data(url)
@@ -37,7 +38,7 @@ internal class GuideLogoCache(private val context: Context, private val sizePx: 
                 .build()
             val image = (SingletonImageLoader.get(context).execute(request) as? SuccessResult)?.image
             val bitmap = image?.toBitmap()?.asImageBitmap()
-            if (bitmap != null) put(url, bitmap) else failed[url] = Unit
+            if (bitmap != null) bitmaps.put(url, bitmap) else failed[url] = Unit
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -47,12 +48,5 @@ internal class GuideLogoCache(private val context: Context, private val sizePx: 
         }
     }
 
-    private fun put(url: String, bitmap: ImageBitmap) {
-        bitmaps[url] = bitmap
-        recency.remove(url)
-        recency.addLast(url)
-        while (recency.size > maxLogos) bitmaps.remove(recency.removeFirst())
-    }
-
-    val size: Int get() = bitmaps.size
+    val size: Int get() = bitmaps.loadedCount
 }

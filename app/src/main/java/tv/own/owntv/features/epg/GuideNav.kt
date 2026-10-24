@@ -100,8 +100,41 @@ internal object GuideNav {
      * the channel can replay. Channels without an archive skip the scan entirely.
      */
     fun prepareRow(channel: ChannelEntity, programmes: List<EpgProgrammeEntity>, now: Long, revision: Int): GuideRowData {
-        val catchupIds = if (!channel.catchup) emptySet() else programmes.filter { canCatchup(channel, it, now) }.mapTo(HashSet()) { it.id }
-        return GuideRowData(channel.id, programmes, catchupIds, revision)
+        val normalized = normalizeProgrammes(programmes)
+        val list = normalized.map { it.programme }
+        val catchupIds = if (!channel.catchup) emptySet() else list.filter { canCatchup(channel, it, now) }.mapTo(HashSet()) { it.id }
+        return GuideRowData(channel.id, list, LongArray(normalized.size) { normalized[it].drawStart }, catchupIds, revision)
+    }
+
+    /** A programme as drawn: the programme itself and where its cell starts on the timeline. */
+    data class DrawnProgramme(val programme: EpgProgrammeEntity, val drawStart: Long)
+
+    /**
+     * A row's programmes as the grid draws them, so no two cells overlap. A channel matched to more than
+     * one guide feed gets one programme list per feed for the same hours, which drew cells on top of each
+     * other (fragments like "T  n" on the onn). In start order:
+     *  - the same row twice (same id), or a second programme at the same start: one is kept (the longer),
+     *    as the bottom guide does ([tv.own.owntv.features.shell.components.BottomGuideNav.normalize]);
+     *  - a programme entirely inside the one before it: left out;
+     *  - a programme that starts before the previous one ends: drawn from where that one ends.
+     * Only drawing changes: every kept programme keeps its own id and times, so catch-up, reminders
+     * (keyed on the real start) and playback are untouched, and nothing in the database is removed.
+     */
+    fun normalizeProgrammes(programmes: List<EpgProgrammeEntity>): List<DrawnProgramme> {
+        val out = ArrayList<DrawnProgramme>(programmes.size)
+        val seenIds = HashSet<Long>()
+        var prevStart = Long.MIN_VALUE
+        var prevEnd = Long.MIN_VALUE
+        for (p in programmes.sortedWith(compareBy<EpgProgrammeEntity>({ it.startMs }, { -it.stopMs }))) {
+            if (p.stopMs <= p.startMs || !seenIds.add(p.id)) continue
+            if (p.startMs == prevStart) continue
+            if (p.stopMs <= prevEnd) continue
+            val drawStart = maxOf(p.startMs, prevEnd)
+            out += DrawnProgramme(p, drawStart)
+            prevStart = p.startMs
+            prevEnd = p.stopMs
+        }
+        return out
     }
 
     /**
@@ -199,7 +232,10 @@ internal object GuideNav {
             val next = timeMs + delta * SLOT_MS
             return next.takeIf { it in windowStart until windowEnd }
         }
-        if (delta > 0) return programmes.firstOrNull { it.startMs > timeMs && it.startMs < windowEnd }?.startMs
+        if (delta > 0) {
+            val next = programmes.firstOrNull { it.startMs > timeMs && it.startMs < windowEnd } ?: return null
+            return visibleStart(programmes, next).takeIf { it < windowEnd }
+        }
         // Before the row's first programme: plain slots back to the window start.
         val current = programmeAt(programmes, timeMs) ?: return (timeMs - SLOT_MS).takeIf { it >= windowStart }
         // The programme on screen began at or before the window start: nothing further left is loaded.
@@ -207,7 +243,17 @@ internal object GuideNav {
         val previous = programmes.lastOrNull { it.startMs < current.startMs }
             ?: return (current.startMs - SLOT_MS).takeIf { it >= windowStart } // a gap before it
         // A previous programme that straddles the window start is entered at its first visible minute.
-        return maxOf(previous.startMs, windowStart)
+        return maxOf(visibleStart(programmes, previous), windowStart)
+    }
+
+    /**
+     * Where [programme]'s cell starts in a normalized row: its own start, or the end of the programme
+     * before it when they overlap — the time the cursor must sit at for that cell to be the highlighted one.
+     */
+    fun visibleStart(programmes: List<EpgProgrammeEntity>, programme: EpgProgrammeEntity): Long {
+        val i = programmes.indexOf(programme)
+        val prev = if (i > 0) programmes[i - 1] else return programme.startMs
+        return maxOf(programme.startMs, prev.stopMs)
     }
 
     /** Up/Down: the adjacent row, or null at the top/bottom (Up from the first row reaches the header). */

@@ -46,6 +46,15 @@ internal object GuideCellLayout {
         return Content(bellX, left, if (width >= minText) quantize(width, minText) else 0f, badgeX)
     }
 
+    /**
+     * The cell under [time] in a normalized row: cells start at [drawStarts] and end at each programme's stop, and
+     * never overlap, so at most one contains it. -1 when none does (a gap, or off the row's data).
+     */
+    fun cellAt(drawStarts: LongArray, programmes: List<tv.own.owntv.core.database.entity.EpgProgrammeEntity>, time: Long): Int {
+        for (i in drawStarts.indices) if (time >= drawStarts[i] && time < programmes[i].stopMs) return i
+        return -1
+    }
+
     /** Title widths snap down to this step, so a cell clipped at the timeline edge reuses its layout. */
     const val WIDTH_STEP_PX = 24f
 

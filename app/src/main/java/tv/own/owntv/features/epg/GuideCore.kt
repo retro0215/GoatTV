@@ -144,7 +144,43 @@ internal class GuideRowRenderer(
         if (isNow) String.format(java.util.Locale.ROOT, nowTemplate, t) else t
     }
 
-    fun DrawScope.drawRow(
+    /**
+     * The row's static content: channel cell, every programme cell (unfocused) and the now marker. Drawn
+     * into the row's own cached layer, so it is re-recorded only when this row's data, logo, reminders,
+     * the timeline scroll or the clock change — never by a focus move.
+     */
+    fun DrawScope.drawRowBase(
+        channel: ChannelEntity,
+        numberText: String?,
+        categoryDot: Color?,
+        logo: ImageBitmap?,
+        data: GuideRowData?,
+        now: Long,
+        scrollPx: Float,
+        windowStart: Long,
+        windowEnd: Long,
+        reminderStarts: Set<Long>,
+    ) {
+        android.os.Trace.beginSection("GuideRow.base")
+        drawChannelCell(channel, numberText, categoryDot, logo, focused = false)
+        val stripW = size.width - channelColPx
+        if (data != null && stripW > 0f) {
+            inStrip {
+                for (i in data.programmes.indices) {
+                    drawCell(data, i, hi = false, now, scrollPx, windowStart, windowEnd, stripW, reminderStarts)
+                }
+                drawNowLine(now, scrollPx, windowStart, windowEnd, stripW)
+            }
+        }
+        android.os.Trace.endSection()
+    }
+
+    /**
+     * The focus highlight drawn over the base: the channel cell and the ONE programme cell under the
+     * cursor, in their focused look. A cursor move re-records this for the two rows involved — a couple
+     * of cached text layouts — instead of every title in the row.
+     */
+    fun DrawScope.drawRowFocus(
         channel: ChannelEntity,
         numberText: String?,
         categoryDot: Color?,
@@ -155,20 +191,26 @@ internal class GuideRowRenderer(
         scrollPx: Float,
         windowStart: Long,
         windowEnd: Long,
-        reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
+        reminderStarts: Set<Long>,
     ) {
-        android.os.Trace.beginSection("GuideRow.draw")
-        drawChannelCell(channel, numberText, categoryDot, logo, focused = highlight != null)
-        val stripX = channelColPx
-        val stripW = size.width - stripX
-        if (data != null && stripW > 0f) {
-            clipRect(left = stripX, top = 0f, right = size.width, bottom = size.height) {
-                translate(left = stripX) {
-                    drawStrip(channel.id, data, highlight, now, scrollPx, windowStart, windowEnd, stripW, reminderSlots)
-                }
+        if (highlight == null) return
+        android.os.Trace.beginSection("GuideRow.focus")
+        drawChannelCell(channel, numberText, categoryDot, logo, focused = true)
+        val stripW = size.width - channelColPx
+        val i = data?.let { GuideCellLayout.cellAt(it.drawStarts, it.programmes, highlight) } ?: -1
+        if (data != null && i >= 0 && stripW > 0f) {
+            inStrip {
+                drawCell(data, i, hi = true, now, scrollPx, windowStart, windowEnd, stripW, reminderStarts)
+                drawNowLine(now, scrollPx, windowStart, windowEnd, stripW)
             }
         }
         android.os.Trace.endSection()
+    }
+
+    private inline fun DrawScope.inStrip(block: DrawScope.() -> Unit) {
+        clipRect(left = channelColPx, top = 0f, right = size.width, bottom = size.height) {
+            translate(left = channelColPx) { block() }
+        }
     }
 
     private fun DrawScope.drawChannelCell(channel: ChannelEntity, numberText: String?, dot: Color?, logo: ImageBitmap?, focused: Boolean) {
@@ -222,75 +264,80 @@ internal class GuideRowRenderer(
         drawText(nm, topLeft = Offset(tx, y))
     }
 
-    private fun DrawScope.drawStrip(
-        channelId: Long,
+    /** One programme cell (index [i] of the row), at its visible start so overlapping entries never stack. */
+    private fun DrawScope.drawCell(
         data: GuideRowData,
-        highlight: Long?,
+        i: Int,
+        hi: Boolean,
         now: Long,
         scrollPx: Float,
         windowStart: Long,
         windowEnd: Long,
         viewW: Float,
-        reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
+        reminderStarts: Set<Long>,
     ) {
+        val p = data.programmes[i]
         val h = size.height
-        for (p in data.programmes) {
-            val s = p.startMs.coerceIn(windowStart, windowEnd)
-            val e = p.stopMs.coerceIn(windowStart, windowEnd)
-            if (e <= s) continue
-            val x = ((s - windowStart) / 60_000f) * pxPerMin - scrollPx
-            val w = (((e - s) / 60_000f) * pxPerMin - gapPx).coerceAtLeast(0f)
-            if (x + w <= 0f || x >= viewW) continue // cull off-screen programmes
-            val isNow = now in p.startMs until p.stopMs
-            val hi = highlight != null && highlight in p.startMs until p.stopMs
-            val bg = when {
-                hi -> colors.primaryContainer
-                isNow -> colors.primaryContainer.copy(alpha = 0.18f)
-                p.stopMs <= now -> colors.surfaceContainerHigh.copy(alpha = 0.5f) // aired: recedes behind Now/Next
-                else -> colors.surfaceContainerHigh
-            }
-            drawRoundRect(color = bg, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner)
-            if (isNow && x >= 0f) {
-                drawRoundRect(
-                    color = colors.primary,
-                    topLeft = Offset(x + airingBarInsetPx, airingBarInsetPx),
-                    size = Size(airingBarPx, (h - airingBarInsetPx * 2f).coerceAtLeast(0f)),
-                    cornerRadius = CornerRadius(airingBarPx / 2f, airingBarPx / 2f),
-                )
-            }
-            if (hi) drawRoundRect(color = colors.focusBorder, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner, style = Stroke(borderPx))
-
-            val hasBell = tv.own.owntv.core.sync.work.ProgramReminders.Key(channelId, p.startMs) in reminderSlots
-            val hasBadge = p.id in data.catchupIds
-            val cell = GuideCellLayout.layout(
-                cellX = x, cellW = w, viewW = viewW, pad = padPx, gap = iconGapPx,
-                bellW = if (hasBell) reminderGlyph.size.width.toFloat() else 0f,
-                badgeW = if (hasBadge) catchupGlyph.size.width.toFloat() else 0f,
-                minText = minTextPx,
-            )
-            var titleBottom = h / 2f
-            if (cell.textWidth > 0f) {
-                val maxW = cell.textWidth.toInt()
-                val t = measurer.measure(p.title, if (hi) titleFocused else title, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
-                val m = measurer.measure(label(p, isNow), if (hi) timeFocused else time, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
-                val top = (h - (t.size.height + m.size.height + 2)) / 2f
-                drawText(t, topLeft = Offset(cell.textX, top))
-                drawText(m, topLeft = Offset(cell.textX, top + t.size.height + 2))
-                titleBottom = top + t.size.height
-            }
-            cell.bellX?.let { bx ->
-                // Centred on the title line, so the bell reads as part of the title.
-                val by = if (cell.textWidth > 0f) titleBottom - reminderGlyph.size.height else (h - reminderGlyph.size.height) / 2f
-                drawText(reminderGlyph, topLeft = Offset(bx, by.coerceAtLeast(0f)))
-            }
-            cell.badgeX?.let { bx -> drawText(catchupGlyph, topLeft = Offset(bx, 3f)) }
+        val s = data.drawStarts[i].coerceIn(windowStart, windowEnd)
+        val e = p.stopMs.coerceIn(windowStart, windowEnd)
+        if (e <= s) return
+        val x = ((s - windowStart) / 60_000f) * pxPerMin - scrollPx
+        val w = (((e - s) / 60_000f) * pxPerMin - gapPx).coerceAtLeast(0f)
+        if (x + w <= 0f || x >= viewW) return // cull off-screen programmes
+        val isNow = now in p.startMs until p.stopMs
+        val bg = when {
+            hi -> colors.primaryContainer
+            isNow -> colors.primaryContainer.copy(alpha = 0.18f)
+            p.stopMs <= now -> colors.surfaceContainerHigh.copy(alpha = 0.5f) // aired: recedes behind Now/Next
+            else -> colors.surfaceContainerHigh
         }
-        // Vertical "now" marker — drawn on every row so it reads as one continuous line down the grid.
-        if (now in windowStart..windowEnd) {
-            val nowX = ((now - windowStart) / 60_000f) * pxPerMin - scrollPx
-            if (nowX in 0f..viewW) {
-                drawLine(color = nowColor, start = Offset(nowX, 0f), end = Offset(nowX, h), strokeWidth = nowLinePx)
-            }
+        if (hi) {
+            // The base drew this cell translucent-free underneath; paint over its full area first.
+            drawRoundRect(color = colors.surface, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner)
+        }
+        drawRoundRect(color = bg, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner)
+        if (isNow && x >= 0f) {
+            drawRoundRect(
+                color = colors.primary,
+                topLeft = Offset(x + airingBarInsetPx, airingBarInsetPx),
+                size = Size(airingBarPx, (h - airingBarInsetPx * 2f).coerceAtLeast(0f)),
+                cornerRadius = CornerRadius(airingBarPx / 2f, airingBarPx / 2f),
+            )
+        }
+        if (hi) drawRoundRect(color = colors.focusBorder, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner, style = Stroke(borderPx))
+
+        val hasBell = p.startMs in reminderStarts
+        val hasBadge = p.id in data.catchupIds
+        val cell = GuideCellLayout.layout(
+            cellX = x, cellW = w, viewW = viewW, pad = padPx, gap = iconGapPx,
+            bellW = if (hasBell) reminderGlyph.size.width.toFloat() else 0f,
+            badgeW = if (hasBadge) catchupGlyph.size.width.toFloat() else 0f,
+            minText = minTextPx,
+        )
+        var titleBottom = h / 2f
+        if (cell.textWidth > 0f) {
+            val maxW = cell.textWidth.toInt()
+            val t = measurer.measure(p.title, if (hi) titleFocused else title, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+            val m = measurer.measure(label(p, isNow), if (hi) timeFocused else time, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+            val top = (h - (t.size.height + m.size.height + 2)) / 2f
+            drawText(t, topLeft = Offset(cell.textX, top))
+            drawText(m, topLeft = Offset(cell.textX, top + t.size.height + 2))
+            titleBottom = top + t.size.height
+        }
+        cell.bellX?.let { bx ->
+            // Centred on the title line, so the bell reads as part of the title.
+            val by = if (cell.textWidth > 0f) titleBottom - reminderGlyph.size.height else (h - reminderGlyph.size.height) / 2f
+            drawText(reminderGlyph, topLeft = Offset(bx, by.coerceAtLeast(0f)))
+        }
+        cell.badgeX?.let { bx -> drawText(catchupGlyph, topLeft = Offset(bx, 3f)) }
+    }
+
+    /** The vertical "now" line — drawn on every row so it reads as one continuous line down the grid. */
+    private fun DrawScope.drawNowLine(now: Long, scrollPx: Float, windowStart: Long, windowEnd: Long, viewW: Float) {
+        if (now !in windowStart..windowEnd) return
+        val nowX = ((now - windowStart) / 60_000f) * pxPerMin - scrollPx
+        if (nowX in 0f..viewW) {
+            drawLine(color = nowColor, start = Offset(nowX, 0f), end = Offset(nowX, size.height), strokeWidth = nowLinePx)
         }
     }
 
