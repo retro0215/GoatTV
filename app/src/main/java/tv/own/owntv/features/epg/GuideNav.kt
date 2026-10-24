@@ -21,13 +21,48 @@ internal object GuideNav {
     enum class DetailFocus { WATCH, REMINDER, CATCHUP }
 
     /**
-     * Where the guide opens: the channel being watched (else the first row), at the current time.
-     * Returns null for an empty guide.
+     * Where the guide opens: the first of [preferredChannelIds] that is listed in this view, at the
+     * current time — callers pass the channel playing now, then the last one watched, in that order. A
+     * channel outside the active playlist or category is not in [channelIds], so it is skipped, and the
+     * first row is the last resort. Returns null for an empty guide. Opening never tunes anything.
      */
-    fun openingCursor(channelIds: List<Long>, watchingChannelId: Long?, now: Long): Cursor? {
+    fun openingCursor(channelIds: List<Long>, preferredChannelIds: List<Long?>, now: Long): Cursor? {
         if (channelIds.isEmpty()) return null
-        val row = watchingChannelId?.let { id -> channelIds.indexOf(id) }?.takeIf { it >= 0 } ?: 0
+        val row = preferredChannelIds.asSequence()
+            .filterNotNull()
+            .map { id -> channelIds.indexOf(id) }
+            .firstOrNull { it >= 0 } ?: 0
         return Cursor(row, now)
+    }
+
+    /** The highlight time row [row] draws: the cursor's time on the cursor's row while the grid has focus. */
+    fun highlightFor(cursor: Cursor?, gridFocused: Boolean, row: Int): Long? =
+        cursor?.takeIf { gridFocused && it.row == row }?.timeMs
+
+    enum class CategoryChange { FILTER_LAST_LIST, FULL_LOAD }
+
+    /**
+     * How a category change is applied. Re-filtering the last full list is enough unless there is none
+     * yet, a full load is already running (it applies the newest category itself), or the category is a
+     * custom one (its members bypass the hidden-category filter the last list already applied).
+     */
+    fun categoryChange(hasLastList: Boolean, fullLoadRunning: Boolean, customCategory: Boolean): CategoryChange =
+        if (!hasLastList || fullLoadRunning || customCategory) CategoryChange.FULL_LOAD else CategoryChange.FILTER_LAST_LIST
+
+    /** The guide's overlays, and where focus goes when one closes. */
+    enum class Overlay { PROGRAMME, CHANNEL_OPTIONS, EPG_MATCH, EPG_OFFSET, MORE, CATEGORY }
+
+    enum class FocusTarget { GRID, MORE_BUTTON, CATEGORY_BUTTON }
+
+    /**
+     * Focus after [overlay] closes: back to the control that opened it. Programme and channel dialogs
+     * come from the grid; More and Category from their header buttons (Phase 3 dropped focus to the
+     * sidebar after More closed). Picking a category keeps focus on its button, as the list reloads.
+     */
+    fun focusAfterClose(overlay: Overlay): FocusTarget = when (overlay) {
+        Overlay.PROGRAMME, Overlay.CHANNEL_OPTIONS, Overlay.EPG_MATCH, Overlay.EPG_OFFSET -> FocusTarget.GRID
+        Overlay.MORE -> FocusTarget.MORE_BUTTON
+        Overlay.CATEGORY -> FocusTarget.CATEGORY_BUTTON
     }
 
     /** The programme the cursor highlights on a row: airing at [timeMs], else the latest one before it. */

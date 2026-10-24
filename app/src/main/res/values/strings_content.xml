@@ -594,6 +594,9 @@
     <string name="content_epg_remove_favourite">Remove from favorites</string>
     <!-- Translators: Button in the EPG screen to jump to the current time. -->
     <string name="content_epg_more">More</string>
+    <string name="content_epg_updating">Updating guide…</string>
+    <!-- Joins the programme facts in the guide details panel; the spaces are part of it. -->
+    <string name="content_epg_details_separator"> · </string>
     <string name="content_epg_options_title">Guide options</string>
     <string name="content_epg_show_all_channels">Show all channels</string>
     <string name="content_epg_hide_empty_channels">Hide channels without guide data</string>
@@ -692,7 +695,8 @@
     <string name="content_reminder_upcoming_description">Review and cancel your program reminders</string>
     <string name="content_reminder_upcoming_empty">No upcoming reminders. Set one from the TV Guide.</string>
     <string name="content_reminder_upcoming_item"><xliff:g id="channel">%1$s</xliff:g> · <xliff:g id="time">%2$s</xliff:g></string>
-    <string name="content_reminder_cancel_message">Cancel the reminder for “<xliff:g id="title">%1$s</xliff:g>”?</string>
+    <string name="content_reminder_cancel_message">Remove the reminder for “<xliff:g id="title">%1$s</xliff:g>”?</string>
+    <string name="content_reminder_keep">Keep reminder</string>
     <string name="content_epg_offset_use_global">Use global</string>
     <string name="content_preview_single_stream">Preview off — your provider allows one stream at a time</string>
 </resources>

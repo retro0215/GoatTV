@@ -95,13 +95,15 @@ fun UpcomingRemindersScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
 
     confirmCancel?.let { reminder ->
         ConfirmDialog(
-            title = stringResource(R.string.content_reminder_cancel),
+            title = stringResource(R.string.content_reminder_remove),
             message = stringResource(R.string.content_reminder_cancel_message, reminder.programTitle),
             onConfirm = {
                 confirmCancel = null
                 scope.launch { programReminders.cancel(reminder.id) }
             },
             onDismiss = { confirmCancel = null },
+            confirmLabel = stringResource(R.string.content_reminder_remove),
+            dismissLabel = stringResource(R.string.content_reminder_keep),
         )
     }
 }

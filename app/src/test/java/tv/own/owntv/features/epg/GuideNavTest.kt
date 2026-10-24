@@ -53,17 +53,75 @@ class GuideNavTest {
 
     // ---- Current channel focus -----------------------------------------------------------------------
 
-    @Test fun `opens on the channel being watched`() {
-        assertEquals(Cursor(2, now), GuideNav.openingCursor(listOf(10L, 11L, 12L), 12L, now))
+    @Test fun `opens on the channel playing now`() {
+        assertEquals(Cursor(2, now), GuideNav.openingCursor(listOf(10L, 11L, 12L), listOf(12L, 11L), now))
     }
 
-    @Test fun `a watched channel not in this view opens on the first row`() {
-        assertEquals(Cursor(0, now), GuideNav.openingCursor(listOf(10L, 11L), 99L, now))
-        assertEquals(Cursor(0, now), GuideNav.openingCursor(listOf(10L, 11L), null, now))
+    @Test fun `with nothing playing it opens on the last watched channel`() {
+        assertEquals(Cursor(1, now), GuideNav.openingCursor(listOf(10L, 11L, 12L), listOf(null, 11L), now))
+    }
+
+    @Test fun `a playing channel outside this playlist or category falls back to the last watched one`() {
+        assertEquals(Cursor(1, now), GuideNav.openingCursor(listOf(10L, 11L), listOf(99L, 11L), now))
+    }
+
+    @Test fun `with neither in this view it opens on the first row`() {
+        assertEquals(Cursor(0, now), GuideNav.openingCursor(listOf(10L, 11L), listOf(99L, 98L), now))
+        assertEquals(Cursor(0, now), GuideNav.openingCursor(listOf(10L, 11L), listOf(null, null), now))
     }
 
     @Test fun `an empty guide has no cursor`() {
-        assertNull(GuideNav.openingCursor(emptyList(), 1L, now))
+        assertNull(GuideNav.openingCursor(emptyList(), listOf(1L), now))
+    }
+
+    // ---- Focus movement: only the rows the cursor leaves and enters change ---------------------------
+
+    @Test fun `a move changes the highlight of exactly two rows`() {
+        val before = Cursor(3, now)
+        val after = Cursor(4, now)
+        val changed = (0..9).filter { r -> GuideNav.highlightFor(before, true, r) != GuideNav.highlightFor(after, true, r) }
+        assertEquals(listOf(3, 4), changed)
+    }
+
+    @Test fun `left and right change only the cursor row`() {
+        val before = Cursor(3, now)
+        val after = Cursor(3, now + hour)
+        val changed = (0..9).filter { r -> GuideNav.highlightFor(before, true, r) != GuideNav.highlightFor(after, true, r) }
+        assertEquals(listOf(3), changed)
+    }
+
+    @Test fun `nothing is highlighted while the grid has no focus`() {
+        assertNull(GuideNav.highlightFor(Cursor(3, now), gridFocused = false, row = 3))
+    }
+
+    // ---- Dialog focus restoration -------------------------------------------------------------------
+
+    @Test fun `closing a dialog returns focus to what opened it`() {
+        assertEquals(GuideNav.FocusTarget.GRID, GuideNav.focusAfterClose(GuideNav.Overlay.PROGRAMME))
+        assertEquals(GuideNav.FocusTarget.GRID, GuideNav.focusAfterClose(GuideNav.Overlay.CHANNEL_OPTIONS))
+        assertEquals(GuideNav.FocusTarget.GRID, GuideNav.focusAfterClose(GuideNav.Overlay.EPG_MATCH))
+        assertEquals(GuideNav.FocusTarget.GRID, GuideNav.focusAfterClose(GuideNav.Overlay.EPG_OFFSET))
+        assertEquals(GuideNav.FocusTarget.MORE_BUTTON, GuideNav.focusAfterClose(GuideNav.Overlay.MORE))
+        assertEquals(GuideNav.FocusTarget.CATEGORY_BUTTON, GuideNav.focusAfterClose(GuideNav.Overlay.CATEGORY))
+    }
+
+    // ---- Category switching -------------------------------------------------------------------------
+
+    @Test fun `a provider category or All re-filters the last list`() {
+        assertEquals(GuideNav.CategoryChange.FILTER_LAST_LIST, GuideNav.categoryChange(hasLastList = true, fullLoadRunning = false, customCategory = false))
+    }
+
+    @Test fun `no list yet, a running load or a custom category does a full load`() {
+        assertEquals(GuideNav.CategoryChange.FULL_LOAD, GuideNav.categoryChange(hasLastList = false, fullLoadRunning = false, customCategory = false))
+        assertEquals(GuideNav.CategoryChange.FULL_LOAD, GuideNav.categoryChange(hasLastList = true, fullLoadRunning = true, customCategory = false))
+        assertEquals(GuideNav.CategoryChange.FULL_LOAD, GuideNav.categoryChange(hasLastList = true, fullLoadRunning = false, customCategory = true))
+    }
+
+    @Test fun `switching back to All from a category restores the full list order`() {
+        val all = listOf(channel(1, categoryId = 5), channel(2, categoryId = 6), channel(3, categoryId = 5))
+        val sport = GuideNav.filterByCategory(all, null, 5, "cat:5") { null }
+        assertEquals(listOf(1L, 3L), sport.map { it.id })
+        assertEquals(all, GuideNav.filterByCategory(all, null, null, null) { null })
     }
 
     // ---- Program selection ---------------------------------------------------------------------------

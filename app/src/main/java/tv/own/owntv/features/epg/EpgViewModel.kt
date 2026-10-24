@@ -77,6 +77,7 @@ data class EpgUiState(
     val windowEnd: Long = 0,
     val now: Long = 0,
     val loading: Boolean = true,
+    /** A reload or category change is running while the previous list stays on screen. */
     val refreshing: Boolean = false,
     val message: EpgMessage? = null,
     val isError: Boolean = false,
@@ -120,6 +121,7 @@ class EpgViewModel(
     private val externalPlayerLauncher: tv.own.owntv.core.player.ExternalPlayerLauncher,
     private val customCategoryDao: tv.own.owntv.core.database.dao.CustomCategoryDao,
     private val epgActivity: tv.own.owntv.core.sync.EpgActivityTracker,
+    private val historyDao: tv.own.owntv.core.database.dao.HistoryDao,
 ) : ViewModel() {
 
     // The guide grid can hold hundreds of thousands of programme rows. Only one load may be in flight
@@ -127,6 +129,17 @@ class EpgViewModel(
     // each hold a full copy of the window and a low-RAM TV box runs out of heap.
     private var loadJob: kotlinx.coroutines.Job? = null
     private var backfillJob: kotlinx.coroutines.Job? = null
+    private var categoryJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * The last full load's channel list before its category filter, so a category change only has to
+     * re-filter it. A full [load] re-runs the playlist-channel join against the whole guide table and two
+     * table-wide counts, none of which depend on the category; on the onn that took 10 s, and up to 70 s
+     * when the catch-up back-fill was reading at the same time. Null until a load has finished, and for a
+     * custom category (its members may include channels hidden elsewhere, so it always loads fully).
+     */
+    private class GuideBase(val profileId: Long, val query: String, val sorted: List<ChannelEntity>, val cust: tv.own.owntv.core.customize.SectionCustomizations)
+    @Volatile private var lastBase: GuideBase? = null
 
     // Whether the Guide screen is on screen. The ViewModel is activity-scoped and outlives the screen;
     // data-change reloads are skipped while it is hidden because the screen reloads on every open anyway.
@@ -305,11 +318,11 @@ class EpgViewModel(
             .distinctUntilChanged()
             .onEach { load() }
             .launchIn(viewModelScope)
-        // Reload when the category filter changes (#8).
+        // Category filter changes (#8): re-filter the last list when possible, else reload.
         _categoryFilter
             .drop(1)
             .distinctUntilChanged()
-            .onEach { load() }
+            .onEach { applyCategoryChange() }
             .launchIn(viewModelScope)
         settings.sortLive
             .drop(1)
@@ -667,14 +680,62 @@ class EpgViewModel(
     // which sets the shell's zapSource to LIVE_TV, so CH+/CH- always used LiveViewModel.zap — the one
     // with the ExoPlayer ladder, the pending-tune anchor and the bounded rebuild.
 
+    /**
+     * A category change: filter the last full list in memory (milliseconds on 11k channels), keeping the
+     * cache and any running catch-up back-fill. Falls back to [load] when there is no list to filter, a
+     * full load is already running (it will apply the new category itself), or the category is custom.
+     * Each change cancels the previous one, so a stale result can never replace a newer selection.
+     */
+    private fun applyCategoryChange() {
+        val base = lastBase
+        val category = _categoryFilter.value?.let { key -> guideCategories.value.firstOrNull { it.key == key } }
+        val mode = GuideNav.categoryChange(
+            hasLastList = base != null,
+            fullLoadRunning = loadJob?.isActive == true,
+            customCategory = category?.customId != null,
+        )
+        if (base == null || mode == GuideNav.CategoryChange.FULL_LOAD) {
+            load()
+            return
+        }
+        categoryJob?.cancel()
+        categoryJob = viewModelScope.launch {
+            if (currentProfileId() != base.profileId) {
+                load()
+                return@launch
+            }
+            _state.value = _state.value.copy(refreshing = true)
+            val channels = withContext(Dispatchers.Default) {
+                GuideNav.filterByCategory(base.sorted, null, category?.categoryId, category?.key) { ch ->
+                    base.cust.movedFromOrigin[CustomizeKeys.channel(ch)]
+                }
+            }
+            val message = when {
+                channels.isEmpty() && base.query.isNotBlank() -> EpgMessage.NoChannelsForQuery(base.query)
+                channels.isEmpty() -> EpgMessage.MismatchedIds
+                else -> null
+            }
+            _state.value = _state.value.copy(channels = channels, message = message, refreshing = false)
+        }
+    }
+
+    /** The live channel this profile watched most recently (from watch history), or null. */
+    suspend fun lastWatchedChannelId(): Long? {
+        val pid = currentProfileId() ?: return null
+        return runCatching { historyDao.mostRecentItemId(pid, MediaType.LIVE) }.getOrNull()
+    }
+
     fun load() {
         loadJob?.cancel()
         backfillJob?.cancel()
+        categoryJob?.cancel()
         loadJob = viewModelScope.launch {
             // Show the spinner only on the FIRST load. The EpgViewModel is shared, so on re-entry the guide
             // is already populated — keep the existing list on screen and refresh it silently, so opening the
             // Guide menu is instant instead of flashing a spinner and re-rendering from scratch every time.
+            // (`refreshing` lets the screen show that a reload is under way without hiding the list.)
             if (_state.value.channels.isEmpty()) _state.value = _state.value.copy(loading = true, message = null)
+            else _state.value = _state.value.copy(refreshing = true)
             val pid = currentProfileId()
             if (pid == null) {
                 _state.value = EpgUiState(
@@ -733,7 +794,7 @@ class EpgViewModel(
                 ?.let { customCategoryDao.itemIds(pid, MediaType.LIVE, it).toSet() }
             // Heavy work — filter hidden, apply renames + manual EPG matches, sort, category-filter — runs off
             // the main thread (#3/#5) so a 50k-channel playlist never freezes the UI building the guide list.
-            val channels = withContext(Dispatchers.Default) {
+            val (sortedAll, channels) = withContext(Dispatchers.Default) {
                 val auto = rawChannels
                     .filter { CustomizeKeys.channel(it) !in cust.hiddenItems }
                     .filter {
@@ -761,11 +822,13 @@ class EpgViewModel(
                     SettingsRepository.GuideSort.LIVE_TV -> liveOrdered
                 }.let { sorted ->
                     // Category filter (#8): when a group is chosen, show only its channels.
-                    GuideNav.filterByCategory(
+                    sorted to GuideNav.filterByCategory(
                         sorted, customMemberIds, categoryFilter?.categoryId, categoryFilter?.key,
                     ) { ch -> cust.movedFromOrigin[CustomizeKeys.channel(ch)] }
                 }
             }
+            // Kept for category changes; a custom category's list skipped the hidden-category filter.
+            lastBase = if (customMemberIds == null) GuideBase(pid, q, sortedAll, cust) else null
             val stored = epgDao.countForSources(ids)
 
 

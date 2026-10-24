@@ -269,6 +269,7 @@
 1	file-path	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	remote-backup-export
 3	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionHtml.kt	\0
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/HistoryDao.kt	SELECT itemId FROM watch_history WHERE profileId = :profileId AND mediaType = :type ORDER BY watchedAt DESC LIMIT 1
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE channelId = :channelId AND programStartMs = :programStartMs LIMIT 1
@@ -357,6 +358,8 @@
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=channel missing
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=other playlist
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	unsupported source type
+1	performance	app/src/main/java/tv/own/owntv/features/epg/EpgScreen.kt	Guide.scrollIntoView
+1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.draw
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	🔔
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
