@@ -9,6 +9,82 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## allaccess-v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## 5star-v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## supreme-v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
 ## v4.4.24 — 2026-10-10
 
 ### ✨ What's new
