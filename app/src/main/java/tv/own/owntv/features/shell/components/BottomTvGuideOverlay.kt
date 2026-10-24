@@ -44,7 +44,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,10 +57,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import tv.own.owntv.R
-import tv.own.owntv.core.database.dao.ReminderDao
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
-import tv.own.owntv.core.sync.work.ReminderScheduler
+import tv.own.owntv.core.sync.work.ProgramReminders
+import tv.own.owntv.ui.components.rememberReminderMessages
+import tv.own.owntv.ui.components.rememberReminderSlots
 import tv.own.owntv.ui.format.rememberSystemTimeFormatter
 import tv.own.owntv.ui.theme.OwnTVTheme
 import java.text.SimpleDateFormat
@@ -84,11 +84,13 @@ fun BottomTvGuideOverlay(
     modifier: Modifier = Modifier,
 ) {
     if (!visible) return
-    val context = LocalContext.current
     val formatTime = rememberSystemTimeFormatter()
     val dateFormat = remember { SimpleDateFormat("EEE MMM d", Locale.getDefault()) }
     val colors = OwnTVTheme.colors
-    val reminderDao = koinInject<ReminderDao>()
+    val programReminders = koinInject<ProgramReminders>()
+    // The active profile's reminders, live — the cards' bells and the dialog read this one set.
+    val reminderSlots by rememberReminderSlots(programReminders)
+    val reminderMessages = rememberReminderMessages()
     val scope = rememberCoroutineScope()
 
     var wallNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -133,10 +135,7 @@ fun BottomTvGuideOverlay(
     // 15-second inactivity timer (paused when reminder dialog is open)
     var lastInteractionTime by remember(channel?.id, visible) { mutableLongStateOf(System.currentTimeMillis()) }
     var selectedProgForReminder by remember { mutableStateOf<EpgProgrammeEntity?>(null) }
-    var hasReminderForSelected by remember { mutableStateOf(false) }
     var confirmationMsg by remember { mutableStateOf<String?>(null) }
-    // Bumped on set/cancel so the cards' reminder badges re-read the table.
-    var reminderRevision by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(visible, lastInteractionTime, selectedProgForReminder) {
         if (visible && selectedProgForReminder == null) {
@@ -193,16 +192,6 @@ fun BottomTvGuideOverlay(
         if (index < 0 || index == selectedIndex) return
         selectedIndex = index
         scope.launch { runCatching { listState.animateScrollToItem(index) } }
-    }
-
-    LaunchedEffect(selectedProgForReminder, channel?.id) {
-        val prog = selectedProgForReminder
-        val ch = channel
-        if (prog != null && ch != null) {
-            hasReminderForSelected = reminderDao.exists(ch.id, prog.startMs)
-        } else {
-            hasReminderForSelected = false
-        }
     }
 
     LaunchedEffect(confirmationMsg) {
@@ -363,9 +352,7 @@ fun BottomTvGuideOverlay(
                             isSelected = isSelected,
                             isLive = isLive,
                             wallNow = wallNow,
-                            channelId = channel?.id ?: 0L,
-                            reminderDao = reminderDao,
-                            reminderRevision = reminderRevision,
+                            hasReminder = ProgramReminders.Key(channel?.id ?: 0L, prog.startMs) in reminderSlots,
                             onClick = {
                                 lastInteractionTime = System.currentTimeMillis()
                                 selectedIndex = idx
@@ -381,6 +368,7 @@ fun BottomTvGuideOverlay(
 
         // True TV Modal Reminder Action Dialog with Exclusive Focus Ownership
         selectedProgForReminder?.let { prog ->
+            val hasReminderForSelected = ProgramReminders.Key(channel?.id ?: 0L, prog.startMs) in reminderSlots
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -418,26 +406,16 @@ fun BottomTvGuideOverlay(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        val cancelledMsg = stringResource(R.string.content_reminder_cancelled)
-                        val setMsg = stringResource(R.string.content_reminder_set_confirmation, prog.title)
                         ReminderModalButton(
-                            label = if (hasReminderForSelected) stringResource(R.string.content_reminder_cancel) else stringResource(R.string.content_reminder_set),
+                            label = if (hasReminderForSelected) stringResource(R.string.content_reminder_remove) else stringResource(R.string.content_reminder_set),
                             onClick = {
                                 scope.launch {
                                     val ch = channel ?: return@launch
-                                    if (hasReminderForSelected) {
-                                        reminderDao.delete(ch.id, prog.startMs)
-                                        ReminderScheduler.cancel(context, ch.id, prog.startMs)
-                                        confirmationMsg = cancelledMsg
+                                    confirmationMsg = if (hasReminderForSelected) {
+                                        reminderMessages.forRemove(programReminders.remove(ch, prog.startMs))
                                     } else {
-                                        val reminder = BottomGuideNav.reminderFor(ch, prog, System.currentTimeMillis())
-                                        val insertedId = reminderDao.insert(reminder)
-                                        val saved = reminderDao.getAll().find { it.channelId == ch.id && it.programStartMs == prog.startMs } ?: reminder.copy(id = insertedId)
-                                        ReminderScheduler.schedule(context, saved)
-                                        confirmationMsg = setMsg
+                                        reminderMessages.forSet(programReminders.set(ch, prog.title, prog.startMs, prog.stopMs), prog.title)
                                     }
-                                    hasReminderForSelected = reminderDao.exists(ch.id, prog.startMs)
-                                    reminderRevision++
                                     selectedProgForReminder = null
                                 }
                             },
@@ -537,18 +515,11 @@ private fun ProgrammeTimelineCard(
     isSelected: Boolean,
     isLive: Boolean,
     wallNow: Long,
-    channelId: Long,
-    reminderDao: ReminderDao,
-    reminderRevision: Int,
+    hasReminder: Boolean,
     onClick: () -> Unit,
 ) {
     val formatTime = rememberSystemTimeFormatter()
     val colors = OwnTVTheme.colors
-    var hasReminder by remember { mutableStateOf(false) }
-    LaunchedEffect(channelId, programme.startMs, reminderRevision) {
-        hasReminder = reminderDao.exists(channelId, programme.startMs)
-    }
-
     val cardBg = when {
         isSelected -> colors.primaryContainer.copy(alpha = 0.85f)
         isLive -> colors.primary.copy(alpha = 0.2f)

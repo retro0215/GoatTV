@@ -1,8 +1,6 @@
 package tv.own.owntv.features.shell.components
 
-import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
-import tv.own.owntv.core.database.entity.ReminderEntity
 
 /**
  * Selection and clock rules for the Live TV bottom guide strip, kept out of [BottomTvGuideOverlay] so
@@ -52,21 +50,6 @@ internal object BottomGuideNav {
         val wasOnLive = selectedIndex == openingIndex(programmes, previousNow)
         return if (wasOnLive) openingIndex(programmes, now) else selectedIndex
     }
-
-    /** The reminder the strip's "Set reminder" saves: same row as 4.5.0, warning one minute before. */
-    fun reminderFor(channel: ChannelEntity, programme: EpgProgrammeEntity, createdAtMs: Long) = ReminderEntity(
-        profileId = 1L,
-        sourceId = channel.sourceId,
-        channelId = channel.id,
-        channelName = channel.name,
-        channelNumber = channel.number,
-        programId = null,
-        programTitle = programme.title,
-        programStartMs = programme.startMs,
-        programEndMs = programme.stopMs,
-        triggerAtMs = programme.startMs - 60_000L,
-        createdAtMs = createdAtMs,
-    )
 
     /** Delay to the next clock tick: the next start/stop boundary, but never longer than [MAX_TICK_MS]. */
     fun nextTickDelay(programmes: List<EpgProgrammeEntity>, now: Long): Long {

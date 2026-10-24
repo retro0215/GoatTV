@@ -124,7 +124,7 @@ import java.util.Locale
 
 private enum class TileTone { PRIMARY, SECONDARY, TERTIARY }
 
-private enum class SettingsTab { ROOT, LANGUAGE, SOURCES, EPG, PROFILES, BACKUP, VIDEO, MINI_PLAYER, CUSTOMIZE, HOME, NETWORK, DNS, METADATA, OPEN_SUBTITLES, WEATHER, NAV_MENU, CH_NAV, PANEL_WIDTH, DIAGNOSTICS, TUTORIALS }
+private enum class SettingsTab { ROOT, LANGUAGE, SOURCES, EPG, PROFILES, BACKUP, VIDEO, MINI_PLAYER, CUSTOMIZE, HOME, NETWORK, DNS, METADATA, OPEN_SUBTITLES, WEATHER, NAV_MENU, CH_NAV, PANEL_WIDTH, DIAGNOSTICS, TUTORIALS, REMINDERS }
 
 @Composable
 private fun surroundModeLabel(mode: SurroundMode): String = stringResource(
@@ -362,6 +362,7 @@ fun SettingsScreen(
         SettingsTab.PANEL_WIDTH to FocusRequester(),
         SettingsTab.DIAGNOSTICS to FocusRequester(),
         SettingsTab.TUTORIALS to FocusRequester(),
+        SettingsTab.REMINDERS to FocusRequester(),
     ) }
     val open: (SettingsTab) -> Unit = { lastTab = it; tab = it }
     // Restore focus to the row a sub-screen was opened from when the user navigates back. Fresh entry
@@ -397,6 +398,7 @@ fun SettingsScreen(
         SettingsTab.PANEL_WIDTH -> { tv.own.owntv.features.settings.PanelWidthSettingsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.DIAGNOSTICS -> { tv.own.owntv.features.settings.DiagnosticCenterScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.TUTORIALS -> { tv.own.owntv.features.tutorials.VideoTutorialsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
+        SettingsTab.REMINDERS -> { tv.own.owntv.features.settings.UpcomingRemindersScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.ROOT -> Unit
     }
 
@@ -513,6 +515,12 @@ fun SettingsScreen(
             chipTone = TileTone.PRIMARY,
             onClick = { savedScroll = scrollState.value; dialogReturn = catchupRowFocus; showCatchupTime = true }, showChevron = true,
             modifier = Modifier.focusRequester(catchupRowFocus),
+        )
+        SettingsRow(
+            tone = TileTone.SECONDARY, icon = OwnTVIcon.EPG,
+            title = stringResource(R.string.content_reminder_upcoming), desc = stringResource(R.string.content_reminder_upcoming_description),
+            onClick = { open(SettingsTab.REMINDERS) }, showChevron = true,
+            modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.REMINDERS)),
         )
         SettingsRow(
             tone = TileTone.PRIMARY, icon = OwnTVIcon.SORT,

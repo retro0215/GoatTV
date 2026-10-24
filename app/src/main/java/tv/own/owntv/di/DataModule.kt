@@ -180,6 +180,16 @@ val dataModule = module {
         )
     }
     single {
+        tv.own.owntv.core.sync.work.ProgramReminders(
+            reminderDao = get(),
+            channelDao = get(),
+            sourceDao = get(),
+            relinker = get(),
+            jobs = tv.own.owntv.core.sync.work.WorkManagerReminderJobs(androidContext()),
+            activeProfileId = get<tv.own.owntv.features.settings.data.SettingsRepository>().activeProfileId,
+        )
+    }
+    single {
         SyncManager(
             context = androidContext(),
             sourceDao = get(),

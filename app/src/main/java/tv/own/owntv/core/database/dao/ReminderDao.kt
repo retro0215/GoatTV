@@ -40,6 +40,18 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE sourceId = :sourceId AND programStartMs > :startAfterMs")
     suspend fun getForSourceStartingAfter(sourceId: Long, startAfterMs: Long): List<ReminderEntity>
 
+    /** The reminder for one programme slot (unique on channel + start), whoever set it. */
+    @Query("SELECT * FROM reminders WHERE channelId = :channelId AND programStartMs = :programStartMs LIMIT 1")
+    suspend fun getFor(channelId: Long, programStartMs: Long): ReminderEntity?
+
+    /** A profile's reminders, soonest first. */
+    @Query("SELECT * FROM reminders WHERE profileId = :profileId ORDER BY programStartMs ASC")
+    fun observeForProfile(profileId: Long): Flow<List<ReminderEntity>>
+
+    /** Re-owns a reminder 4.5.0 saved under the wrong profile (see ProgramReminders.repairLegacyOwners). */
+    @Query("UPDATE reminders SET profileId = :profileId WHERE id = :id")
+    suspend fun updateProfileId(id: Long, profileId: Long)
+
     /** Points a reminder at its channel's new row after a playlist refresh renumbered the channels. */
     @Query("UPDATE reminders SET channelId = :channelId WHERE id = :id")
     suspend fun updateChannelId(id: Long, channelId: Long)

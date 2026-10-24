@@ -3,7 +3,6 @@ package tv.own.owntv.features.shell.components
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import tv.own.owntv.core.sync.work.ReminderScheduler
 
@@ -138,21 +137,6 @@ class BottomGuideNavTest {
     }
 
     // ---- Reminders set from the strip --------------------------------------------------------------
-
-    @Test fun `set reminder saves the 4_5_0 row with a 60-second warning`() {
-        val ch = ChannelEntity(id = 42, sourceId = 7, name = "News", streamUrl = "s", number = 101, remoteId = "9001")
-        val p = prog(day0 + 2 * hour, day0 + 3 * hour, "Evening News")
-        val r = BottomGuideNav.reminderFor(ch, p, createdAtMs = day0)
-        assertEquals(7L, r.sourceId)
-        assertEquals(42L, r.channelId)
-        assertEquals("News", r.channelName)
-        assertEquals(101, r.channelNumber)
-        assertEquals("Evening News", r.programTitle)
-        assertEquals(p.startMs, r.programStartMs)
-        assertEquals(p.stopMs, r.programEndMs)
-        assertEquals(p.startMs - 60_000L, r.triggerAtMs)
-        assertEquals(day0, r.createdAtMs)
-    }
 
     @Test fun `reminder work names are unchanged, so 4_5_0 jobs are still found`() {
         assertEquals("epg_warning_42_1700", ReminderScheduler.warningWorkName(42, 1700))

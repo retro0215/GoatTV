@@ -217,6 +217,12 @@ fun EpgScreen(
     val restoreCell = remember { FocusRequester() }
     var restoreChannelId by remember { mutableStateOf<Long?>(null) }
     var detail by remember { mutableStateOf<Pair<ChannelEntity, EpgProgrammeEntity>?>(null) }
+    // Reminders: the shared action every guide uses, and the active profile's slots for the bells.
+    val programReminders = org.koin.compose.koinInject<tv.own.owntv.core.sync.work.ProgramReminders>()
+    val reminderSlots by tv.own.owntv.ui.components.rememberReminderSlots(programReminders)
+    val reminderMessages = tv.own.owntv.ui.components.rememberReminderMessages()
+    var reminderNote by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(detail) { reminderNote = null }
     var matchingChannel by remember { mutableStateOf<ChannelEntity?>(null) }
     var matchChooser by remember { mutableStateOf<ChannelEntity?>(null) }
     var offsetChannel by remember { mutableStateOf<ChannelEntity?>(null) }
@@ -461,6 +467,7 @@ fun EpgScreen(
                             GuideChannelRow(
                                 vm = vm,
                                 channel = channel,
+                                reminderSlots = reminderSlots,
                                 windowStart = state.windowStart,
                                 windowEnd = state.windowEnd,
                                 now = state.now,
@@ -498,6 +505,10 @@ fun EpgScreen(
     }
 
     detail?.let { (channel, p) ->
+        val reminderSet = tv.own.owntv.core.sync.work.ProgramReminders.Key(channel.id, p.startMs) in reminderSlots
+        val wallNow = System.currentTimeMillis()
+        // Future programmes can take a reminder; one already set stays removable until its programme ends.
+        val offerReminder = p.stopMs > wallNow && (p.startMs > wallNow || reminderSet)
         ProgrammeDetailDialog(
             channelName = channel.name,
             programme = p,
@@ -516,6 +527,17 @@ fun EpgScreen(
             onPlayCatchupExternal = { detail = null; vm.noteChannelTuned(channel); vm.playCatchupExternal(channel, p) },
             catchupPlayer = catchupPlayer,
             onDismiss = { detail = null },
+            onToggleReminder = if (!offerReminder) null else { {
+                scope.launch {
+                    reminderNote = if (reminderSet) {
+                        reminderMessages.forRemove(programReminders.remove(channel, p.startMs))
+                    } else {
+                        reminderMessages.forSet(programReminders.set(channel, p.title, p.startMs, p.stopMs), p.title)
+                    }
+                }
+            } },
+            reminderSet = reminderSet,
+            reminderMessage = reminderNote,
         )
     }
 
@@ -724,6 +746,7 @@ private fun EpgMatchChooserDialog(
 private fun GuideChannelRow(
     vm: EpgViewModel,
     channel: ChannelEntity,
+    reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
     windowStart: Long,
     windowEnd: Long,
     now: Long,
@@ -831,6 +854,9 @@ private fun GuideChannelRow(
                     highlightTime = if (stripFocused && inCellMode) cursorTime else null,
                     catchupIds = catchupIds,
                     hScroll = hScroll,
+                    reminderStarts = remember(reminderSlots, channel.id) {
+                        reminderSlots.filter { it.channelId == channel.id }.mapTo(HashSet()) { it.programStartMs }
+                    },
                 )
             }
         }

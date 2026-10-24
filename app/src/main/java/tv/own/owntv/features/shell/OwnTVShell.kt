@@ -655,24 +655,26 @@ fun OwnTVShell(
                 // Back out of the bottom guide lands on the Guide button it was opened from (the HUD is
                 // recreated when the guide closes); an inactivity close returns to plain video instead.
                 var focusGuideButton by remember { mutableStateOf(false) }
-                val reminderDao = koinInject<tv.own.owntv.core.database.dao.ReminderDao>()
                 val reminderRelinker = koinInject<tv.own.owntv.core.sync.work.ReminderRelinker>()
-                val context = androidx.compose.ui.platform.LocalContext.current
+                val programReminders = koinInject<tv.own.owntv.core.sync.work.ProgramReminders>()
                 var activeReminderBanner by remember { mutableStateOf<tv.own.owntv.core.database.entity.ReminderEntity?>(null) }
                 LaunchedEffect(Unit) {
                     scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        programReminders.repairLegacyOwners()
                         reminderRelinker.restoreAfterRestart()
                     }
                     launch {
                         tv.own.owntv.core.notification.ReminderEventBus.reminderEvents.collect { reminder ->
-                            activeReminderBanner = reminder
+                            // Another profile's reminder: no banner (its Watch could only be refused).
+                            if (programReminders.belongsToActiveProfile(reminder)) activeReminderBanner = reminder
                         }
                     }
                     launch {
                         tv.own.owntv.core.notification.ReminderEventBus.autotuneEvents.collect { reminder ->
                             scope.launch {
-                                // Only the reminder's own playlist channel; an orphaned reminder tunes nothing.
-                                val channelId = reminderRelinker.safeTuneChannelId(reminder)
+                                // Only the active profile's reminder, on its own playlist's channel; an orphaned
+                                // or other-profile reminder tunes nothing.
+                                val channelId = programReminders.tuneChannelId(reminder)
                                 val success = channelId != null && liveVm.ensurePlayingByIdAsync(channelId)
                                 if (success) {
                                     openFullscreen(MainSection.LIVE_TV)
@@ -836,12 +838,12 @@ fun OwnTVShell(
                                     label = stringResource(R.string.content_reminder_watch),
                                     onClick = {
                                         scope.launch {
-                                            val channelId = reminderRelinker.safeTuneChannelId(reminder)
+                                            val channelId = programReminders.tuneChannelId(reminder)
                                             if (channelId != null && liveVm.ensurePlayingByIdAsync(channelId)) {
                                                 openFullscreen(MainSection.LIVE_TV)
                                                 activeReminderBanner = null
-                                                reminderDao.deleteById(reminder.id)
-                                                tv.own.owntv.core.sync.work.ReminderScheduler.cancel(context, channelId, reminder.programStartMs)
+                                                // Watched now: drop the row and its pending tune (same as 4.5.0).
+                                                programReminders.cancel(reminder.id)
                                             } else {
                                                 localSubToast.show(unavailableMsg)
                                                 activeReminderBanner = null

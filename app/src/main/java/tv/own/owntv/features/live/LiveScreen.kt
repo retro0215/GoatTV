@@ -219,9 +219,15 @@ fun LiveScreen(
     // Programme picked in the catch-up dialog, awaiting the "Watch from start / Watch channel" choice.
     // The Live picker used to start the archive straight from the pick, so the same programme opened
     // from the Guide (which asks) and from here behaved differently — this makes the two match.
+    // Programme reminders (shared action) for the programme details dialog.
+    val programReminders = org.koin.compose.koinInject<tv.own.owntv.core.sync.work.ProgramReminders>()
+    val reminderSlots by tv.own.owntv.ui.components.rememberReminderSlots(programReminders)
+    val reminderMessages = tv.own.owntv.ui.components.rememberReminderMessages()
+    var reminderNote by remember { mutableStateOf<String?>(null) }
     var catchupDetail by remember {
         mutableStateOf<Pair<ChannelEntity, tv.own.owntv.core.database.entity.EpgProgrammeEntity>?>(null)
     }
+    LaunchedEffect(catchupDetail) { reminderNote = null }
     var contextChannel by remember { mutableStateOf<ChannelEntity?>(null) } // long-press quick menu
     // The channel the "Move to category…" flow is moving (issue #87), with the origin captured at
     // menu-open time (the rail can't change under the modal, but capturing is still safer).
@@ -571,6 +577,11 @@ fun LiveScreen(
     // Same dialog the Guide shows for a programme, so both routes offer the identical choice:
     // replay from the start, tune the channel live, favourite it, or back out.
     catchupDetail?.let { (ch, prog) ->
+        // The picker lists archived programmes, so this mostly hides the reminder action; it only shows
+        // for one still on air that has a reminder (removable) or that hasn't started (settable).
+        val reminderSet = tv.own.owntv.core.sync.work.ProgramReminders.Key(ch.id, prog.startMs) in reminderSlots
+        val wallNow = System.currentTimeMillis()
+        val offerReminder = prog.stopMs > wallNow && (prog.startMs > wallNow || reminderSet)
         tv.own.owntv.features.epg.ProgrammeDetailDialog(
             channelName = ch.name,
             programme = prog,
@@ -585,6 +596,17 @@ fun LiveScreen(
             catchupPlayer = catchupPlayer,
             onDismiss = { catchupDetail = null },
             compact = true,
+            onToggleReminder = if (!offerReminder) null else { {
+                scope.launch {
+                    reminderNote = if (reminderSet) {
+                        reminderMessages.forRemove(programReminders.remove(ch, prog.startMs))
+                    } else {
+                        reminderMessages.forSet(programReminders.set(ch, prog.title, prog.startMs, prog.stopMs), prog.title)
+                    }
+                }
+            } },
+            reminderSet = reminderSet,
+            reminderMessage = reminderNote,
         )
     }
 

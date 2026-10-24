@@ -82,6 +82,8 @@ internal fun ProgrammeStripCanvas(
     highlightTime: Long?,
     catchupIds: Set<Long>,
     hScroll: androidx.compose.foundation.ScrollState,
+    // Start times (this channel) with a reminder from the active profile: a bell on those cells.
+    reminderStarts: Set<Long> = emptySet(),
 ) {
     val colors = OwnTVTheme.colors
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -139,6 +141,7 @@ internal fun ProgrammeStripCanvas(
         textDirection = TextDirection.Content,
     )
     val catchupGlyph = remember(catchupStyle) { measurer.measure("↻", catchupStyle) }
+    val reminderGlyph = remember(catchupStyle) { measurer.measure("🔔", catchupStyle) }
 
     val scrollPx = hScroll.value.toFloat() // read in composable scope so Canvas redraws on scroll
     Canvas(Modifier.fillMaxSize()) {
@@ -179,8 +182,14 @@ internal fun ProgrammeStripCanvas(
                 drawText(time, topLeft = Offset(x + padPx, top + title.size.height + 2))
             }
             // Catch-up badge (↻) at the cell's top-right — only on programmes this channel can rewind from.
-            if (p.id in catchupIds && w > 50f) {
+            val hasCatchupBadge = p.id in catchupIds && w > 50f
+            if (hasCatchupBadge) {
                 drawText(catchupGlyph, topLeft = Offset(x + w - catchupGlyph.size.width - 4f, 3f))
+            }
+            // Reminder bell, to the left of the catch-up badge when both apply.
+            if (p.startMs in reminderStarts && w > 50f) {
+                val right = if (hasCatchupBadge) catchupGlyph.size.width + 6f else 0f
+                drawText(reminderGlyph, topLeft = Offset(x + w - right - reminderGlyph.size.width - 4f, 3f))
             }
         }
         // Vertical "now" marker — drawn on every row so it reads as one continuous line down the grid.
@@ -212,6 +221,11 @@ internal fun ProgrammeDetailDialog(
     // Denser variant for the Live TV catch-up picker, which opens this on top of an already-small
     // popup chain — full-size chrome dwarfed the picker it came from. Guide keeps the roomy layout.
     compact: Boolean = false,
+    // Programme reminder (shared ProgramReminders action). Null hides the button — e.g. a programme
+    // that already ended. [reminderSet] flips the label; [reminderMessage] is the last action's result.
+    onToggleReminder: (() -> Unit)? = null,
+    reminderSet: Boolean = false,
+    reminderMessage: String? = null,
 ) {
     val colors = OwnTVTheme.colors
     val formatTime = rememberSystemTimeFormatter()
@@ -282,6 +296,14 @@ internal fun ProgrammeDetailDialog(
                     } else {
                         OwnTVButton(stringResource(R.string.content_epg_watch_channel), onClick = onWatch, icon = OwnTVIcon.PLAY, compact = compact, modifier = Modifier.focusRequester(fr))
                     }
+                    if (onToggleReminder != null) {
+                        OwnTVButton(
+                            stringResource(if (reminderSet) R.string.content_reminder_remove else R.string.content_reminder_set),
+                            onClick = onToggleReminder,
+                            style = OwnTVButtonStyle.SECONDARY,
+                            compact = compact,
+                        )
+                    }
                     // Favourite the channel without leaving the guide; the label flips in place.
                     OwnTVButton(
                         stringResource(if (isFavorite) R.string.content_epg_unfavourite else R.string.content_epg_favourite),
@@ -291,6 +313,10 @@ internal fun ProgrammeDetailDialog(
                         compact = compact,
                     )
                     OwnTVButton(stringResource(R.string.settings_close), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY, compact = compact)
+                }
+                if (reminderMessage != null) {
+                    Spacer(Modifier.height(if (compact) 8.dp else 12.dp))
+                    Text(reminderMessage, style = MaterialTheme.typography.bodySmall, color = colors.primary)
                 }
             }
         }
