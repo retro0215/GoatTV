@@ -68,12 +68,13 @@ internal class LiveEpgReader(
         cache.remove(channelId)
     }
 
-    /** Now/next for [ch], cached ~5 min. Prefers a manual EPG match / stored bulk guide, then falls
-     *  back to Xtream's short EPG API. */
+    /** Now/next for [ch], cached ~5 min (never past a programme boundary). Prefers a manual EPG match /
+     *  stored bulk guide, then falls back to Xtream's short EPG API. */
     suspend fun nowNext(ch: ChannelEntity, cust: SectionCustomizations, globalShiftMinutes: Int): EpgNowNext? =
         withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
-            cache[ch.id]?.takeIf { now - it.at < 5 * 60_000 }?.let { return@withContext it.data }
+            cache[ch.id]?.takeIf { now - it.at < 5 * 60_000 && !NowNextClock.isStale(it.data, now) }
+                ?.let { return@withContext it.data }
 
             // 1) Bulk guide via the effective EPG id (manual match overrides the channel's own id).
             val epgKey = (cust.epgMatches[CustomizeKeys.channel(ch)] ?: ch.epgChannelId)?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }

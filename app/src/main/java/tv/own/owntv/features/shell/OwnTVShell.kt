@@ -652,6 +652,9 @@ fun OwnTVShell(
             }
             if (isFull) {
                 var showLiveGuide by remember { mutableStateOf(false) }
+                // Back out of the bottom guide lands on the Guide button it was opened from (the HUD is
+                // recreated when the guide closes); an inactivity close returns to plain video instead.
+                var focusGuideButton by remember { mutableStateOf(false) }
                 val reminderDao = koinInject<tv.own.owntv.core.database.dao.ReminderDao>()
                 val reminderRelinker = koinInject<tv.own.owntv.core.sync.work.ReminderRelinker>()
                 val context = androidx.compose.ui.platform.LocalContext.current
@@ -702,7 +705,9 @@ fun OwnTVShell(
                     tv.own.owntv.features.shell.components.BottomTvGuideOverlay(
                         channel = previewChannel,
                         visible = showLiveGuide,
-                        onDismiss = { showLiveGuide = false },
+                        onDismiss = { showLiveGuide = false; focusGuideButton = true },
+                        onTimedOut = { showLiveGuide = false },
+                        focusKey = activeReminderBanner == null,
                         loadScheduleWindow = liveVm::loadScheduleWindow,
                         onChannelUp = zap?.let { z -> { z(-1) } },
                         onChannelDown = zap?.let { z -> { z(1) } },
@@ -711,7 +716,7 @@ fun OwnTVShell(
                 } else {
                     PlayerHud(
                         player = if (liveOnExo) liveVm.previewEngine else mpvEngine, onBack = exitPlayer, onPip = dockPlayer, onAudioMode = toAudioMode,
-                        inert = showChannelList || showHistoryList || showCategoryBrowser || showSubtitleSearch || showLocalSubPicker,
+                        inert = showChannelList || showHistoryList || showCategoryBrowser || showSubtitleSearch || showLocalSubPicker || activeReminderBanner != null,
                         onChannelUp = zap?.let { z -> { z(-1) } }, onChannelDown = zap?.let { z -> { z(1) } },
                         onOpenChannelList = if (isTunedLive && liveCanZap) { { showChannelList = true } } else null,
                         onOpenHistoryList = if (isTunedLive) { { showHistoryList = true } } else null,
@@ -742,6 +747,8 @@ fun OwnTVShell(
                             }
                         } } else null,
                         onOpenGuide = if (zapSource == MainSection.LIVE_TV) { { showLiveGuide = true } } else null,
+                        focusGuideOnShow = focusGuideButton,
+                        onGuideFocused = { focusGuideButton = false },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -751,6 +758,7 @@ fun OwnTVShell(
                     val dismissLabel = stringResource(R.string.content_reminder_dismiss)
                     val watchFocus = remember { FocusRequester() }
                     val dismissFocus = remember { FocusRequester() }
+                    val bannerBackKeys = remember(reminder) { tv.own.owntv.features.shell.components.GuideBackKeys() }
 
                     LaunchedEffect(reminder) {
                         kotlinx.coroutines.android.awaitFrame()
@@ -766,12 +774,19 @@ fun OwnTVShell(
                             }
                             .focusable()
                             .onPreviewKeyEvent { e ->
-                                if (e.type == KeyEventType.KeyDown) {
+                                if (e.key == Key.Back || e.key == Key.Escape) {
+                                    // Press consumed, release dismisses: dismissing on the press let the
+                                    // release fall through to the player's Back, which left Live TV.
+                                    if (e.type == KeyEventType.KeyDown) {
+                                        bannerBackKeys.onPress()
+                                    } else if (e.type == KeyEventType.KeyUp &&
+                                        bannerBackKeys.onRelease(reminderDialogOpen = true) != tv.own.owntv.features.shell.components.GuideBackKeys.Step.NONE
+                                    ) {
+                                        activeReminderBanner = null // Dismiss warning only, does NOT delete reminder or cancel autotune
+                                    }
+                                    true
+                                } else if (e.type == KeyEventType.KeyDown) {
                                     when (e.key) {
-                                        Key.Back -> {
-                                            activeReminderBanner = null // Dismiss warning only, does NOT delete reminder or cancel autotune
-                                            true
-                                        }
                                         Key.DirectionUp, Key.DirectionDown -> {
                                             true // block vertical D-pad in warning popup
                                         }

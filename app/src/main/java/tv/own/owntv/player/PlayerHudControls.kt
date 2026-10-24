@@ -126,10 +126,10 @@ internal fun EngineToggle(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun CtrlButton(icon: OwnTVIcon, badge: Int? = null, active: Boolean = false, onClick: () -> Unit) {
+internal fun CtrlButton(icon: OwnTVIcon, badge: Int? = null, active: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
     FocusableSurface(
         onClick = onClick,
-        modifier = Modifier.size(44.dp),
+        modifier = modifier.size(44.dp),
         shape = RoundedCornerShape(12.dp),
         focusedContainerColor = Color.White.copy(alpha = 0.16f),
         unfocusedContainerColor = Color.Transparent,

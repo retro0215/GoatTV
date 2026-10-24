@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
@@ -1111,6 +1112,9 @@ private fun EpgSection(nowNext: EpgNowNext?) {
     val now = nowNext?.now
     val next = nowNext?.next
     if (now == null && next == null) return
+    // Moves the progress bar; the programme itself changes with nowNext at each boundary.
+    var wallNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); wallNow = System.currentTimeMillis() } }
 
     Spacer(Modifier.height(16.dp))
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1124,7 +1128,7 @@ private fun EpgSection(nowNext: EpgNowNext?) {
                 overflow = TextOverflow.Ellipsis,
             )
             val span = (now.stopMs - now.startMs).coerceAtLeast(1)
-            val progress = ((System.currentTimeMillis() - now.startMs).toFloat() / span).coerceIn(0f, 1f)
+            val progress = ((wallNow - now.startMs).toFloat() / span).coerceIn(0f, 1f)
             Box(
                 modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.surfaceContainerLowest),
             ) {

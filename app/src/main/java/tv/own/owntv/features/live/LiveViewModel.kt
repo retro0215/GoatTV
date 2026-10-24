@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.paging.filter
@@ -273,11 +274,24 @@ class LiveViewModel(
     val watchingWallMs: StateFlow<Long?> = _watchingWallMs.asStateFlow()
 
 
-    /** Now/next for the focused channel — fetched (debounced) from the Xtream `get_short_epg` API. */
+    /** Now/next for the focused channel — fetched (debounced) from the Xtream `get_short_epg` API.
+     *  Re-read once at each programme boundary (see [NowNextClock]) so Now / Next / Later move on when a
+     *  programme ends; between boundaries nothing runs. */
     val nowNext: StateFlow<EpgNowNext?> = combine(_previewChannel, epgRefresh) { ch, tick -> ch to tick }
         .debounce(350)
         .distinctUntilChanged { a, b -> a.first?.id == b.first?.id && a.second == b.second }
-        .mapLatest { (ch, _) -> ch?.let { epgReader.nowNext(it, custom.value, epgOffset.value) } }
+        .transformLatest { (ch, _) ->
+            if (ch == null) {
+                emit(null)
+                return@transformLatest
+            }
+            while (true) {
+                val data = epgReader.nowNext(ch, custom.value, epgOffset.value)
+                emit(data)
+                val changeAt = NowNextClock.nextChangeAt(data, System.currentTimeMillis()) ?: break
+                delay(NowNextClock.delayUntil(changeAt, System.currentTimeMillis()))
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**

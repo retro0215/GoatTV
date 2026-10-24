@@ -61,7 +61,6 @@ import tv.own.owntv.R
 import tv.own.owntv.core.database.dao.ReminderDao
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
-import tv.own.owntv.core.database.entity.ReminderEntity
 import tv.own.owntv.core.sync.work.ReminderScheduler
 import tv.own.owntv.ui.format.rememberSystemTimeFormatter
 import tv.own.owntv.ui.theme.OwnTVTheme
@@ -77,6 +76,11 @@ fun BottomTvGuideOverlay(
     loadScheduleWindow: suspend (ChannelEntity, Long, Long) -> List<EpgProgrammeEntity>,
     onChannelUp: (() -> Unit)? = null,   // Next channel (Down arrow)
     onChannelDown: (() -> Unit)? = null, // Previous channel (Up arrow)
+    // The 15-second inactivity close. Defaults to [onDismiss]; the shell tells the two apart so only a
+    // Back press hands focus back to the Guide button.
+    onTimedOut: () -> Unit = onDismiss,
+    // Changing this re-takes focus for the strip — e.g. when a reminder banner drawn above it closes.
+    focusKey: Any? = null,
     modifier: Modifier = Modifier,
 ) {
     if (!visible) return
@@ -88,27 +92,41 @@ fun BottomTvGuideOverlay(
     val scope = rememberCoroutineScope()
 
     var wallNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) { while (true) { delay(20000); wallNow = System.currentTimeMillis() } }
-
     var programmes by remember { mutableStateOf<List<EpgProgrammeEntity>>(emptyList()) }
     var selectedIndex by remember { mutableIntStateOf(0) }
+    val listState = rememberLazyListState()
 
-    // Load 5-day future + 1-day past schedule for current channel & position on CURRENT live programme
-    LaunchedEffect(channel?.id, wallNow) {
+    // Load once per channel (opening, or Up/Down) and land on the programme airing now. The clock tick
+    // below never reloads: re-reading the schedule every 20 seconds also snapped the selection back while
+    // the viewer was browsing, and on short-EPG channels it was a provider request each time.
+    LaunchedEffect(channel?.id) {
         val ch = channel ?: return@LaunchedEffect
-        val from = wallNow - 24 * 3600_000L
-        val to = wallNow + 5 * 24 * 3600_000L
-        val list = runCatching {
-            loadScheduleWindow(ch, from, to)
-        }.getOrDefault(emptyList())
+        val now = System.currentTimeMillis()
+        val list = BottomGuideNav.normalize(
+            runCatching { loadScheduleWindow(ch, now - 24 * 3600_000L, now + 5 * 24 * 3600_000L) }
+                .getOrDefault(emptyList()),
+        )
+        val index = BottomGuideNav.openingIndex(list, now).coerceAtLeast(0)
+        wallNow = now
         programmes = list
-        // Default focus on live/current programme (startMs <= wallNow && stopMs > wallNow) or nearest future (startMs > wallNow)
-        val currentIdx = list.indexOfFirst { it.startMs <= wallNow && it.stopMs > wallNow }
-        selectedIndex = if (currentIdx >= 0) {
-            currentIdx
-        } else {
-            val futureIdx = list.indexOfFirst { it.startMs > wallNow }
-            if (futureIdx >= 0) futureIdx else 0
+        selectedIndex = index
+        // Jump, don't animate: the strip must open showing Now, not scroll there from a day ago.
+        if (list.isNotEmpty()) runCatching { listState.scrollToItem(index) }
+    }
+
+    // Clock: wakes at the next programme boundary (at most every 20 s, for the progress bar), so Now,
+    // the LIVE badge and a selection that was on the live programme move on when a programme ends.
+    LaunchedEffect(programmes) {
+        while (true) {
+            delay(BottomGuideNav.nextTickDelay(programmes, System.currentTimeMillis()))
+            val previous = wallNow
+            val now = System.currentTimeMillis()
+            wallNow = now
+            val followed = BottomGuideNav.followLive(programmes, selectedIndex, previous, now)
+            if (followed >= 0 && followed != selectedIndex) {
+                selectedIndex = followed
+                runCatching { listState.animateScrollToItem(followed) }
+            }
         }
     }
 
@@ -117,53 +135,64 @@ fun BottomTvGuideOverlay(
     var selectedProgForReminder by remember { mutableStateOf<EpgProgrammeEntity?>(null) }
     var hasReminderForSelected by remember { mutableStateOf(false) }
     var confirmationMsg by remember { mutableStateOf<String?>(null) }
+    // Bumped on set/cancel so the cards' reminder badges re-read the table.
+    var reminderRevision by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(visible, lastInteractionTime, selectedProgForReminder) {
         if (visible && selectedProgForReminder == null) {
             while (true) {
                 delay(1000)
                 if (System.currentTimeMillis() - lastInteractionTime > 15_000L) {
-                    onDismiss()
+                    onTimedOut()
                     break
                 }
             }
         }
     }
 
-    BackHandler(enabled = visible) {
-        if (selectedProgForReminder != null) {
-            selectedProgForReminder = null
-        } else {
-            onDismiss()
+    val backKeys = remember { GuideBackKeys() }
+    fun backStep(step: GuideBackKeys.Step) {
+        when (step) {
+            GuideBackKeys.Step.CLOSE_REMINDER_DIALOG -> selectedProgForReminder = null
+            GuideBackKeys.Step.CLOSE_GUIDE -> onDismiss()
+            GuideBackKeys.Step.NONE -> Unit
         }
+    }
+    // Remote Back is handled as a key pair below; this covers a back that arrives without key events.
+    BackHandler(enabled = visible) {
+        backStep(GuideBackKeys.stepFor(reminderDialogOpen = selectedProgForReminder != null))
     }
 
     val rootFocus = remember { FocusRequester() }
     val setReminderFocus = remember { FocusRequester() }
     val cancelFocus = remember { FocusRequester() }
-    val listState = rememberLazyListState()
 
-    LaunchedEffect(visible, channel?.id) {
+    LaunchedEffect(visible, channel?.id, focusKey) {
         if (visible && selectedProgForReminder == null) {
             runCatching { rootFocus.requestFocus() }
         }
     }
 
+    // Dialog opened: its first button. Dialog closed: back to the strip, on the programme it was for.
+    // Skipped on the first composition, where nothing was open and the opening position is the load's.
+    var dialogWasOpen by remember { mutableStateOf(false) }
     LaunchedEffect(selectedProgForReminder) {
         if (selectedProgForReminder != null) {
+            dialogWasOpen = true
             kotlinx.coroutines.android.awaitFrame()
             runCatching { setReminderFocus.requestFocus() }
-        } else {
+        } else if (dialogWasOpen) {
+            dialogWasOpen = false
             kotlinx.coroutines.android.awaitFrame()
             runCatching { rootFocus.requestFocus() }
-            runCatching { listState.animateScrollToItem(selectedIndex) }
+            if (selectedIndex in programmes.indices) runCatching { listState.animateScrollToItem(selectedIndex) }
         }
     }
 
-    LaunchedEffect(selectedIndex, programmes) {
-        if (programmes.isNotEmpty() && selectedIndex in programmes.indices && selectedProgForReminder == null) {
-            runCatching { listState.animateScrollToItem(selectedIndex) }
-        }
+    fun select(index: Int) {
+        if (index < 0 || index == selectedIndex) return
+        selectedIndex = index
+        scope.launch { runCatching { listState.animateScrollToItem(index) } }
     }
 
     LaunchedEffect(selectedProgForReminder, channel?.id) {
@@ -193,13 +222,18 @@ fun BottomTvGuideOverlay(
             .focusRequester(rootFocus)
             .focusable()
             .onPreviewKeyEvent { e ->
-                if (selectedProgForReminder != null) {
+                if (e.key == Key.Back || e.key == Key.Escape) {
+                    // Consume both halves; act on the release (see GuideBackKeys).
+                    if (e.type == KeyEventType.KeyDown) {
+                        backKeys.onPress()
+                    } else if (e.type == KeyEventType.KeyUp) {
+                        lastInteractionTime = System.currentTimeMillis()
+                        backStep(backKeys.onRelease(reminderDialogOpen = selectedProgForReminder != null))
+                    }
+                    true
+                } else if (selectedProgForReminder != null) {
                     if (e.type == KeyEventType.KeyDown) {
                         when (e.key) {
-                            Key.Back -> {
-                                selectedProgForReminder = null
-                                true
-                            }
                             Key.DirectionUp, Key.DirectionDown -> true
                             else -> false
                         }
@@ -219,16 +253,12 @@ fun BottomTvGuideOverlay(
                         }
                         Key.DirectionLeft -> {
                             // LEFT = Previous programme
-                            if (programmes.isNotEmpty() && selectedIndex > 0) {
-                                selectedIndex--
-                            }
+                            select(BottomGuideNav.step(selectedIndex, -1, programmes.size))
                             true
                         }
                         Key.DirectionRight -> {
                             // RIGHT = Next programme
-                            if (programmes.isNotEmpty() && selectedIndex < programmes.size - 1) {
-                                selectedIndex++
-                            }
+                            select(BottomGuideNav.step(selectedIndex, 1, programmes.size))
                             true
                         }
                         Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
@@ -335,6 +365,7 @@ fun BottomTvGuideOverlay(
                             wallNow = wallNow,
                             channelId = channel?.id ?: 0L,
                             reminderDao = reminderDao,
+                            reminderRevision = reminderRevision,
                             onClick = {
                                 lastInteractionTime = System.currentTimeMillis()
                                 selectedIndex = idx
@@ -399,25 +430,14 @@ fun BottomTvGuideOverlay(
                                         ReminderScheduler.cancel(context, ch.id, prog.startMs)
                                         confirmationMsg = cancelledMsg
                                     } else {
-                                        val reminder = ReminderEntity(
-                                            profileId = 1L,
-                                            sourceId = ch.sourceId,
-                                            channelId = ch.id,
-                                            channelName = ch.name,
-                                            channelNumber = ch.number,
-                                            programId = null,
-                                            programTitle = prog.title,
-                                            programStartMs = prog.startMs,
-                                            programEndMs = prog.stopMs,
-                                            triggerAtMs = prog.startMs - (60_000L), // 1 min before
-                                            createdAtMs = System.currentTimeMillis(),
-                                        )
+                                        val reminder = BottomGuideNav.reminderFor(ch, prog, System.currentTimeMillis())
                                         val insertedId = reminderDao.insert(reminder)
                                         val saved = reminderDao.getAll().find { it.channelId == ch.id && it.programStartMs == prog.startMs } ?: reminder.copy(id = insertedId)
                                         ReminderScheduler.schedule(context, saved)
                                         confirmationMsg = setMsg
                                     }
                                     hasReminderForSelected = reminderDao.exists(ch.id, prog.startMs)
+                                    reminderRevision++
                                     selectedProgForReminder = null
                                 }
                             },
@@ -519,12 +539,13 @@ private fun ProgrammeTimelineCard(
     wallNow: Long,
     channelId: Long,
     reminderDao: ReminderDao,
+    reminderRevision: Int,
     onClick: () -> Unit,
 ) {
     val formatTime = rememberSystemTimeFormatter()
     val colors = OwnTVTheme.colors
     var hasReminder by remember { mutableStateOf(false) }
-    LaunchedEffect(channelId, programme.startMs) {
+    LaunchedEffect(channelId, programme.startMs, reminderRevision) {
         hasReminder = reminderDao.exists(channelId, programme.startMs)
     }
 
