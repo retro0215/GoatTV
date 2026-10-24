@@ -14,6 +14,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusProperties
@@ -214,12 +216,23 @@ fun EpgScreen(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     // One text measurer for every row, so a title repeated down the grid is measured once.
-    val stripMeasurer = androidx.compose.ui.text.rememberTextMeasurer(cacheSize = 512)
+    // Bounded: a few screens of cell titles. Titles of clipped cells snap to width steps (GuideCellLayout),
+    // so scrolling reuses these instead of filling the cache with one layout per pixel offset.
+    val stripMeasurer = androidx.compose.ui.text.rememberTextMeasurer(cacheSize = 256)
     // Channel numbers are identifiers, not quantities: no thousands separator ("5001", not "5,001").
     val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0] ?: java.util.Locale.ROOT
     val channelNumberFormat = remember(locale) { java.text.NumberFormat.getIntegerInstance(locale).apply { isGroupingUsed = false } }
     val hScroll = rememberScrollState()
-    val rowListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    // Rows within two row-heights above and below the screen stay composed and are prefetched while idle:
+    // on the onn, composing the row a Down press scrolled in took up to 112 ms inside that frame.
+    @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+    val rowListState = androidx.compose.foundation.lazy.rememberLazyListState(
+        cacheWindow = androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow(
+            ahead = GuideGridDefaults.RowHeight * 2,
+            behind = GuideGridDefaults.RowHeight * 2,
+        ),
+    )
+    val rowStridePx = with(density) { (GuideGridDefaults.RowHeight + GuideGridDefaults.RowGap).roundToPx() }
     val chromeScrollThresholdPx = with(density) { 8.dp.roundToPx() }
     val contentScrolled by remember(hScroll, rowListState, chromeScrollThresholdPx) {
         androidx.compose.runtime.derivedStateOf {
@@ -314,6 +327,16 @@ fun EpgScreen(
         onRestored()
     }
 
+    // The details panel's cursor: the grid's, once it has rested for PANEL_SETTLE_MS. A single move shows
+    // in the panel a few frames later; a held key updates it when the key is released.
+    var panelCursor by remember { mutableStateOf<GuideNav.Cursor?>(null) }
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { cursor }.collectLatest { c ->
+            if (panelCursor != null) kotlinx.coroutines.delay(PANEL_SETTLE_MS)
+            panelCursor = c
+        }
+    }
+
     // Keep the highlighted programme on screen — the least scroll that does it, rows and time alike.
     // Collected from a snapshot flow rather than keyed on the cursor, so this screen's body never reads
     // the cursor during composition: a D-pad move recomposes only the two rows whose highlight changed
@@ -327,7 +350,16 @@ fun EpgScreen(
             val fullyVisible = info.visibleItemsInfo.filter { it.offset >= 0 && it.offset + it.size <= info.viewportEndOffset }
             val firstFull = fullyVisible.firstOrNull()?.index ?: rowListState.firstVisibleItemIndex
             android.os.Trace.endSection()
-            GuideNav.rowScrollTarget(c.row, firstFull, fullyVisible.size)?.let { runCatching { rowListState.scrollToItem(it) } }
+            GuideNav.rowScrollTarget(c.row, firstFull, fullyVisible.size)?.let { target ->
+                // A few rows: scroll by pixels, which lets the list prefetch the rows that follow. A long
+                // jump (paging): go straight to the index.
+                if (kotlin.math.abs(target - firstFull) <= 3) {
+                    val delta = GuideNav.rowScrollDeltaPx(target, rowListState.firstVisibleItemIndex, rowListState.firstVisibleItemScrollOffset, rowStridePx)
+                    runCatching { rowListState.scrollBy(delta.toFloat()) }
+                } else {
+                    runCatching { rowListState.scrollToItem(target) }
+                }
+            }
             val scrollMin = (hScroll.value / pxPerMin).toInt()
             val viewportMin = (hScroll.viewportSize / pxPerMin).toInt()
             GuideNav.timelineScrollTarget(c.timeMs, windowStartNow, scrollMin, viewportMin)
@@ -347,6 +379,10 @@ fun EpgScreen(
 
     val moreFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
+    val jumpNowFocus = remember { FocusRequester() }
+    // A control focus should land on when it next enters the guide from outside (a closing menu or
+    // dialog). The guide's default entry (the grid) must not redirect such a request.
+    var pendingEnter by remember { mutableStateOf<FocusRequester?>(null) }
     fun focusTarget(target: GuideNav.FocusTarget): FocusRequester = when (target) {
         GuideNav.FocusTarget.GRID -> gridFocus
         GuideNav.FocusTarget.MORE_BUTTON -> moreFocus
@@ -364,8 +400,10 @@ fun EpgScreen(
         val closed = menuWasOpen
         menuWasOpen = open
         if (open == null && closed != null) {
+            val target = focusTarget(GuideNav.focusAfterClose(closed))
+            pendingEnter = target
             kotlinx.coroutines.delay(80)
-            runCatching { focusTarget(GuideNav.focusAfterClose(closed)).requestFocus() }
+            runCatching { target.requestFocus() }
         }
     }
 
@@ -380,6 +418,19 @@ fun EpgScreen(
         runCatching { gridFocus.requestFocus() }
     }
 
+    // Back in the grid steps out to the header (press consumed, release acts — so it can't also reach the
+    // shell's Back); Back from the header then leaves the guide as before.
+    var backDown by remember { mutableStateOf(false) }
+    val jumpNowShown = now in state.windowStart..state.windowEnd
+    fun focusHeader() {
+        val target = when (GuideNav.headerTarget(jumpNowShown, guideCategories.isNotEmpty())) {
+            GuideNav.HeaderTarget.JUMP_TO_NOW -> jumpNowFocus
+            GuideNav.HeaderTarget.CATEGORY -> categoryFocus
+            GuideNav.HeaderTarget.MORE -> moreFocus
+        }
+        runCatching { target.requestFocus() }
+    }
+
     // OK is acted on at release, so a long press (channel options) never also opens the programme.
     var okDown by remember { mutableStateOf(false) }
     var okLongPressed by remember { mutableStateOf(false) }
@@ -387,6 +438,11 @@ fun EpgScreen(
         val c = cursor ?: return false
         val channel = rows.getOrNull(c.row) ?: return false
         val isOk = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
+        if (e.key == Key.Back) {
+            if (e.type == KeyEventType.KeyDown) backDown = true
+            else if (e.type == KeyEventType.KeyUp && backDown) { backDown = false; focusHeader() }
+            return true
+        }
         if (e.type == KeyEventType.KeyUp) {
             if (!isOk || !okDown) return false
             okDown = false
@@ -406,6 +462,13 @@ fun EpgScreen(
             Key.DirectionRight -> GuideNav.stepTime(programmesOf(channel), c.timeMs, 1, state.windowStart, state.windowEnd)
                 ?.let { cursor = c.copy(timeMs = it); true } ?: false
             Key.Menu -> { matchChooser = channel; true }
+            // CH+/CH−/Page: a screen of rows at a time — 11k channels are not browsed one row at a time.
+            Key.ChannelUp, Key.PageUp, Key.ChannelDown, Key.PageDown -> {
+                val pages = if (e.key == Key.ChannelUp || e.key == Key.PageUp) -1 else 1
+                val pageSize = (rowListState.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)
+                GuideNav.pageRow(c.row, pages, pageSize, rows.size)?.let { moveTo(it, c.timeMs) }
+                true
+            }
             else -> if (isOk) {
                 if (e.nativeKeyEvent.repeatCount == 0) {
                     okDown = true
@@ -425,7 +488,12 @@ fun EpgScreen(
             .roundedPanel(fillColor = ContentPanelFill)
             // Entry from the sidebar lands on the grid (the cursor already sits on the watched channel).
             .focusProperties {
-                onEnter = { if (rows.isNotEmpty() && !state.loading) runCatching { gridFocus.requestFocus() } }
+                onEnter = {
+                    val pending = pendingEnter
+                    pendingEnter = null
+                    val target = if (pending != null) pending else if (rows.isNotEmpty() && !state.loading) gridFocus else null
+                    target?.let { t -> runCatching { t.requestFocus() } }
+                }
             }
             // Held Up/Down can outrun the guide's row composition and escape this pane
             // (landing on the top bar) — trap vertical exits; Left/Right/Back leave normally.
@@ -445,7 +513,12 @@ fun EpgScreen(
                     val nowState by androidx.compose.runtime.rememberUpdatedState(now)
                     val headerDate by remember(formatHeaderDate) {
                         androidx.compose.runtime.derivedStateOf {
-                            formatHeaderDate(cursor?.timeMs?.takeIf { gridFocused } ?: nowState)
+                            val c = cursor?.takeIf { gridFocused }
+                            val day = c?.let { cur ->
+                                val progs = rows.getOrNull(cur.row)?.let { programmesOf(it) }.orEmpty()
+                                GuideNav.headerDay(GuideNav.programmeAt(progs, cur.timeMs), cur.timeMs)
+                            } ?: nowState
+                            formatHeaderDate(day)
                         }
                     }
                     Text(headerDate, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
@@ -465,7 +538,7 @@ fun EpgScreen(
                 }
             }
             if (now in state.windowStart..state.windowEnd) {
-                OwnTVButton(stringResource(R.string.content_epg_jump_now), onClick = jumpToNow, icon = OwnTVIcon.HISTORY, style = OwnTVButtonStyle.SECONDARY)
+                OwnTVButton(stringResource(R.string.content_epg_jump_now), onClick = jumpToNow, icon = OwnTVIcon.HISTORY, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.focusRequester(jumpNowFocus))
             }
             if (guideCategories.isNotEmpty()) {
                 val catLabel = categoryFilter?.let { key -> guideCategories.firstOrNull { it.key == key }?.name } ?: stringResource(R.string.content_epg_all)
@@ -527,18 +600,17 @@ fun EpgScreen(
                             .onKeyEvent { onGridKey(it) }
                             .focusable(),
                     ) {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), state = rowListState, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), state = rowListState, verticalArrangement = Arrangement.spacedBy(GuideGridDefaults.RowGap)) {
                             itemsIndexed(rows, key = { _, ch -> ch.id }) { index, channel ->
                                 // Each row derives its own highlight: only the rows the cursor leaves and
                                 // enters see a change, so only those two recompose and redraw on a move.
-                                val highlight by remember(index) {
+                                val highlight = remember(index) {
                                     androidx.compose.runtime.derivedStateOf { GuideNav.highlightFor(cursor, gridFocused, index) }
                                 }
                                 GuideRow(
                                     vm = vm,
                                     channel = channel,
-                                    focused = highlight != null,
-                                    highlightTime = highlight,
+                                    highlight = highlight,
                                     measurer = stripMeasurer,
                                     numberFormat = channelNumberFormat,
                                     reminderStarts = remember(reminderSlots, channel.id) { GuideNav.reminderStarts(reminderSlots, channel.id) },
@@ -552,9 +624,10 @@ fun EpgScreen(
                         }
                     }
                 }
-                // The panel reads the cursor itself, so its updates stay inside it.
+                // The panel follows the cursor once it settles (see panelCursor), so a burst of moves
+                // doesn't re-lay out its texts for every programme passed over.
                 GuideDetailsPanel(
-                    cursor = { cursor },
+                    cursor = { panelCursor },
                     rows = rows,
                     now = now,
                     reminderSlots = reminderSlots,
@@ -878,8 +951,8 @@ private fun GuideTimeAxis(windowStart: Long, windowEnd: Long, now: Long, hScroll
 private fun GuideRow(
     vm: EpgViewModel,
     channel: ChannelEntity,
-    focused: Boolean,
-    highlightTime: Long?,
+    // Read only while drawing: a cursor move redraws the two rows involved and recomposes neither.
+    highlight: androidx.compose.runtime.State<Long?>,
     reminderStarts: Set<Long>,
     windowStart: Long,
     windowEnd: Long,
@@ -890,6 +963,8 @@ private fun GuideRow(
     numberFormat: java.text.NumberFormat,
 ) {
     val colors = OwnTVTheme.colors
+    val cellCornerPx = with(LocalDensity.current) { 10.dp.toPx() }
+    val borderPx = with(LocalDensity.current) { tv.own.owntv.ui.theme.LocalFocusBorderWidth.current.toPx() }
     // Cache peek as the initial value → rows render instantly from the batch-loaded cache, no flash, no
     // per-row query. Re-key on cacheRevision so a row re-reads the cache when the background catch-up
     // lookback (pass 2) merges in.
@@ -901,8 +976,19 @@ private fun GuideRow(
         Row(
             modifier = Modifier.width(GuideGridDefaults.ChannelCol).fillMaxHeight().padding(end = 6.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(if (focused) colors.primaryContainer else colors.surfaceContainerHigh)
-                .then(if (focused) Modifier.border(tv.own.owntv.ui.theme.LocalFocusBorderWidth.current, colors.focusBorder, RoundedCornerShape(10.dp)) else Modifier)
+                .drawBehind {
+                    val on = highlight.value != null
+                    drawRoundRect(color = if (on) colors.primaryContainer else colors.surfaceContainerHigh, cornerRadius = androidx.compose.ui.geometry.CornerRadius(cellCornerPx, cellCornerPx))
+                    if (on) {
+                        drawRoundRect(
+                            color = colors.focusBorder,
+                            topLeft = androidx.compose.ui.geometry.Offset(borderPx / 2f, borderPx / 2f),
+                            size = androidx.compose.ui.geometry.Size(size.width - borderPx, size.height - borderPx),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(cellCornerPx, cellCornerPx),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(borderPx),
+                        )
+                    }
+                }
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -916,7 +1002,7 @@ private fun GuideRow(
                         Text(
                             numberFormat.format(number),
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (focused) colors.onPrimaryContainer else colors.primary,
+                            color = colors.primary,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -924,7 +1010,7 @@ private fun GuideRow(
                 Text(
                     channel.name,
                     style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
-                    color = if (focused) colors.onPrimaryContainer else colors.onSurface,
+                    color = colors.onSurface,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -940,7 +1026,7 @@ private fun GuideRow(
                     windowStart = windowStart,
                     windowEnd = windowEnd,
                     now = now,
-                    highlightTime = highlightTime,
+                    highlightTime = { highlight.value },
                     catchupIds = catchupIds,
                     hScroll = hScroll,
                     reminderStarts = reminderStarts,
@@ -1052,7 +1138,7 @@ private fun GuideDetailsPanel(
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
-                    stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_hold_ok_hint),
+                    stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_controls_hint),
                     style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant,
                 )
             }
@@ -1112,3 +1198,6 @@ private fun GuideOptionsDialog(
 
 /** How long the cursor rests on a programme before its synopsis is read from the database. */
 private const val SYNOPSIS_SETTLE_MS = 150L
+
+/** How long the cursor rests before the details panel follows it (it still updates within a few frames). */
+private const val PANEL_SETTLE_MS = 60L

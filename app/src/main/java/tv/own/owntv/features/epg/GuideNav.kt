@@ -49,6 +49,50 @@ internal object GuideNav {
     fun categoryChange(hasLastList: Boolean, fullLoadRunning: Boolean, customCategory: Boolean): CategoryChange =
         if (!hasLastList || fullLoadRunning || customCategory) CategoryChange.FULL_LOAD else CategoryChange.FILTER_LAST_LIST
 
+    // ---- Header access -------------------------------------------------------------------------
+
+    /** The header control Back (from the grid) lands on. */
+    enum class HeaderTarget { JUMP_TO_NOW, CATEGORY, MORE }
+
+    /**
+     * Back in the grid goes to the header — the first header control shown (Jump to Now only exists
+     * while Now is inside the loaded window, Category only when the playlist has categories). A second
+     * Back, from the header, leaves the guide for the menu as before; Down returns to the grid on the
+     * same programme. Up from the first row still reaches the header too.
+     */
+    fun headerTarget(jumpToNowShown: Boolean, categoryShown: Boolean): HeaderTarget = when {
+        jumpToNowShown -> HeaderTarget.JUMP_TO_NOW
+        categoryShown -> HeaderTarget.CATEGORY
+        else -> HeaderTarget.MORE
+    }
+
+    /**
+     * Focus entering the guide from outside goes to [default] (the grid) unless a specific control was
+     * asked for: closing More / Category requests its button, and that request must not be redirected.
+     */
+    fun <T : Any> enterTarget(pending: T?, default: T): T = pending ?: default
+
+    /** CH+/CH−/Page keys: the row one page ([pageSize] rows) away, kept inside the list. */
+    fun pageRow(row: Int, pages: Int, pageSize: Int, rowCount: Int): Int? {
+        if (rowCount <= 0) return null
+        val target = (row + pages * pageSize.coerceAtLeast(1)).coerceIn(0, rowCount - 1)
+        return target.takeIf { it != row }
+    }
+
+    /**
+     * Pixels to scroll the list so its first fully visible row becomes [targetFirst] (rows are uniform).
+     * Scrolling by pixels, unlike a jump to an index, lets the list prefetch the next rows.
+     */
+    fun rowScrollDeltaPx(targetFirst: Int, firstVisibleIndex: Int, firstVisibleOffsetPx: Int, rowStridePx: Int): Int =
+        (targetFirst - firstVisibleIndex) * rowStridePx - firstVisibleOffsetPx
+
+    /**
+     * The day the header shows while browsing: the highlighted programme's start, so a programme that
+     * runs past midnight keeps its own date instead of flipping to the next day mid-programme. With no
+     * programme under the cursor, the cursor's own time.
+     */
+    fun headerDay(programme: EpgProgrammeEntity?, cursorTime: Long): Long = programme?.startMs ?: cursorTime
+
     /** The guide's overlays, and where focus goes when one closes. */
     enum class Overlay { PROGRAMME, CHANNEL_OPTIONS, EPG_MATCH, EPG_OFFSET, MORE, CATEGORY }
 

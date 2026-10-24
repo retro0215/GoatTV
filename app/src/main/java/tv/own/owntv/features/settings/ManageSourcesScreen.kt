@@ -558,6 +558,8 @@ internal fun ConfirmDialog(
     // Button labels; default to Cancel / Delete. Callers whose action isn't a deletion say what it does.
     confirmLabel: String? = null,
     dismissLabel: String? = null,
+    // PRIMARY looks the same focused or not; a choice like Keep / Remove passes SECONDARY.
+    confirmStyle: OwnTVButtonStyle = OwnTVButtonStyle.PRIMARY,
 ) {
     val colors = OwnTVTheme.colors
     val focus = remember { FocusRequester() }
@@ -572,7 +574,7 @@ internal fun ConfirmDialog(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OwnTVButton(dismissLabel ?: stringResource(R.string.common_cancel), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.focusRequester(focus))
                 Spacer(Modifier.weight(1f))
-                OwnTVButton(confirmLabel ?: stringResource(R.string.common_delete), onClick = onConfirm)
+                OwnTVButton(confirmLabel ?: stringResource(R.string.common_delete), onClick = onConfirm, style = confirmStyle)
             }
         }
     }

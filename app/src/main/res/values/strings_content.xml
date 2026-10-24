@@ -596,14 +596,16 @@
     <string name="content_epg_more">More</string>
     <string name="content_epg_updating">Updating guide…</string>
     <!-- Joins the programme facts in the guide details panel; the spaces are part of it. -->
-    <string name="content_epg_details_separator"> · </string>
+    <!-- Joins the programme facts in the guide details panel. Quoted: Android drops unquoted leading and
+         trailing spaces, which ran the facts together ("NOW·12:00 PM"). -->
+    <string name="content_epg_details_separator">" · "</string>
     <string name="content_epg_options_title">Guide options</string>
     <string name="content_epg_show_all_channels">Show all channels</string>
     <string name="content_epg_hide_empty_channels">Hide channels without guide data</string>
     <string name="content_epg_search_channels">Search channels</string>
     <string name="content_epg_empty_hidden">Channels without guide data are hidden</string>
     <string name="content_epg_no_guide_rows">None of these channels has guide data right now.</string>
-    <string name="content_epg_hold_ok_hint">Hold OK for channel options</string>
+    <string name="content_epg_controls_hint">Back for guide menu · Hold OK for channel options</string>
     <string name="content_epg_jump_now">Jump to Now</string>
     <!-- Translators: Programme runtime display. "minutes" is the duration in minutes. "m" is an abbreviation for minutes. -->
     <string name="content_epg_runtime"><xliff:g id="minutes">%1$d</xliff:g>m</string>

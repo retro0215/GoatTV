@@ -43,6 +43,18 @@ internal object GuideCellLayout {
         val bellX = if (bellW > 0f && textRight - left >= bellW) left else null
         if (bellX != null) left += bellW + gap
         val width = textRight - left
-        return Content(bellX, left, if (width >= minText) width else 0f, badgeX)
+        return Content(bellX, left, if (width >= minText) quantize(width, minText) else 0f, badgeX)
     }
+
+    /** Title widths snap down to this step, so a cell clipped at the timeline edge reuses its layout. */
+    const val WIDTH_STEP_PX = 24f
+
+    /**
+     * A clipped cell's width changes with every timeline scroll, and each new width was a fresh text
+     * measurement (a cache miss) for every row on screen. Snapping the width down to [WIDTH_STEP_PX]
+     * makes nearby scroll positions share one layout; the title just ellipsizes up to a step earlier.
+     * Never wider than the space available, never below [minText].
+     */
+    fun quantize(width: Float, minText: Float): Float =
+        (width - width % WIDTH_STEP_PX).coerceAtLeast(minText).coerceAtMost(width)
 }

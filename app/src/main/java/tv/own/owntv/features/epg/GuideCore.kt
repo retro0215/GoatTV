@@ -70,6 +70,7 @@ internal object GuideGridDefaults {
     // Wide enough for the logo, the number and a readable channel name (Phase 3 cut most names short).
     val ChannelCol = 236.dp
     val RowHeight = 64.dp
+    val RowGap = 4.dp
     val PxPerMin = 4.dp
     const val SlotMin = 30
 }
@@ -88,7 +89,9 @@ internal fun ProgrammeStripCanvas(
     windowStart: Long,
     windowEnd: Long,
     now: Long,
-    highlightTime: Long?,
+    // Read while drawing (not composing): moving the cursor redraws the rows it leaves and enters and
+    // recomposes none of them.
+    highlightTime: () -> Long?,
     catchupIds: Set<Long>,
     hScroll: androidx.compose.foundation.ScrollState,
     // Start times (this channel) with a reminder from the active profile: a bell beside their titles.
@@ -131,6 +134,7 @@ internal fun ProgrammeStripCanvas(
     Canvas(Modifier.fillMaxSize()) {
         android.os.Trace.beginSection("GuideRow.draw")
         val scrollPx = hScroll.value.toFloat() // read while drawing: a scroll redraws, it does not recompose
+        val highlight = highlightTime()
         val viewW = size.width
         val h = size.height
         for (p in programmes) {
@@ -141,7 +145,7 @@ internal fun ProgrammeStripCanvas(
             val w = (((e - s) / 60_000f) * pxPerMin - gapPx).coerceAtLeast(0f)
             if (x + w <= 0f || x >= viewW) continue // cull off-screen programmes
             val isNow = now in p.startMs until p.stopMs
-            val hi = highlightTime != null && highlightTime in p.startMs until p.stopMs
+            val hi = highlight != null && highlight in p.startMs until p.stopMs
             val bg = when {
                 hi -> colors.primaryContainer
                 isNow -> colors.primaryContainer.copy(alpha = 0.18f)

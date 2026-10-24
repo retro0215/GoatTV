@@ -57,8 +57,8 @@ fun OwnTVButton(
         focusedScale = 1.012f,
         // M3 tonal: PRIMARY keeps the primary fill; SECONDARY is a tonal surface that lifts to the
         // primary container on focus.
-        unfocusedContainerColor = if (primary) colors.primary else colors.card,
-        focusedContainerColor = if (primary) colors.primary else colors.primaryContainer,
+        unfocusedContainerColor = ownTvButtonContainer(style, focused = false, colors.primary, colors.card, colors.primaryContainer),
+        focusedContainerColor = ownTvButtonContainer(style, focused = true, colors.primary, colors.card, colors.primaryContainer),
         selectedContainerColor = if (primary || selected) colors.primary else colors.card,
         surface = surface,
         glassFrostScale = 0.9f,
@@ -100,4 +100,21 @@ fun OwnTVButton(
             )
         }
     }
+}
+
+/**
+ * A button's fill. PRIMARY is the same accent fill focused or not (focus shows only as the border and
+ * a slight scale), so a PRIMARY button beside a focused SECONDARY one reads as the selected one. Where
+ * the choice must be unambiguous (e.g. Keep / Remove reminder), use SECONDARY for every option.
+ */
+internal fun ownTvButtonContainer(
+    style: OwnTVButtonStyle,
+    focused: Boolean,
+    primary: androidx.compose.ui.graphics.Color,
+    card: androidx.compose.ui.graphics.Color,
+    primaryContainer: androidx.compose.ui.graphics.Color,
+): androidx.compose.ui.graphics.Color = when {
+    style == OwnTVButtonStyle.PRIMARY -> primary
+    focused -> primaryContainer
+    else -> card
 }

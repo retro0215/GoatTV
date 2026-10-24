@@ -94,6 +94,74 @@ class GuideNavTest {
         assertNull(GuideNav.highlightFor(Cursor(3, now), gridFocused = false, row = 3))
     }
 
+    // ---- Header shortcut ----------------------------------------------------------------------------
+
+    @Test fun `back from the grid lands on the first header control shown`() {
+        assertEquals(GuideNav.HeaderTarget.JUMP_TO_NOW, GuideNav.headerTarget(jumpToNowShown = true, categoryShown = true))
+        assertEquals(GuideNav.HeaderTarget.CATEGORY, GuideNav.headerTarget(jumpToNowShown = false, categoryShown = true))
+        assertEquals(GuideNav.HeaderTarget.MORE, GuideNav.headerTarget(jumpToNowShown = false, categoryShown = false))
+    }
+
+    @Test fun `going to the header and back keeps the channel and programme`() {
+        // The header shortcut only moves focus; the cursor is untouched, so Down returns to it.
+        val cursor = Cursor(3612, now + 2 * hour)
+        assertEquals(now + 2 * hour, GuideNav.highlightFor(cursor, gridFocused = true, row = 3612))
+        assertNull("no highlight while the header has focus", GuideNav.highlightFor(cursor, gridFocused = false, row = 3612))
+    }
+
+    @Test fun `a pending focus request wins over the grid's default entry`() {
+        assertEquals("more", GuideNav.enterTarget("more", "grid"))
+        assertEquals("grid", GuideNav.enterTarget(null, "grid"))
+    }
+
+    @Test fun `channel up and down move a page of rows and stop at the ends`() {
+        assertEquals(17, GuideNav.pageRow(10, 1, 7, 100))
+        assertEquals(3, GuideNav.pageRow(10, -1, 7, 100))
+        assertEquals(0, GuideNav.pageRow(3, -1, 7, 100))
+        assertEquals(99, GuideNav.pageRow(95, 1, 7, 100))
+        assertNull(GuideNav.pageRow(0, -1, 7, 100))
+        assertNull(GuideNav.pageRow(0, 1, 7, 0))
+    }
+
+    // ---- Rapid navigation ---------------------------------------------------------------------------
+
+    @Test fun `scrolling one row is one row stride in pixels`() {
+        assertEquals(68, GuideNav.rowScrollDeltaPx(targetFirst = 5, firstVisibleIndex = 4, firstVisibleOffsetPx = 0, rowStridePx = 68))
+        assertEquals(-68, GuideNav.rowScrollDeltaPx(targetFirst = 3, firstVisibleIndex = 4, firstVisibleOffsetPx = 0, rowStridePx = 68))
+        assertEquals(48, GuideNav.rowScrollDeltaPx(targetFirst = 5, firstVisibleIndex = 4, firstVisibleOffsetPx = 20, rowStridePx = 68))
+    }
+
+    @Test fun `a held Down scrolls the list one row at a time and keeps the cursor on screen`() {
+        val visible = 6
+        var first = 0
+        var row = 0
+        repeat(500) {
+            row = GuideNav.stepRow(row, 1, 11250) ?: row
+            GuideNav.rowScrollTarget(row, first, visible)?.let { target ->
+                assertEquals("each step scrolls by exactly one row", 1, target - first)
+                first = target
+            }
+            assertTrue(row in first until first + visible)
+        }
+        assertEquals(500, row)
+    }
+
+    @Test fun `a burst of Right presses never runs past the end of the window`() {
+        var t = now
+        repeat(100) { GuideNav.stepTime(hourly, t, 1, windowStart, windowEnd)?.let { next -> assertTrue(next > t); t = next } }
+        assertTrue(t < windowEnd)
+    }
+
+    // ---- Midnight -----------------------------------------------------------------------------------
+
+    @Test fun `a programme running past midnight keeps its own day in the header`() {
+        val day = 24 * hour
+        val lateShow = prog(windowStart + 22 * hour, windowStart + day + hour + 30 * min) // 22:00 to 01:30
+        val cursorAfterMidnight = windowStart + day + 20 * min
+        assertEquals(lateShow.startMs, GuideNav.headerDay(lateShow, cursorAfterMidnight))
+        assertEquals(cursorAfterMidnight, GuideNav.headerDay(null, cursorAfterMidnight))
+    }
+
     // ---- Dialog focus restoration -------------------------------------------------------------------
 
     @Test fun `closing a dialog returns focus to what opened it`() {

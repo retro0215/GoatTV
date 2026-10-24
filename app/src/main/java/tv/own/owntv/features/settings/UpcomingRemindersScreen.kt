@@ -104,6 +104,11 @@ fun UpcomingRemindersScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             onDismiss = { confirmCancel = null },
             confirmLabel = stringResource(R.string.content_reminder_remove),
             dismissLabel = stringResource(R.string.content_reminder_keep),
+            // Both options neutral: only the focused one lights up (a filled Remove looked selected).
+            confirmStyle = REMOVE_REMINDER_CONFIRM_STYLE,
         )
     }
 }
+
+/** Style of the Remove button in the remove-reminder dialog (Keep is SECONDARY already). */
+internal val REMOVE_REMINDER_CONFIRM_STYLE = tv.own.owntv.ui.components.OwnTVButtonStyle.SECONDARY
