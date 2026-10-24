@@ -49,6 +49,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusGroup
@@ -272,6 +277,10 @@ fun EpgScreen(
 
     // ---- Row data (off the main thread), logos, the shared renderer ----------------------------------
     val rowStore = remember { GuideRowStore() }
+    // Cell texts measured off the UI thread for the rows in view (bounded; see GuideRowRenderer.prepareTexts).
+    val textStore = remember { KeyedStates<Long, GuideRowTexts>(ROW_TEXT_ROWS) }
+    // The guide's one text thread: text layout for rows and the details panel runs here, in order.
+    val textDispatcher = remember { kotlinx.coroutines.Dispatchers.Default.limitedParallelism(1) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val logoSizePx = with(density) { 48.dp.roundToPx() }
     val logoCache = remember(logoSizePx) { GuideLogoCache(context.applicationContext, logoSizePx) }
@@ -334,11 +343,18 @@ fun EpgScreen(
     // cache (one indexed query the first time a channel has none), catch-up ids on a background thread,
     // logos through the shared image loader. A row is drawn the moment its data lands; nothing is composed
     // ahead. Re-runs on a new list or cache revision; data from an older revision is refreshed in place.
+    val renderer = androidx.compose.runtime.rememberUpdatedState(rowRenderer)
     LaunchedEffect(rows, cacheRevision, state.windowStart) {
         androidx.compose.runtime.snapshotFlow {
             val info = rowListState.layoutInfo
-            (info.visibleItemsInfo.firstOrNull()?.index ?: rowListState.firstVisibleItemIndex) to info.visibleItemsInfo.size
-        }.collectLatest { (first, visible) ->
+            val viewportMin = (hScroll.viewportSize / pxPerMin).toInt()
+            listOf(
+                info.visibleItemsInfo.firstOrNull()?.index ?: rowListState.firstVisibleItemIndex,
+                info.visibleItemsInfo.size,
+                GuideNav.timelineBucket((hScroll.value / pxPerMin).toInt()),
+                viewportMin,
+            )
+        }.collectLatest { (first, visible, bucket, viewportMin) ->
             val list = rowsState.value
             if (list.isEmpty()) return@collectLatest
             val order = GuideNav.prepOrder(first, visible.coerceAtLeast(1), ROW_PREP_MARGIN, list.size)
@@ -346,12 +362,23 @@ fun EpgScreen(
                 for (i in order) {
                     val ch = list[i]
                     ch.logoUrl?.let { url -> if (logoCache[url] == null) launch { logoCache.load(url) } }
-                    if (rowStore.isCurrent(ch.id, cacheRevision)) continue
-                    val progs = vm.cachedProgrammes(ch) ?: vm.programmesFor(ch)
-                    val data = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                        GuideNav.prepareRow(ch, progs, System.currentTimeMillis(), cacheRevision)
+                    if (!rowStore.isCurrent(ch.id, cacheRevision)) {
+                        val progs = vm.cachedProgrammes(ch) ?: vm.programmesFor(ch)
+                        val data = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                            GuideNav.prepareRow(ch, progs, System.currentTimeMillis(), cacheRevision)
+                        }
+                        rowStore.put(data)
                     }
-                    rowStore.put(data)
+                    // Cell texts for rows in view (and one either side), for this part of the timeline.
+                    if (i !in (first - 1)..(first + visible) || viewportMin <= 0) continue
+                    val key = GuideNav.textKey(cacheRevision, bucket)
+                    if (textStore[ch.id]?.key == key) continue
+                    val data = rowStore[ch.id] ?: continue
+                    val (from, to) = GuideNav.textSpan(state.windowStart, bucket, viewportMin)
+                    val texts = kotlinx.coroutines.withContext(textDispatcher) {
+                        renderer.value.prepareTexts(data, from, to, System.currentTimeMillis(), state.windowStart, state.windowEnd, key)
+                    }
+                    textStore.put(ch.id, texts)
                 }
             }
         }
@@ -363,16 +390,6 @@ fun EpgScreen(
         kotlinx.coroutines.delay(80)
         runCatching { gridFocus.requestFocus() }
         onRestored()
-    }
-
-    // The details panel's cursor: the grid's, once it has rested for PANEL_SETTLE_MS. A single move shows
-    // in the panel a few frames later; a held key updates it when the key is released.
-    var panelCursor by remember { mutableStateOf<GuideNav.Cursor?>(null) }
-    LaunchedEffect(Unit) {
-        androidx.compose.runtime.snapshotFlow { cursor }.collectLatest { c ->
-            if (panelCursor != null) kotlinx.coroutines.delay(PANEL_SETTLE_MS)
-            panelCursor = c
-        }
     }
 
     // Keep the highlighted programme on screen — the least scroll that does it, rows and time alike.
@@ -660,55 +677,59 @@ fun EpgScreen(
                                 val reminderStarts = remember(channel.id) {
                                     androidx.compose.runtime.derivedStateOf { GuideNav.reminderStarts(reminderSlotsState.value, channel.id) }
                                 }
-                                Box(Modifier.fillMaxWidth().height(GuideGridDefaults.RowHeight)) {
-                                    // Static content in its own cached layer: re-recorded when this row's data,
-                                    // logo or reminders change, or the timeline scrolls / the clock ticks — not
-                                    // when the cursor moves.
-                                    androidx.compose.foundation.Canvas(Modifier.matchParentSize().graphicsLayer()) {
-                                        with(rowRenderer) {
-                                            drawRowBase(
-                                                channel = channel,
-                                                numberText = numberText,
-                                                categoryDot = dot,
-                                                logo = logo?.value,
-                                                data = rowData.value,
-                                                now = nowState.longValue,
-                                                scrollPx = hScroll.value.toFloat(),
-                                                windowStart = windowStart,
-                                                windowEnd = windowEnd,
-                                                reminderStarts = reminderStarts.value,
-                                            )
+                                val texts = remember(channel.id) { textStore.state(channel.id) }
+                                // One layout node per row. The focus overlay (outer) is drawn over the row's
+                                // static content, which sits in its own cached layer (inner): a cursor move
+                                // re-records only the overlay of the two rows involved; data, logo, reminder,
+                                // scroll and clock changes re-record only this row's base.
+                                Spacer(
+                                    Modifier.fillMaxWidth().height(GuideGridDefaults.RowHeight)
+                                        .drawWithContent {
+                                            drawContent()
+                                            val hl = highlight.value ?: return@drawWithContent
+                                            with(rowRenderer) {
+                                                drawRowFocus(
+                                                    channel = channel,
+                                                    numberText = numberText,
+                                                    categoryDot = dot,
+                                                    logo = logo?.value,
+                                                    data = rowData.value,
+                                                    highlight = hl,
+                                                    now = nowState.longValue,
+                                                    scrollPx = hScroll.value.toFloat(),
+                                                    windowStart = windowStart,
+                                                    windowEnd = windowEnd,
+                                                    reminderStarts = reminderStarts.value,
+                                                    texts = texts.value,
+                                                )
+                                            }
                                         }
-                                    }
-                                    // Focus overlay: only the focused channel cell and programme cell. Rows
-                                    // without the cursor read nothing else, so scrolls and data don't touch them.
-                                    androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
-                                        val hl = highlight.value ?: return@Canvas
-                                        with(rowRenderer) {
-                                            drawRowFocus(
-                                                channel = channel,
-                                                numberText = numberText,
-                                                categoryDot = dot,
-                                                logo = logo?.value,
-                                                data = rowData.value,
-                                                highlight = hl,
-                                                now = nowState.longValue,
-                                                scrollPx = hScroll.value.toFloat(),
-                                                windowStart = windowStart,
-                                                windowEnd = windowEnd,
-                                                reminderStarts = reminderStarts.value,
-                                            )
-                                        }
-                                    }
-                                }
+                                        .graphicsLayer()
+                                        .drawBehind {
+                                            with(rowRenderer) {
+                                                drawRowBase(
+                                                    channel = channel,
+                                                    numberText = numberText,
+                                                    categoryDot = dot,
+                                                    logo = logo?.value,
+                                                    data = rowData.value,
+                                                    now = nowState.longValue,
+                                                    scrollPx = hScroll.value.toFloat(),
+                                                    windowStart = windowStart,
+                                                    windowEnd = windowEnd,
+                                                    reminderStarts = reminderStarts.value,
+                                                    texts = texts.value,
+                                                )
+                                            }
+                                        },
+                                )
                             }
                         }
                     }
                 }
-                // The panel follows the cursor once it settles (see panelCursor), so a burst of moves
-                // doesn't re-lay out its texts for every programme passed over.
+                // The panel reads the cursor only in its own collector and updates once it settles.
                 GuideDetailsPanel(
-                    cursor = { panelCursor },
+                    cursor = { cursor },
                     rows = rows,
                     programmesOf = { programmesOf(it) },
                     now = now,
@@ -716,6 +737,7 @@ fun EpgScreen(
                     hiddenEmpty = hiddenEmpty,
                     vm = vm,
                     cacheRevision = cacheRevision,
+                    textDispatcher = textDispatcher,
                 )
             }
         }
@@ -1032,8 +1054,13 @@ private fun CenterBox(content: @Composable androidx.compose.foundation.layout.Co
 
 /**
  * Details for the programme under the cursor (and what follows it on that channel). Never focusable —
- * the grid keeps the D-pad; OK opens the full dialog. Reads the row cache only, plus one description
- * lookup per highlighted programme.
+ * the grid keeps the D-pad; OK opens the full dialog.
+ *
+ * On the onn this panel's six Text composables re-measured on every cursor move (~13-15 ms of rebuild
+ * plus text measurement inside the move's frame). Now: the cursor is read only in a collector, never
+ * while composing; the panel waits for the cursor to settle (see [GuideNav.panelSettleMs]); its texts
+ * are laid out on the guide's text thread; and the panel is one Canvas that only draws those layouts.
+ * The synopsis (a database read) is fetched once the cursor rests on a programme.
  */
 @Composable
 private fun GuideDetailsPanel(
@@ -1046,66 +1073,157 @@ private fun GuideDetailsPanel(
     hiddenEmpty: Boolean,
     vm: EpgViewModel,
     cacheRevision: Int,
+    textDispatcher: kotlinx.coroutines.CoroutineDispatcher,
 ) {
     val colors = OwnTVTheme.colors
+    val typography = MaterialTheme.typography
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val fontResolver = androidx.compose.ui.platform.LocalFontFamilyResolver.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val formatTime = rememberSystemTimeFormatter()
-    val c = cursor()
-    val channel = c?.row?.let { rows.getOrNull(it) }
-    val cursorTime = c?.timeMs ?: now
-    val programmes = channel?.let { programmesOf(it) }.orEmpty()
-    val reminderStarts = remember(reminderSlots, channel?.id) { channel?.let { GuideNav.reminderStarts(reminderSlots, it.id) }.orEmpty() }
-    val programme = remember(programmes, cursorTime) { GuideNav.programmeAt(programmes, cursorTime) }
-    val next = remember(programmes, programme) { GuideNav.nextAfter(programmes, programme) }
-    // The synopsis is a database read: wait until the cursor rests on a programme, so a run of D-pad
-    // presses does not queue a lookup (and a relayout) per programme passed over.
-    val synopsis by produceState<String?>(null, programme?.id) {
-        value = programme?.description
-        if (programme == null || programme.description != null) return@produceState
-        kotlinx.coroutines.delay(SYNOPSIS_SETTLE_MS)
-        value = vm.programmeDescription(programme.id)
+    val rangeTemplate = stringResource(R.string.content_epg_time_range)
+    val strings = GuideNav.PanelStrings(
+        nowLabel = stringResource(R.string.content_live_now_label),
+        catchup = stringResource(R.string.content_epg_catchup),
+        reminderSet = stringResource(R.string.content_reminder_active),
+        separator = stringResource(R.string.content_epg_details_separator),
+        noProgramme = stringResource(R.string.content_epg_no_programme),
+        hint = stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_controls_hint),
+        range = { a, b -> String.format(java.util.Locale.ROOT, rangeTemplate, formatTime(a), formatTime(b)) },
+        runtime = { m -> context.resources.getString(R.string.content_epg_runtime, m) },
+        nextLabel = { t -> context.resources.getString(R.string.content_live_next_label, formatTime(t)) },
+    )
+    val styles = remember(colors, typography) { PanelStyles(colors, typography) }
+    // Used only on the guide's text thread (a TextMeasurer is not thread-safe).
+    val measurer = remember(fontResolver, density, layoutDirection) {
+        androidx.compose.ui.text.TextMeasurer(fontResolver, density, layoutDirection, 0)
     }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(104.dp)
-            .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHigh)
-            .padding(horizontal = 18.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        val p = programme
-        if (p == null || channel == null) {
-            Text(
-                stringResource(R.string.content_epg_no_programme),
-                style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f),
+    val padH = with(density) { 18.dp.toPx() }
+    val padV = with(density) { 12.dp.toPx() }
+    val gap = with(density) { 24.dp.toPx() }
+    val rightMax = with(density) { 320.dp.toPx() }
+
+    var widthPx by remember { mutableIntStateOf(0) }
+    var layout by remember { mutableStateOf<PanelLayout?>(null) }
+    // Everything except the cursor that changes what the panel shows; read only by the collector below.
+    val inputs = androidx.compose.runtime.rememberUpdatedState(PanelInputs(rows, now, reminderSlots, cacheRevision, strings))
+
+    LaunchedEffect(Unit) {
+        var lastCursor: GuideNav.Cursor? = null
+        var lastMoveAt = 0L
+        androidx.compose.runtime.snapshotFlow { Triple(cursor(), widthPx, inputs.value) }.collectLatest { (c, w, inp) ->
+            val t = android.os.SystemClock.uptimeMillis()
+            if (c != lastCursor) {
+                val since = t - lastMoveAt
+                lastCursor = c
+                lastMoveAt = t
+                if (layout != null) kotlinx.coroutines.delay(GuideNav.panelSettleMs(since))
+            }
+            if (w <= 0) return@collectLatest
+            val channel = c?.row?.let { inp.rows.getOrNull(it) }
+            val programmes = channel?.let { programmesOf(it) }.orEmpty()
+            val reminderStarts = channel?.let { GuideNav.reminderStarts(inp.reminderSlots, it.id) }.orEmpty()
+            val text = GuideNav.panelText(
+                programmes, c?.timeMs ?: inp.now, inp.now, reminderStarts,
+                canCatchup = { p -> channel != null && vm.canCatchup(channel, p, inp.now) },
+                synopsis = null, hint = inp.strings.hint, strings = inp.strings,
             )
-        } else {
-            Column(Modifier.weight(1f)) {
-                val onAir = now in p.startMs until p.stopMs
-                val runtimeMin = ((p.stopMs - p.startMs) / 60_000L).coerceAtLeast(0L).toInt()
-                val bits = listOfNotNull(
-                    if (onAir) stringResource(R.string.content_live_now_label) else null,
-                    stringResource(R.string.content_epg_time_range, formatTime(p.startMs), formatTime(p.stopMs)),
-                    runtimeMin.takeIf { it > 0 }?.let { stringResource(R.string.content_epg_runtime, it) },
-                    stringResource(R.string.content_epg_catchup).takeIf { vm.canCatchup(channel, p, now) },
-                    stringResource(R.string.content_reminder_active).takeIf { p.startMs in reminderStarts },
-                ).joinToString(stringResource(R.string.content_epg_details_separator))
-                Text(bits, style = MaterialTheme.typography.labelMedium, color = if (onAir) colors.primary else colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(p.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                synopsis?.takeIf { it.isNotBlank() }?.let { s ->
-                    Text(s, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            Column(Modifier.widthIn(max = 320.dp), horizontalAlignment = Alignment.End) {
-                next?.let { n ->
-                    Text(stringResource(R.string.content_live_next_label, formatTime(n.startMs)), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                    Text(n.title, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.weight(1f))
-                Text(
-                    stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_controls_hint),
-                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant,
-                )
-            }
+            layout = kotlinx.coroutines.withContext(textDispatcher) { layoutPanel(text, w, measurer, styles, padH, gap, rightMax, inp.strings.separator) }
+            // The synopsis is a database read: only once the cursor has rested on this programme.
+            val id = text.programmeId ?: return@collectLatest
+            if (text.synopsis != null) return@collectLatest
+            kotlinx.coroutines.delay(SYNOPSIS_SETTLE_MS)
+            val synopsis = vm.programmeDescription(id)?.takeIf { it.isNotBlank() } ?: return@collectLatest
+            layout = kotlinx.coroutines.withContext(textDispatcher) { layoutPanel(text.copy(synopsis = synopsis), w, measurer, styles, padH, gap, rightMax, inp.strings.separator) }
         }
     }
+
+    val description = layout?.description.orEmpty()
+    androidx.compose.foundation.Canvas(
+        Modifier.fillMaxWidth().padding(top = 10.dp).height(104.dp)
+            .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHigh)
+            .onSizeChanged { widthPx = it.width }
+            // Drawn text has no semantics of its own; screen readers get the panel as one description.
+            .semantics { contentDescription = description },
+    ) {
+        val l = layout ?: return@Canvas
+        var y = padV
+        for (t in listOfNotNull(l.bits, l.title, l.synopsis)) {
+            drawText(t, topLeft = androidx.compose.ui.geometry.Offset(padH, y))
+            y += t.size.height
+        }
+        var ry = padV
+        for (t in listOfNotNull(l.nextLabel, l.nextTitle)) {
+            drawText(t, topLeft = androidx.compose.ui.geometry.Offset(size.width - padH - t.size.width, ry))
+            ry += t.size.height
+        }
+        l.hint?.let { t ->
+            drawText(t, topLeft = androidx.compose.ui.geometry.Offset(size.width - padH - t.size.width, size.height - padV - t.size.height))
+        }
+    }
+}
+
+/** What the panel shows besides the cursor (see GuideDetailsPanel). */
+private data class PanelInputs(
+    val rows: List<ChannelEntity>,
+    val now: Long,
+    val reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
+    val cacheRevision: Int,
+    val strings: GuideNav.PanelStrings,
+)
+
+/** The panel's laid-out texts (null = not shown). */
+private class PanelLayout(
+    val bits: androidx.compose.ui.text.TextLayoutResult?,
+    val title: androidx.compose.ui.text.TextLayoutResult,
+    val synopsis: androidx.compose.ui.text.TextLayoutResult?,
+    val nextLabel: androidx.compose.ui.text.TextLayoutResult?,
+    val nextTitle: androidx.compose.ui.text.TextLayoutResult?,
+    val hint: androidx.compose.ui.text.TextLayoutResult?,
+    val description: String,
+)
+
+private class PanelStyles(colors: tv.own.owntv.ui.theme.OwnTVColors, typography: androidx.tv.material3.Typography) {
+    val bits = typography.labelMedium.copy(color = colors.onSurfaceVariant)
+    val bitsOnAir = typography.labelMedium.copy(color = colors.primary)
+    val title = typography.titleMedium.copy(color = colors.onSurface)
+    val synopsis = typography.bodySmall.copy(color = colors.onSurfaceVariant)
+    val nextLabel = typography.labelMedium.copy(color = colors.onSurfaceVariant, fontWeight = FontWeight.Bold)
+    val nextTitle = typography.bodyMedium.copy(color = colors.onSurface)
+    val hint = typography.labelSmall.copy(color = colors.onSurfaceVariant)
+    val empty = typography.bodyMedium.copy(color = colors.onSurfaceVariant)
+}
+
+/** Lays out the panel's texts for a panel [widthPx] wide. Runs on the guide's text thread. */
+private fun layoutPanel(
+    text: GuideNav.PanelText,
+    widthPx: Int,
+    measurer: androidx.compose.ui.text.TextMeasurer,
+    styles: PanelStyles,
+    padH: Float,
+    gap: Float,
+    rightMax: Float,
+    // Joins the parts of the screen-reader description (the localized details separator).
+    separator: String,
+): PanelLayout {
+    val inner = (widthPx - padH * 2f).coerceAtLeast(1f)
+    fun m(s: String, style: androidx.compose.ui.text.TextStyle, maxW: Float, lines: Int = 1) =
+        measurer.measure(s, style, overflow = TextOverflow.Ellipsis, maxLines = lines, constraints = Constraints(maxWidth = maxW.toInt().coerceAtLeast(1)))
+    if (text.programmeId == null) {
+        return PanelLayout(null, m(text.title, styles.empty, inner), null, null, null, null, text.title)
+    }
+    val rightW = minOf(rightMax, inner / 3f)
+    val leftW = (inner - rightW - gap).coerceAtLeast(1f)
+    return PanelLayout(
+        bits = text.bits.takeIf { it.isNotEmpty() }?.let { m(it, if (text.onAir) styles.bitsOnAir else styles.bits, leftW) },
+        title = m(text.title, styles.title, leftW),
+        synopsis = text.synopsis?.takeIf { it.isNotBlank() }?.let { m(it, styles.synopsis, leftW, lines = 2) },
+        nextLabel = text.nextLabel?.let { m(it, styles.nextLabel, rightW) },
+        nextTitle = text.nextTitle?.let { m(it, styles.nextTitle, rightW) },
+        hint = m(text.hint, styles.hint, rightW),
+        description = listOfNotNull(text.title, text.bits, text.nextLabel, text.nextTitle).joinToString(separator),
+    )
 }
 
 /**
@@ -1161,8 +1279,8 @@ private fun GuideOptionsDialog(
 /** How long the cursor rests on a programme before its synopsis is read from the database. */
 private const val SYNOPSIS_SETTLE_MS = 150L
 
-/** How long the cursor rests before the details panel follows it (it still updates within a few frames). */
-private const val PANEL_SETTLE_MS = 60L
-
 /** Rows prepared beyond the screen on each side (data only — nothing is composed ahead). */
 private const val ROW_PREP_MARGIN = 6
+
+/** Rows whose cell texts are kept prepared (the rows in view plus a margin). */
+private const val ROW_TEXT_ROWS = 24

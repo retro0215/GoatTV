@@ -362,6 +362,7 @@
 1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.base
 1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.focus
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	🔔
+1	empty	app/src/main/java/tv/own/owntv/features/epg/GuideNav.kt	\0
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_RESUMED channelId=$id name=${channelNames[id]}

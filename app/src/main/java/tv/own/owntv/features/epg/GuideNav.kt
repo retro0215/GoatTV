@@ -196,6 +196,82 @@ internal object GuideNav {
         val armed: T? get() = target
     }
 
+    // ---- Details panel and text preparation ---------------------------------------------------------
+
+    /** Moves closer together than this are a held or rapid remote: the panel waits for a pause. */
+    const val RAPID_MOVE_MS = 250L
+
+    /**
+     * How long the details panel waits after a cursor move before it updates. A single move shows within
+     * a few frames (in its own frame, after the move's frame); while the remote is held or pressed rapidly
+     * the panel waits for a pause, so it is not re-laid out for every programme passed over.
+     */
+    fun panelSettleMs(sinceLastMoveMs: Long): Long = if (sinceLastMoveMs < RAPID_MOVE_MS) 200L else 40L
+
+    /** The texts and wording the panel needs, resolved from resources by the screen. */
+    class PanelStrings(
+        val nowLabel: String,
+        val catchup: String,
+        val reminderSet: String,
+        val separator: String,
+        val noProgramme: String,
+        val hint: String,
+        val range: (Long, Long) -> String,
+        val runtime: (Int) -> String,
+        val nextLabel: (Long) -> String,
+    )
+
+    /** What the details panel shows: plain strings, laid out off the UI thread. */
+    data class PanelText(
+        val programmeId: Long?,
+        val bits: String,
+        val title: String,
+        val synopsis: String?,
+        val nextLabel: String?,
+        val nextTitle: String?,
+        val hint: String,
+        val onAir: Boolean,
+    )
+
+    /** The panel for [cursorTime] on a row of [programmes] — the programme the cursor highlights, and the next one. */
+    fun panelText(
+        programmes: List<EpgProgrammeEntity>,
+        cursorTime: Long,
+        now: Long,
+        reminderStarts: Set<Long>,
+        canCatchup: (EpgProgrammeEntity) -> Boolean,
+        synopsis: String?,
+        hint: String,
+        strings: PanelStrings,
+    ): PanelText {
+        val p = programmeAt(programmes, cursorTime)
+            ?: return PanelText(null, "", strings.noProgramme, null, null, null, hint, false)
+        val onAir = now in p.startMs until p.stopMs
+        val runtimeMin = ((p.stopMs - p.startMs) / 60_000L).coerceAtLeast(0L).toInt()
+        val bits = listOfNotNull(
+            strings.nowLabel.takeIf { onAir },
+            strings.range(p.startMs, p.stopMs),
+            runtimeMin.takeIf { it > 0 }?.let(strings.runtime),
+            strings.catchup.takeIf { canCatchup(p) },
+            strings.reminderSet.takeIf { p.startMs in reminderStarts },
+        ).joinToString(strings.separator)
+        val next = nextAfter(programmes, p)
+        return PanelText(p.id, bits, p.title, synopsis ?: p.description, next?.let { strings.nextLabel(it.startMs) }, next?.title, hint, onAir)
+    }
+
+    /** The timeline hour the view is in; row texts are prepared per bucket (see [textKey]). */
+    fun timelineBucket(scrollMinutes: Int): Int = scrollMinutes / 60
+
+    /** The time span whose cell texts are prepared for [bucket]: the view, an hour behind and two ahead. */
+    fun textSpan(windowStart: Long, bucket: Int, viewportMinutes: Int): Pair<Long, Long> {
+        val from = windowStart + (bucket * 60L - 60L) * 60_000L
+        val to = windowStart + (bucket * 60L + viewportMinutes + 120L) * 60_000L
+        return from to to
+    }
+
+    /** Identifies prepared texts: a newer data revision or another timeline bucket means they're redone. */
+    fun textKey(revision: Int, bucket: Int): Long = (revision.toLong() shl 32) or (bucket.toLong() and 0xffffffffL)
+
     /** The guide's overlays, and where focus goes when one closes. */
     enum class Overlay { PROGRAMME, CHANNEL_OPTIONS, EPG_MATCH, EPG_OFFSET, MORE, CATEGORY }
 

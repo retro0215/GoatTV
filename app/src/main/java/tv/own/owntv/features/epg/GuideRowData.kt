@@ -83,3 +83,18 @@ internal class GuideRowStore(maxRows: Int = 240) {
 
     val size: Int get() = states.loadedCount
 }
+
+/** A cell's title and time label, measured off the UI thread at its fully visible width. */
+internal class GuideCellText(
+    val width: Int,
+    /** Whether the label was built with the on-air ("NOW") prefix; a cell that has since changed is re-measured. */
+    val labelNow: Boolean,
+    val title: androidx.compose.ui.text.TextLayoutResult,
+    val time: androidx.compose.ui.text.TextLayoutResult,
+)
+
+/**
+ * A row's prepared cell texts for the part of the timeline in view. [key] identifies what they were
+ * prepared for (data revision and timeline bucket) — see [GuideNav.textKey].
+ */
+internal class GuideRowTexts(val key: Long, val cells: Map<Long, GuideCellText>)

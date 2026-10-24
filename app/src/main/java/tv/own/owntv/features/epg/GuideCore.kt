@@ -101,6 +101,10 @@ internal class GuideRowRenderer(
     private val timeRangeTemplate: String,
     private val nowTemplate: String,
     focusBorder: androidx.compose.ui.unit.Dp,
+    // Background text preparation (see prepareTexts): its own measurer and time formatter, used only on
+    // the guide's single text thread — neither the shared measurer nor the UI formatter is thread-safe.
+    private val bgMeasurer: androidx.compose.ui.text.TextMeasurer,
+    private val bgFormatTime: (Long) -> String,
 ) {
     private val pxPerMin = with(density) { GuideGridDefaults.PxPerMin.toPx() }
     private val channelColPx = with(density) { GuideGridDefaults.ChannelCol.toPx() }
@@ -145,6 +149,44 @@ internal class GuideRowRenderer(
     }
 
     /**
+     * Measures the titles and time labels of [data]'s programmes that overlap [viewFrom]..[viewTo], at the
+     * width their cell has when fully on screen. Runs on the guide's text thread, never the UI thread: on
+     * the onn, measuring cell text while drawing was most of a row's ~26 ms base redraw. Cells clipped at
+     * the timeline edge, or carrying a bell, have other widths and are still measured while drawing.
+     */
+    fun prepareTexts(data: GuideRowData, viewFrom: Long, viewTo: Long, now: Long, windowStart: Long, windowEnd: Long, key: Long): GuideRowTexts {
+        val cells = HashMap<Long, GuideCellText>()
+        for (i in data.programmes.indices) {
+            val p = data.programmes[i]
+            if (p.stopMs <= viewFrom || data.drawStarts[i] >= viewTo) continue
+            val s = data.drawStarts[i].coerceIn(windowStart, windowEnd)
+            val e = p.stopMs.coerceIn(windowStart, windowEnd)
+            if (e <= s) continue
+            val w = (((e - s) / 60_000f) * pxPerMin - gapPx).coerceAtLeast(0f)
+            val width = fullCellTextWidth(w, hasBadge = p.id in data.catchupIds)
+            if (width <= 0) continue
+            val isNow = now in p.startMs until p.stopMs
+            val labelText = String.format(java.util.Locale.ROOT, timeRangeTemplate, bgFormatTime(p.startMs), bgFormatTime(p.stopMs))
+                .let { if (isNow) String.format(java.util.Locale.ROOT, nowTemplate, it) else it }
+            val c = Constraints(maxWidth = width)
+            cells[p.id] = GuideCellText(
+                width = width,
+                labelNow = isNow,
+                title = bgMeasurer.measure(p.title, title, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = c),
+                time = bgMeasurer.measure(labelText, time, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = c),
+            )
+        }
+        return GuideRowTexts(key, cells)
+    }
+
+    /** The text width of a fully visible cell of width [cellW] (no bell; the catch-up badge if any). */
+    private fun fullCellTextWidth(cellW: Float, hasBadge: Boolean): Int =
+        GuideCellLayout.layout(
+            cellX = 0f, cellW = cellW, viewW = Float.MAX_VALUE, pad = padPx, gap = iconGapPx,
+            bellW = 0f, badgeW = if (hasBadge) catchupGlyph.size.width.toFloat() else 0f, minText = minTextPx,
+        ).textWidth.toInt()
+
+    /**
      * The row's static content: channel cell, every programme cell (unfocused) and the now marker. Drawn
      * into the row's own cached layer, so it is re-recorded only when this row's data, logo, reminders,
      * the timeline scroll or the clock change — never by a focus move.
@@ -160,6 +202,7 @@ internal class GuideRowRenderer(
         windowStart: Long,
         windowEnd: Long,
         reminderStarts: Set<Long>,
+        texts: GuideRowTexts? = null,
     ) {
         android.os.Trace.beginSection("GuideRow.base")
         drawChannelCell(channel, numberText, categoryDot, logo, focused = false)
@@ -167,7 +210,7 @@ internal class GuideRowRenderer(
         if (data != null && stripW > 0f) {
             inStrip {
                 for (i in data.programmes.indices) {
-                    drawCell(data, i, hi = false, now, scrollPx, windowStart, windowEnd, stripW, reminderStarts)
+                    drawCell(data, i, hi = false, now, scrollPx, windowStart, windowEnd, stripW, reminderStarts, texts)
                 }
                 drawNowLine(now, scrollPx, windowStart, windowEnd, stripW)
             }
@@ -192,6 +235,7 @@ internal class GuideRowRenderer(
         windowStart: Long,
         windowEnd: Long,
         reminderStarts: Set<Long>,
+        texts: GuideRowTexts? = null,
     ) {
         if (highlight == null) return
         android.os.Trace.beginSection("GuideRow.focus")
@@ -200,7 +244,7 @@ internal class GuideRowRenderer(
         val i = data?.let { GuideCellLayout.cellAt(it.drawStarts, it.programmes, highlight) } ?: -1
         if (data != null && i >= 0 && stripW > 0f) {
             inStrip {
-                drawCell(data, i, hi = true, now, scrollPx, windowStart, windowEnd, stripW, reminderStarts)
+                drawCell(data, i, hi = true, now, scrollPx, windowStart, windowEnd, stripW, reminderStarts, texts)
                 drawNowLine(now, scrollPx, windowStart, windowEnd, stripW)
             }
         }
@@ -275,6 +319,7 @@ internal class GuideRowRenderer(
         windowEnd: Long,
         viewW: Float,
         reminderStarts: Set<Long>,
+        texts: GuideRowTexts?,
     ) {
         val p = data.programmes[i]
         val h = size.height
@@ -317,11 +362,15 @@ internal class GuideRowRenderer(
         var titleBottom = h / 2f
         if (cell.textWidth > 0f) {
             val maxW = cell.textWidth.toInt()
-            val t = measurer.measure(p.title, if (hi) titleFocused else title, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
-            val m = measurer.measure(label(p, isNow), if (hi) timeFocused else time, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+            // Prepared off the UI thread when this cell is fully on screen without a bell (most cells);
+            // otherwise (clipped at the edge, a bell, or the clock moved it on air) measured here.
+            val ready = texts?.cells?.get(p.id)?.takeIf { it.width == maxW && it.labelNow == isNow }
+            val t = ready?.title ?: measurer.measure(p.title, title, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+            val m = ready?.time ?: measurer.measure(label(p, isNow), time, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
             val top = (h - (t.size.height + m.size.height + 2)) / 2f
-            drawText(t, topLeft = Offset(cell.textX, top))
-            drawText(m, topLeft = Offset(cell.textX, top + t.size.height + 2))
+            // One layout serves both looks: the focused cell only recolours it.
+            drawText(t, color = if (hi) titleFocused.color else Color.Unspecified, topLeft = Offset(cell.textX, top))
+            drawText(m, color = if (hi) timeFocused.color else Color.Unspecified, topLeft = Offset(cell.textX, top + t.size.height + 2))
             titleBottom = top + t.size.height
         }
         cell.bellX?.let { bx ->
@@ -357,8 +406,18 @@ internal fun rememberGuideRowRenderer(measurer: androidx.compose.ui.text.TextMea
     val timeRangeTemplate = stringResource(R.string.content_epg_time_range)
     val nowTemplate = stringResource(R.string.content_epg_now)
     val focusBorder = tv.own.owntv.ui.theme.LocalFocusBorderWidth.current
-    return remember(density, colors, typography, measurer, formatTime, timeRangeTemplate, nowTemplate, focusBorder) {
-        GuideRowRenderer(density, colors, typography, measurer, formatTime, timeRangeTemplate, nowTemplate, focusBorder)
+    val fontResolver = androidx.compose.ui.platform.LocalFontFamilyResolver.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    return remember(density, colors, typography, measurer, formatTime, timeRangeTemplate, nowTemplate, focusBorder, fontResolver, configuration) {
+        // The grid is a left-to-right timeline (see EpgScreen), so its cell text is measured LTR.
+        val bgMeasurer = androidx.compose.ui.text.TextMeasurer(fontResolver, density, androidx.compose.ui.unit.LayoutDirection.Ltr, 0)
+        val bgFormat = android.text.format.DateFormat.getTimeFormat(context)
+        GuideRowRenderer(
+            density, colors, typography, measurer, formatTime, timeRangeTemplate, nowTemplate, focusBorder,
+            bgMeasurer = bgMeasurer,
+            bgFormatTime = { ms -> bgFormat.format(java.util.Date(ms)) },
+        )
     }
 }
 
