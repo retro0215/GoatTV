@@ -605,6 +605,7 @@ fun OwnTVShell(
                             onPlayChannel = { ch, _ -> restoreFocus = false; liveVm.watchFromGuide(ch); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI && !liveVm.externalPlayerOn.value) playerMode = PlayerMode.FULLSCREEN },
                             onPlayCatchup = { ch, prog -> restoreFocus = false; liveVm.playCatchupProgramme(ch, prog); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI) playerMode = PlayerMode.FULLSCREEN },
                             onAddEpg = { openEpgAdd = true; onSelectSection(MainSection.SETTINGS) }, restoreFocus = restoreFocus,
+                            watchingChannelId = previewChannel?.id,
                             onRestored = { restoreFocus = false }, onContentScrolled = { contentScrolled = it },
                             modifier = Modifier.fillMaxSize().onFocusChanged { if (it.hasFocus) focusedLayer = ShellLayer.CONTENT }.focusGroup(),
                         )

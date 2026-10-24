@@ -113,6 +113,9 @@ internal fun ProgrammeStripCanvas(
         color = colors.onSurfaceVariant,
         textDirection = TextDirection.Content,
     )
+    // The focused programme sits on a filled primary container, so its text switches to the on-colour.
+    val titleFocusedStyle = titleStyle.copy(color = colors.onPrimaryContainer)
+    val timeFocusedStyle = timeStyle.copy(color = colors.onPrimaryContainer.copy(alpha = 0.8f))
     val formatTime = rememberSystemTimeFormatter()
     // Time labels built once (string formatting kept out of the per-frame draw loop).
     // Resolve the templates through Compose so a live locale change invalidates the labels.
@@ -156,9 +159,11 @@ internal fun ProgrammeStripCanvas(
             if (x + w <= 0f || x >= viewW) return@forEachIndexed // cull off-screen programmes
             val isNow = now in p.startMs until p.stopMs
             val hi = highlightTime != null && highlightTime in p.startMs until p.stopMs
+            val isPast = p.stopMs <= now
             val bg = when {
-                hi -> colors.card
+                hi -> colors.primaryContainer
                 isNow -> colors.primaryContainer.copy(alpha = 0.18f)
+                isPast -> colors.surfaceContainerHigh.copy(alpha = 0.5f) // aired: recedes behind Now/Next
                 else -> colors.surfaceContainerHigh
             }
             drawRoundRect(color = bg, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner)
@@ -173,8 +178,16 @@ internal fun ProgrammeStripCanvas(
             if (hi) drawRoundRect(color = colors.focusBorder, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner, style = Stroke(borderPx))
             val textW = (w - padPx * 2f).toInt()
             if (textW > 8) {
-                val tStyle = if (isNow && !hi) titleNowStyle else titleStyle
-                val mStyle = if (isNow && !hi) timeNowStyle else timeStyle
+                val tStyle = when {
+                    hi -> titleFocusedStyle
+                    isNow -> titleNowStyle
+                    else -> titleStyle
+                }
+                val mStyle = when {
+                    hi -> timeFocusedStyle
+                    isNow -> timeNowStyle
+                    else -> timeStyle
+                }
                 val title = measurer.measure(p.title, tStyle, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = textW))
                 val time = measurer.measure(labels[i], mStyle, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = textW))
                 val top = (h - (title.size.height + time.size.height + 2)) / 2f
@@ -226,6 +239,9 @@ internal fun ProgrammeDetailDialog(
     onToggleReminder: (() -> Unit)? = null,
     reminderSet: Boolean = false,
     reminderMessage: String? = null,
+    // Which action takes focus when the dialog opens (the Guide passes GuideNav.detailFocus): Watch for
+    // a programme on air, the reminder for an upcoming one, Watch from start for an archived one.
+    initialFocus: GuideNav.DetailFocus = GuideNav.DetailFocus.CATCHUP,
 ) {
     val colors = OwnTVTheme.colors
     val formatTime = rememberSystemTimeFormatter()
@@ -234,8 +250,17 @@ internal fun ProgrammeDetailDialog(
     val description by produceState(programme.description, programme.id) {
         value = programme.description ?: loadDescription(programme.id)
     }
-    val fr = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
+    val fr = remember { FocusRequester() } // first action: Watch from start, else Watch channel
+    val watchFr = remember { FocusRequester() }
+    val reminderFr = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        val target = when {
+            initialFocus == GuideNav.DetailFocus.REMINDER && onToggleReminder != null -> reminderFr
+            initialFocus == GuideNav.DetailFocus.WATCH && canCatchup -> watchFr
+            else -> fr
+        }
+        if (runCatching { target.requestFocus() }.isFailure) runCatching { fr.requestFocus() }
+    }
     // "Always ask" → a second, small popup asking which player takes the archive.
     var showPlayerChooser by remember { mutableStateOf(false) }
     if (showPlayerChooser) {
@@ -292,7 +317,7 @@ internal fun ProgrammeDetailDialog(
                             }
                         }
                         OwnTVButton(stringResource(R.string.content_epg_watch_start), onClick = startCatchup, icon = OwnTVIcon.PLAY, compact = compact, modifier = Modifier.focusRequester(fr))
-                        OwnTVButton(stringResource(R.string.content_epg_watch_channel), onClick = onWatch, style = OwnTVButtonStyle.SECONDARY, compact = compact)
+                        OwnTVButton(stringResource(R.string.content_epg_watch_channel), onClick = onWatch, style = OwnTVButtonStyle.SECONDARY, compact = compact, modifier = Modifier.focusRequester(watchFr))
                     } else {
                         OwnTVButton(stringResource(R.string.content_epg_watch_channel), onClick = onWatch, icon = OwnTVIcon.PLAY, compact = compact, modifier = Modifier.focusRequester(fr))
                     }
@@ -302,6 +327,7 @@ internal fun ProgrammeDetailDialog(
                             onClick = onToggleReminder,
                             style = OwnTVButtonStyle.SECONDARY,
                             compact = compact,
+                            modifier = Modifier.focusRequester(reminderFr),
                         )
                     }
                     // Favourite the channel without leaving the guide; the label flips in place.

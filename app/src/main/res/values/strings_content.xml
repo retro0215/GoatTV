@@ -593,6 +593,14 @@
     <!-- Translators: Context-menu option to remove a channel from favorites from the EPG screen. -->
     <string name="content_epg_remove_favourite">Remove from favorites</string>
     <!-- Translators: Button in the EPG screen to jump to the current time. -->
+    <string name="content_epg_more">More</string>
+    <string name="content_epg_options_title">Guide options</string>
+    <string name="content_epg_show_all_channels">Show all channels</string>
+    <string name="content_epg_hide_empty_channels">Hide channels without guide data</string>
+    <string name="content_epg_search_channels">Search channels</string>
+    <string name="content_epg_empty_hidden">Channels without guide data are hidden</string>
+    <string name="content_epg_no_guide_rows">None of these channels has guide data right now.</string>
+    <string name="content_epg_hold_ok_hint">Hold OK for channel options</string>
     <string name="content_epg_jump_now">Jump to Now</string>
     <!-- Translators: Programme runtime display. "minutes" is the duration in minutes. "m" is an abbreviation for minutes. -->
     <string name="content_epg_runtime"><xliff:g id="minutes">%1$d</xliff:g>m</string>

@@ -162,6 +162,11 @@ class EpgViewModel(
     private val _categoryFilter = MutableStateFlow<String?>(null)
     val categoryFilter: StateFlow<String?> = _categoryFilter.asStateFlow()
 
+    /** Guide → More → Show all channels: include rows whose loaded window has no programmes. */
+    private val _showAllChannels = MutableStateFlow(false)
+    val showAllChannels: StateFlow<Boolean> = _showAllChannels.asStateFlow()
+    fun setShowAllChannels(show: Boolean) { _showAllChannels.value = show }
+
     /** Live categories for the active profile — drives the guide's "Category" picker. Applies the
      *  profile's Live customizations like the Live TV rail does: hidden categories stay out of the
      *  picker, renames show, manually reordered categories stay pinned first. */
@@ -221,6 +226,17 @@ class EpgViewModel(
     /** Minutes this channel's guide is shifted by (per-channel override, else the global offset). */
     private fun shiftFor(channel: ChannelEntity): Int =
         tv.own.owntv.core.epg.EpgShift.minutesFor(custom.value, channel, epgOffset.value)
+
+    /**
+     * Whether [channel]'s row has programmes in the loaded window: null while unknown (its guide isn't
+     * read yet, or no batch load backs the cache, e.g. during an EPG import), so it is never hidden early.
+     */
+    fun hasGuideInWindow(channel: ChannelEntity): Boolean? {
+        cachedProgrammes(channel)?.let { return it.isNotEmpty() }
+        if (channel.epgChannelId.isNullOrBlank()) return false
+        // The batch load covers every unshifted guide key in the forward window: absent means empty.
+        return if (cachedWindow != null && shiftFor(channel) == 0) false else null
+    }
 
     /** Synchronous cache peek — lets a re-composed row render instantly without a loading flash. */
     fun cachedProgrammes(channel: ChannelEntity): List<EpgProgrammeEntity>? {
@@ -411,11 +427,8 @@ class EpgViewModel(
 
     /** True when a programme can be played from the archive: a catch-up channel, already started, and
      *  still inside the channel's archive window. The Guide gates its "Watch from start" button on this. */
-    fun canCatchup(channel: ChannelEntity, programme: EpgProgrammeEntity, now: Long): Boolean {
-        if (!channel.catchup || programme.startMs > now) return false
-        val windowMs = channel.catchupDays.coerceAtLeast(1) * 24L * 60 * 60 * 1000
-        return now - programme.startMs <= windowMs
-    }
+    fun canCatchup(channel: ChannelEntity, programme: EpgProgrammeEntity, now: Long): Boolean =
+        GuideNav.canCatchup(channel, programme, now)
 
     /** Live channels this profile has favourited — so the Guide can show/toggle a channel's star. */
     val favoriteChannelIds: StateFlow<Set<Long>> = settings.activeProfileId
@@ -748,14 +761,9 @@ class EpgViewModel(
                     SettingsRepository.GuideSort.LIVE_TV -> liveOrdered
                 }.let { sorted ->
                     // Category filter (#8): when a group is chosen, show only its channels.
-                    when {
-                        customMemberIds != null -> sorted.filter { it.id in customMemberIds }
-                        categoryFilter?.categoryId != null -> sorted.filter { ch ->
-                            ch.categoryId == categoryFilter.categoryId &&
-                                cust.movedFromOrigin[CustomizeKeys.channel(ch)] != categoryFilter.key
-                        }
-                        else -> sorted
-                    }
+                    GuideNav.filterByCategory(
+                        sorted, customMemberIds, categoryFilter?.categoryId, categoryFilter?.key,
+                    ) { ch -> cust.movedFromOrigin[CustomizeKeys.channel(ch)] }
                 }
             }
             val stored = epgDao.countForSources(ids)

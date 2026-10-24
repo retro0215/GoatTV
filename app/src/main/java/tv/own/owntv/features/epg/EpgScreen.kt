@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -166,9 +168,11 @@ private fun epgMatchSummaryText(summary: EpgMatchSummary): String = when (summar
 }
 
 /**
- * The full EPG guide: a time × channel grid. Channel labels are pinned on the left; every channel row
- * and the time axis share one horizontal scroll state, so moving the D-pad across programmes scrolls
- * the whole guide in lock-step. Picking a programme opens its details.
+ * The full TV Guide: a frozen channel column (logo, number, name) beside a horizontal programme
+ * timeline that every row shares, with the current time marked and a details panel for the highlighted
+ * programme. The grid is ONE focus target driven by a [GuideNav.Cursor]: Up/Down change channel, Left/
+ * Right change programme, OK opens the programme (it never tunes by itself), and holding OK (or Menu)
+ * opens the channel's options. Rows still read the shared EpgViewModel cache — nothing reloads on a move.
  */
 @Composable
 fun EpgScreen(
@@ -186,6 +190,8 @@ fun EpgScreen(
     /** "Watch from start" on a catch-up programme. Required for the same reason, and additionally so the
      *  archive is tracked as catch-up playback (which decides what engine toggle the player HUD offers). */
     onPlayCatchup: (channel: ChannelEntity, programme: EpgProgrammeEntity) -> Unit,
+    /** The channel Live TV is on, if any: the guide opens on its row. */
+    watchingChannelId: Long? = null,
 ) {
     val vm: EpgViewModel = koinViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
@@ -198,11 +204,17 @@ fun EpgScreen(
     val guideCategories by vm.guideCategories.collectAsStateWithLifecycle()
     val favoriteIds by vm.favoriteChannelIds.collectAsStateWithLifecycle()
     val catchupPlayer by vm.catchupPlayer.collectAsStateWithLifecycle()
+    val showAllChannels by vm.showAllChannels.collectAsStateWithLifecycle()
+    val cacheRevision by vm.cacheRevision.collectAsStateWithLifecycle()
     var showCategoryPicker by remember { mutableStateOf(false) }
+    var showOptions by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
     val colors = OwnTVTheme.colors
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     val hScroll = rememberScrollState()
     val rowListState = androidx.compose.foundation.lazy.rememberLazyListState()
-    val chromeScrollThresholdPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+    val chromeScrollThresholdPx = with(density) { 8.dp.roundToPx() }
     val contentScrolled by remember(hScroll, rowListState, chromeScrollThresholdPx) {
         androidx.compose.runtime.derivedStateOf {
             hScroll.value > chromeScrollThresholdPx ||
@@ -211,11 +223,6 @@ fun EpgScreen(
         }
     }
     LaunchedEffect(contentScrolled) { onContentScrolled(contentScrolled) }
-    val firstCell = remember { FocusRequester() }
-    val tunedCell = remember { FocusRequester() }
-    // The channel a dialog was opened from — focus returns to its row when the dialog closes.
-    val restoreCell = remember { FocusRequester() }
-    var restoreChannelId by remember { mutableStateOf<Long?>(null) }
     var detail by remember { mutableStateOf<Pair<ChannelEntity, EpgProgrammeEntity>?>(null) }
     // Reminders: the shared action every guide uses, and the active profile's slots for the bells.
     val programReminders = org.koin.compose.koinInject<tv.own.owntv.core.sync.work.ProgramReminders>()
@@ -226,185 +233,191 @@ fun EpgScreen(
     var matchingChannel by remember { mutableStateOf<ChannelEntity?>(null) }
     var matchChooser by remember { mutableStateOf<ChannelEntity?>(null) }
     var offsetChannel by remember { mutableStateOf<ChannelEntity?>(null) }
-    // Two-stage timeline navigation (#4): Right from a channel focuses its whole programme row (ROW
-    // stage); OK steps into per-programme browsing (CELL stage) where Left/Right move a cursor and
-    // Up/Down jump to the adjacent channel at the same time. cursorTime is the highlighted time.
-    var inCellMode by remember { mutableStateOf(false) }
-    var cursorTime by remember { mutableStateOf(0L) }
-    // The channel whose programme strip currently has focus — drives the non-modal bottom info strip.
-    var focusedChannel by remember { mutableStateOf<ChannelEntity?>(null) }
-    // The pending focus target onEnter routes to: our own restore requests cross into this group
-    // from outside, so onEnter must cooperate or it would hijack them to the first channel.
-    var pendingEnter by remember { mutableStateOf<FocusRequester?>(null) }
+
+    // The clock drives the header time, the now marker and what counts as on air; the window itself
+    // only moves on a reload. A 30-second tick is plenty for a minute-resolution guide.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(30_000); now = System.currentTimeMillis() } }
 
     // No BackHandler here: the Guide is a top-level section, so Back is the shell's job (content →
-    // sidebar → exit dialog). A screen-level handler would swallow Back forever and block app exit.
-    LaunchedEffect(Unit) { vm.load() } // reload from DB each time the guide is opened
+    // sidebar → exit dialog). Dialogs register their own, which win while they are open.
+    LaunchedEffect(Unit) { vm.load() } // re-reads the DB on open; the batch cache survives (no reload when unchanged)
     // Lets the shared ViewModel skip data-change reloads while the guide is not on screen.
     androidx.compose.runtime.DisposableEffect(Unit) {
         vm.setScreenVisible(true)
         onDispose { vm.setScreenVisible(false) }
     }
-    // Phase 6 fix — don't auto-focus the first channel when the guide mounts. The guide nav item
-    // keeps focus on click; RIGHT press from the sidebar enters the grid via focusProperties.onEnter
-    // (which routes to firstCell/tunedCell). Auto-focusing here stole the sidebar's focus on section
-    // switch, making the guide feel jumpy.
-    LaunchedEffect(state.loading, state.channels.isNotEmpty()) {
-        // Only auto-focus when a restore is pending (returning from playback to a specific channel).
-        if (!state.loading && state.channels.isNotEmpty() && restoreFocus) {
-            kotlinx.coroutines.delay(80)
-            if (runCatching { firstCell.requestFocus() }.isFailure) runCatching { tunedCell.requestFocus() }
-        }
-    }
 
-    // Back from a channel tuned in the guide: scroll to and refocus that channel's row. Must wait
-    // for the reload (vm.load() runs on every mount) — while state.loading the grid isn't composed
-    // at all (spinner branch), so a requestFocus would silently fail and burn the restore flag.
-    LaunchedEffect(restoreFocus, state.loading, state.channels.size) {
-        if (!restoreFocus || state.loading || state.channels.isEmpty()) return@LaunchedEffect
-        val idx = vm.lastTunedChannelId?.let { id -> state.channels.indexOfFirst { it.id == id } } ?: -1
-        val target = if (idx >= 0) tunedCell else firstCell
-        if (idx >= 0) runCatching { rowListState.scrollToItem(idx) }
-        pendingEnter = target
-        kotlinx.coroutines.delay(80)
-        runCatching { target.requestFocus() }
-        onRestored()
+    // Rows on screen: channels whose loaded window is empty are hidden unless "Show all channels".
+    val rows = remember(state.channels, showAllChannels, cacheRevision) {
+        GuideNav.visibleChannels(state.channels, showAllChannels) { vm.hasGuideInWindow(it) }
     }
+    val hiddenEmpty = !showAllChannels && rows.size < state.channels.size
 
-    // With a catch-up backward window the guide spans past→future; open it scrolled to "now" so the
-    // current programmes are what you see first (past sits to the left, reachable with D-pad Left).
-    val density = LocalDensity.current
-    LaunchedEffect(state.windowStart, state.channels.isNotEmpty()) {
-        if (state.channels.isEmpty()) return@LaunchedEffect
-        val minutesBack = ((state.now - state.windowStart) / 60_000L).toInt()
-        if (minutesBack <= GuideGridDefaults.SlotMin) return@LaunchedEffect // no real lookback → leave at the start
-        val px = with(density) { (minutesBack * GuideGridDefaults.PxPerMin.value).dp.toPx() }.toInt()
-        // Wait until the time-axis row is laid out so maxValue is known — otherwise scrollTo runs before
-        // layout and clamps to 0 (a no-op), leaving the strips at the past edge (no data yet) → blank guide
-        // until a later real scroll. Bounded so we never hang if the row stays unscrollable.
+    // ---- Cursor --------------------------------------------------------------------------------------
+    var cursor by remember { mutableStateOf<GuideNav.Cursor?>(null) }
+    // Tracked by id, so a re-sort, filter or cache refresh keeps the same channel highlighted.
+    var cursorChannelId by remember { mutableStateOf<Long?>(null) }
+    var gridFocused by remember { mutableStateOf(false) }
+    val gridFocus = remember { FocusRequester() }
+    fun moveTo(row: Int, timeMs: Long) {
+        cursor = GuideNav.Cursor(row, timeMs)
+        cursorChannelId = rows.getOrNull(row)?.id
+    }
+    fun programmesOf(channel: ChannelEntity): List<EpgProgrammeEntity> = vm.cachedProgrammes(channel).orEmpty()
+
+    val pxPerMin = with(density) { GuideGridDefaults.PxPerMin.toPx() }
+    suspend fun scrollTimelineTo(minutes: Int) {
+        // The time axis must be laid out before maxValue is known; scrolling earlier clamps to 0.
         kotlinx.coroutines.withTimeoutOrNull(2000) {
             androidx.compose.runtime.snapshotFlow { hScroll.maxValue }.first { it > 0 }
         }
-        runCatching { hScroll.scrollTo(px) }
+        runCatching { hScroll.scrollTo((minutes * pxPerMin).toInt()) }
     }
 
-    val scope = rememberCoroutineScope()
-    // "Jump to Now" — scrolls the shared timeline back to the current time. Mirrors the on-mount auto-scroll
-    // above so the user can return to "now" after browsing the catch-up archive. Shown only when "now" is
-    // actually inside the loaded window (it isn't, for example, right after a fresh load with no lookback).
-    val jumpToNow: () -> Unit = {
-        scope.launch {
-            val minutesBack = ((state.now - state.windowStart) / 60_000L).toInt()
-            if (minutesBack <= GuideGridDefaults.SlotMin) return@launch
-            val px = with(density) { (minutesBack * GuideGridDefaults.PxPerMin.value).dp.toPx() }.toInt()
-            kotlinx.coroutines.withTimeoutOrNull(2000) {
-                androidx.compose.runtime.snapshotFlow { hScroll.maxValue }.first { it > 0 }
-            }
-            runCatching { hScroll.scrollTo(px) }
-        }
-    }
-
-    // In CELL mode, Back steps out to whole-row (ROW) selection instead of leaving the guide.
-    BackHandler(enabled = inCellMode) { inCellMode = false }
-
-    // Keep the highlighted (cursor) programme in view while browsing a row in CELL mode.
-    LaunchedEffect(cursorTime, inCellMode) {
-        if (!inCellMode || state.channels.isEmpty()) return@LaunchedEffect
-        val minutes = ((cursorTime - state.windowStart) / 60_000L).toInt() - GuideGridDefaults.SlotMin // one slot of left margin
-        val px = with(density) { (minutes.coerceAtLeast(0) * GuideGridDefaults.PxPerMin.value).dp.toPx() }.toInt()
-        runCatching { hScroll.scrollTo(px) }
-    }
-
-    // Closing ANY of the guide's overlays (programme detail, the match chooser, the manual EPG picker)
-    // would otherwise drop focus to the sidebar. Restore focus to the row the dialog was opened from.
-    val anyDialogOpen = detail != null || matchChooser != null || matchingChannel != null
-    var hadDialog by remember { mutableStateOf(false) }
-    LaunchedEffect(anyDialogOpen) {
-        if (anyDialogOpen) {
-            hadDialog = true
+    // Opening: the watched channel's row (or the one tuned from the guide, when coming back from it),
+    // at the current time, with the timeline at Now. Later list changes keep the cursor's channel.
+    LaunchedEffect(state.loading, rows) {
+        if (state.loading || rows.isEmpty()) return@LaunchedEffect
+        val ids = rows.map { it.id }
+        val keptRow = cursorChannelId?.let { ids.indexOf(it) }?.takeIf { it >= 0 }
+        val current = cursor
+        if (current != null && keptRow != null) {
+            if (keptRow != current.row) cursor = current.copy(row = keptRow)
             return@LaunchedEffect
         }
+        val preferred = (if (restoreFocus) vm.lastTunedChannelId else null) ?: watchingChannelId ?: vm.lastTunedChannelId
+        val open = GuideNav.openingCursor(ids, preferred, System.currentTimeMillis()) ?: return@LaunchedEffect
+        cursor = open
+        cursorChannelId = ids[open.row]
+        runCatching { rowListState.scrollToItem((open.row - 2).coerceAtLeast(0)) }
+        scrollTimelineTo(GuideNav.openingScrollMinutes(open.timeMs, state.windowStart))
+    }
+
+    // Back from a channel tuned in the guide: focus the grid again (the cursor is on that channel).
+    LaunchedEffect(restoreFocus, state.loading, rows.isNotEmpty()) {
+        if (!restoreFocus || state.loading || rows.isEmpty()) return@LaunchedEffect
+        kotlinx.coroutines.delay(80)
+        runCatching { gridFocus.requestFocus() }
+        onRestored()
+    }
+
+    // Keep the highlighted programme on screen — the least scroll that does it, rows and time alike.
+    LaunchedEffect(cursor) {
+        val c = cursor ?: return@LaunchedEffect
+        val info = rowListState.layoutInfo
+        val fullyVisible = info.visibleItemsInfo.filter { it.offset >= 0 && it.offset + it.size <= info.viewportEndOffset }
+        val firstFull = fullyVisible.firstOrNull()?.index ?: rowListState.firstVisibleItemIndex
+        GuideNav.rowScrollTarget(c.row, firstFull, fullyVisible.size)?.let { runCatching { rowListState.scrollToItem(it) } }
+        val scrollMin = (hScroll.value / pxPerMin).toInt()
+        val viewportMin = (hScroll.viewportSize / pxPerMin).toInt()
+        GuideNav.timelineScrollTarget(c.timeMs, state.windowStart, scrollMin, viewportMin)
+            ?.let { runCatching { hScroll.scrollTo((it * pxPerMin).toInt()) } }
+    }
+
+    val jumpToNow: () -> Unit = {
+        val t = System.currentTimeMillis()
+        now = t
+        cursor?.let { cursor = it.copy(timeMs = t) }
+        scope.launch {
+            scrollTimelineTo(GuideNav.openingScrollMinutes(t, state.windowStart))
+            runCatching { gridFocus.requestFocus() }
+        }
+    }
+
+    // Closing any guide dialog hands focus back to the grid, on the programme it was opened from.
+    val anyDialogOpen = detail != null || matchChooser != null || matchingChannel != null || offsetChannel != null
+    var hadDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(anyDialogOpen) {
+        if (anyDialogOpen) { hadDialog = true; return@LaunchedEffect }
         if (!hadDialog) return@LaunchedEffect
         hadDialog = false
-        val idx = restoreChannelId?.let { id -> state.channels.indexOfFirst { it.id == id } } ?: -1
-        val target = if (idx >= 0) restoreCell else firstCell
-        if (idx >= 0) runCatching { rowListState.scrollToItem(idx) }
-        pendingEnter = target
         kotlinx.coroutines.delay(80)
-        if (runCatching { target.requestFocus() }.isFailure) runCatching { firstCell.requestFocus() }
-        restoreChannelId = null // focus is set; release the row so playback-restore can reuse it
+        runCatching { gridFocus.requestFocus() }
+    }
+
+    // OK is acted on at release, so a long press (channel options) never also opens the programme.
+    var okDown by remember { mutableStateOf(false) }
+    var okLongPressed by remember { mutableStateOf(false) }
+    fun onGridKey(e: androidx.compose.ui.input.key.KeyEvent): Boolean {
+        val c = cursor ?: return false
+        val channel = rows.getOrNull(c.row) ?: return false
+        val isOk = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
+        if (e.type == KeyEventType.KeyUp) {
+            if (!isOk || !okDown) return false
+            okDown = false
+            if (okLongPressed) { okLongPressed = false; return true }
+            GuideNav.programmeAt(programmesOf(channel), c.timeMs)?.let { detail = channel to it }
+            return true
+        }
+        if (e.type != KeyEventType.KeyDown) return false
+        return when (e.key) {
+            // Up from the first row leaves for the header; Down stops at the last row.
+            Key.DirectionUp -> GuideNav.stepRow(c.row, -1, rows.size)?.let { moveTo(it, c.timeMs); true } ?: false
+            Key.DirectionDown -> { GuideNav.stepRow(c.row, 1, rows.size)?.let { moveTo(it, c.timeMs) }; true }
+            // Physical by design: the guide is an LTR timeline, earlier is always left. Left past the
+            // window start returns to the menu; Right past the end lets focus reach a docked mini-player.
+            Key.DirectionLeft -> GuideNav.stepTime(programmesOf(channel), c.timeMs, -1, state.windowStart, state.windowEnd)
+                ?.let { cursor = c.copy(timeMs = it); true } ?: run { onBack(); true }
+            Key.DirectionRight -> GuideNav.stepTime(programmesOf(channel), c.timeMs, 1, state.windowStart, state.windowEnd)
+                ?.let { cursor = c.copy(timeMs = it); true } ?: false
+            Key.Menu -> { matchChooser = channel; true }
+            else -> if (isOk) {
+                if (e.nativeKeyEvent.repeatCount == 0) {
+                    okDown = true
+                    okLongPressed = false
+                } else if (okDown && !okLongPressed) {
+                    okLongPressed = true
+                    matchChooser = channel // hold OK: favourite, EPG match, time offset
+                }
+                true
+            } else false
+        }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .roundedPanel(fillColor = ContentPanelFill)
-            // Entry from the sidebar lands on the first channel — unless a restore is pending
-            // (back from playback / dialog close), which onEnter routes to instead of hijacking.
-            // onEnter only fires for entries from OUTSIDE the group — search bar / refresh / back
-            // are inside it, so moving up from the grid to them never re-triggers this.
+            // Entry from the sidebar lands on the grid (the cursor already sits on the watched channel).
             .focusProperties {
-                onEnter = {
-                    val target = pendingEnter ?: firstCell
-                    pendingEnter = null
-                    // tunedCell fallback: when the last-tuned channel IS row 0, firstCell isn't attached.
-                    if (runCatching { target.requestFocus() }.isFailure) runCatching { tunedCell.requestFocus() }
-                }
+                onEnter = { if (rows.isNotEmpty() && !state.loading) runCatching { gridFocus.requestFocus() } }
             }
             // Held Up/Down can outrun the guide's row composition and escape this pane
             // (landing on the top bar) — trap vertical exits; Left/Right/Back leave normally.
             .trapVerticalFocusExit()
             .focusGroup()
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .padding(horizontal = 32.dp, vertical = 20.dp),
     ) {
-        // Header: back + title + date + refresh
+        // ---- Header: title, date and time · Jump to Now · Category · More --------------------------
+        val formatTime = rememberSystemTimeFormatter()
+        val formatHeaderDate = rememberBestDateFormatter("EEEdMMM")
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FocusableSurface(onClick = onBack, modifier = Modifier.size(44.dp), shape = RoundedCornerShape(14.dp), contentAlignment = Alignment.Center, surface = GlassSurface.CARDS) { _ ->
-                OwnTVIcon(OwnTVIcon.BACK, tint = colors.onSurface, modifier = Modifier.size(20.dp))
-            }
-            Text(stringResource(R.string.content_epg_title), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
-            val formatHeaderDate = rememberBestDateFormatter("EEEdMMM")
-            if (state.now > 0) {
-                // The day being browsed: "now" on open; follows the cursor when D-padding left into
-                // the catch-up archive (windowStart would show the archive start — days in the past).
-                val headerDate = if (inCellMode && cursorTime > 0) cursorTime else state.now
-                Text(
-                    formatHeaderDate(headerDate),
-                    style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant,
-                )
-            }
-            // Jump the timeline back to the current time (useful after browsing the catch-up archive).
-            if (state.now in state.windowStart..state.windowEnd) {
-                OwnTVButton(stringResource(R.string.content_epg_jump_now), onClick = jumpToNow, icon = OwnTVIcon.HISTORY, style = OwnTVButtonStyle.SECONDARY)
+            Column {
+                Text(stringResource(R.string.content_epg_title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // The day being browsed follows the cursor into the archive or the next days.
+                    val headerDay = cursor?.timeMs?.takeIf { gridFocused } ?: now
+                    Text(formatHeaderDate(headerDay), style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
+                    Box(Modifier.size(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.onSurfaceVariant))
+                    Text(formatTime(now), style = MaterialTheme.typography.titleSmall, color = colors.primary, fontWeight = FontWeight.SemiBold)
+                }
             }
             Spacer(Modifier.weight(1f))
-            // Guide sort: A–Z / Provider / Live TV (mirrors Live) / Catch-up (archive first; hidden when none).
-            val sortLabel = when {
-                sortGuide == SettingsRepository.GuideSort.CATCHUP && state.catchupCount == 0 -> guideSortLabel(SettingsRepository.GuideSort.LIVE_TV)
-                sortGuide == SettingsRepository.GuideSort.FAVORITES && state.favoriteCount == 0 -> guideSortLabel(SettingsRepository.GuideSort.LIVE_TV)
-                else -> guideSortLabel(sortGuide)
-            }
-            // Category filter (#8): narrow the guide to one group instead of all channels at once.
-            if (guideCategories.isNotEmpty()) {
-                val catLabel = categoryFilter?.let { key -> guideCategories.firstOrNull { it.key == key }?.name } ?: stringResource(R.string.content_epg_all)
-                OwnTVButton(stringResource(R.string.content_epg_category_button, catLabel), onClick = { showCategoryPicker = true }, icon = OwnTVIcon.MENU, style = OwnTVButtonStyle.SECONDARY)
-                Spacer(Modifier.width(12.dp))
-            }
-            OwnTVButton(stringResource(R.string.content_epg_sort_button, sortLabel), onClick = vm::cycleGuideSort, icon = OwnTVIcon.SORT, style = OwnTVButtonStyle.SECONDARY)
-            Spacer(Modifier.width(12.dp))
-            // Smart-match: auto-link channels whose tvg-id doesn't match the EPG feed, by name (#13).
             if (matching) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OwnTVSpinner(sizeDp = 20)
                     Text(stringResource(R.string.content_epg_matching), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
                 }
-            } else {
-                OwnTVButton(stringResource(R.string.content_epg_match_button), onClick = vm::autoMatchEpg, icon = OwnTVIcon.EPG, style = OwnTVButtonStyle.SECONDARY)
             }
-        }
-        state.stats?.let { stats ->
-            Spacer(Modifier.height(4.dp))
-            Text(epgStatsText(stats), style = MaterialTheme.typography.labelLarge, color = colors.primary)
+            if (now in state.windowStart..state.windowEnd) {
+                OwnTVButton(stringResource(R.string.content_epg_jump_now), onClick = jumpToNow, icon = OwnTVIcon.HISTORY, style = OwnTVButtonStyle.SECONDARY)
+            }
+            if (guideCategories.isNotEmpty()) {
+                val catLabel = categoryFilter?.let { key -> guideCategories.firstOrNull { it.key == key }?.name } ?: stringResource(R.string.content_epg_all)
+                OwnTVButton(stringResource(R.string.content_epg_category_button, catLabel), onClick = { showCategoryPicker = true }, icon = OwnTVIcon.MENU, style = OwnTVButtonStyle.SECONDARY)
+            }
+            OwnTVButton(stringResource(R.string.content_epg_more), onClick = { showOptions = true }, icon = OwnTVIcon.GEAR, style = OwnTVButtonStyle.SECONDARY)
         }
         // Outcome of the last auto-match run (auto-applied count / how many need review). Dismissible.
         matchSummary?.let { summary ->
@@ -415,13 +428,15 @@ fun EpgScreen(
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        SearchBar(
-            query = query,
-            onQueryChange = vm::setQuery,
-            placeholder = stringResource(R.string.content_epg_search_hint),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (showSearch || query.isNotBlank()) {
+            Spacer(Modifier.height(10.dp))
+            SearchBar(
+                query = query,
+                onQueryChange = vm::setQuery,
+                placeholder = stringResource(R.string.content_epg_search_hint),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         Spacer(Modifier.height(12.dp))
 
         when {
@@ -440,65 +455,53 @@ fun EpgScreen(
             state.channels.isEmpty() -> CenterBox {
                 Text(state.message?.let { epgMessageText(it) } ?: stringResource(R.string.content_epg_no_guide), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
             }
+            // Every channel in this view has an empty window: say so, and offer the hidden rows.
+            rows.isEmpty() -> CenterBox {
+                Text(stringResource(R.string.content_epg_no_guide_rows), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                Spacer(Modifier.height(16.dp))
+                OwnTVButton(stringResource(R.string.content_epg_show_all_channels), onClick = { vm.setShowAllChannels(true) }, style = OwnTVButtonStyle.SECONDARY)
+            }
             else -> {
-                // Time axis (shares hScroll with the rows below).
-                val formatTime = rememberSystemTimeFormatter()
-                val slots = ((state.windowEnd - state.windowStart) / (GuideGridDefaults.SlotMin * 60_000L)).toInt()
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    Row {
-                        Spacer(Modifier.width(GuideGridDefaults.ChannelCol))
-                        Row(Modifier.horizontalScroll(hScroll)) {
-                            for (i in 0 until slots) {
-                                val slotMs = state.windowStart + i * GuideGridDefaults.SlotMin * 60_000L
-                                Text(
-                                    formatTime(slotMs),
-                                    style = MaterialTheme.typography.labelMedium.copy(textDirection = TextDirection.Content),
-                                    color = colors.onSurfaceVariant,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.width((GuideGridDefaults.SlotMin * GuideGridDefaults.PxPerMin.value).dp).padding(start = 6.dp),
+                    GuideTimeAxis(windowStart = state.windowStart, windowEnd = state.windowEnd, now = now, hScroll = hScroll)
+                    Spacer(Modifier.height(6.dp))
+                    // The grid: ONE focus target; rows are drawn, not focused.
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth()
+                            .focusRequester(gridFocus)
+                            .onFocusChanged { gridFocused = it.isFocused }
+                            .onKeyEvent { onGridKey(it) }
+                            .focusable(),
+                    ) {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), state = rowListState, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            itemsIndexed(rows, key = { _, ch -> ch.id }) { index, channel ->
+                                val onRow = cursor?.row == index
+                                GuideRow(
+                                    vm = vm,
+                                    channel = channel,
+                                    focused = gridFocused && onRow,
+                                    highlightTime = if (gridFocused && onRow) cursor?.timeMs else null,
+                                    reminderStarts = remember(reminderSlots, channel.id) { GuideNav.reminderStarts(reminderSlots, channel.id) },
+                                    windowStart = state.windowStart,
+                                    windowEnd = state.windowEnd,
+                                    now = now,
+                                    hScroll = hScroll,
+                                    categoryColor = guideCategories.firstOrNull { it.categoryId == channel.categoryId }?.name?.let { ChannelGenre.dotFor(it) },
                                 )
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
-
-                    LazyColumn(modifier = Modifier.weight(1f), state = rowListState, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        itemsIndexed(state.channels, key = { _, ch -> ch.id }) { index, channel ->
-                            GuideChannelRow(
-                                vm = vm,
-                                channel = channel,
-                                reminderSlots = reminderSlots,
-                                windowStart = state.windowStart,
-                                windowEnd = state.windowEnd,
-                                now = state.now,
-                                hScroll = hScroll,
-                                labelFocus = when {
-                                    channel.id == restoreChannelId -> restoreCell
-                                    channel.id == vm.lastTunedChannelId -> tunedCell
-                                    index == 0 -> firstCell
-                                    else -> null
-                                },
-                                onTune = { vm.noteChannelTuned(channel); onPlayChannel(channel, state.channels) },
-                                onOpen = { restoreChannelId = channel.id; detail = channel to it },
-                                onMatchEpg = { restoreChannelId = channel.id; matchChooser = channel },
-                                inCellMode = inCellMode,
-                                cursorTime = cursorTime,
-                                onEnterCell = { cursorTime = state.now; inCellMode = true },
-                                onExitToChannels = { inCellMode = false },
-                                onMoveCursor = { cursorTime = it },
-                                onStripFocused = { focusedChannel = channel },
-                                categoryColor = guideCategories.firstOrNull { it.categoryId == channel.categoryId }?.name?.let { ChannelGenre.dotFor(it) },
-                            )
-                        }
-                    }
                 }
-                // Non-modal bottom strip — previews the cursor programme while browsing in CELL mode.
-                GuideInfoStrip(
-                    focusedChannel = focusedChannel,
-                    cursorTime = cursorTime,
-                    inCellMode = inCellMode,
+                val focusedChannel = cursor?.row?.let { rows.getOrNull(it) }
+                GuideDetailsPanel(
+                    channel = focusedChannel,
+                    programmes = focusedChannel?.let { programmesOf(it) }.orEmpty(),
+                    cursorTime = cursor?.timeMs ?: now,
+                    now = now,
+                    reminderStarts = focusedChannel?.let { GuideNav.reminderStarts(reminderSlots, it.id) }.orEmpty(),
+                    hiddenEmpty = hiddenEmpty,
                     vm = vm,
-                    now = state.now,
+                    cacheRevision = cacheRevision,
                 )
             }
         }
@@ -507,13 +510,14 @@ fun EpgScreen(
     detail?.let { (channel, p) ->
         val reminderSet = tv.own.owntv.core.sync.work.ProgramReminders.Key(channel.id, p.startMs) in reminderSlots
         val wallNow = System.currentTimeMillis()
+        val canCatchup = vm.canCatchup(channel, p, wallNow)
         // Future programmes can take a reminder; one already set stays removable until its programme ends.
         val offerReminder = p.stopMs > wallNow && (p.startMs > wallNow || reminderSet)
         ProgrammeDetailDialog(
             channelName = channel.name,
             programme = p,
             loadDescription = { vm.programmeDescription(it) },
-            canCatchup = vm.canCatchup(channel, p, state.now),
+            canCatchup = canCatchup,
             isFavorite = channel.id in favoriteIds,
             onToggleFavorite = { vm.toggleFavoriteChannel(channel) },
             onWatch = { detail = null; vm.noteChannelTuned(channel); onPlayChannel(channel, state.channels) },
@@ -538,6 +542,26 @@ fun EpgScreen(
             } },
             reminderSet = reminderSet,
             reminderMessage = reminderNote,
+            initialFocus = GuideNav.detailFocus(p, wallNow, canCatchup),
+        )
+    }
+
+    if (showOptions) {
+        val sortLabel = when {
+            sortGuide == SettingsRepository.GuideSort.CATCHUP && state.catchupCount == 0 -> guideSortLabel(SettingsRepository.GuideSort.LIVE_TV)
+            sortGuide == SettingsRepository.GuideSort.FAVORITES && state.favoriteCount == 0 -> guideSortLabel(SettingsRepository.GuideSort.LIVE_TV)
+            else -> guideSortLabel(sortGuide)
+        }
+        GuideOptionsDialog(
+            sortLabel = sortLabel,
+            onCycleSort = vm::cycleGuideSort,
+            matching = matching,
+            onAutoMatch = { showOptions = false; vm.autoMatchEpg() },
+            statsText = state.stats?.let { epgStatsText(it) },
+            showAllChannels = showAllChannels,
+            onToggleShowAll = { vm.setShowAllChannels(!showAllChannels) },
+            onSearch = { showOptions = false; showSearch = true },
+            onDismiss = { showOptions = false },
         )
     }
 
@@ -738,29 +762,65 @@ private fun EpgMatchChooserDialog(
 }
 
 /**
- * One guide row: pinned tunable channel label + lazily loaded programme strip. Programmes are fetched
- * from the DB only when the row scrolls into view (indexed query + VM cache), so the guide can list
- * every channel without holding the whole day's data in memory.
+ * Time labels across the top, scrolled with the rows (it owns the shared [hScroll]), with a red marker
+ * at the current time that lines up with the now line drawn through every row.
  */
 @Composable
-private fun GuideChannelRow(
+private fun GuideTimeAxis(windowStart: Long, windowEnd: Long, now: Long, hScroll: androidx.compose.foundation.ScrollState) {
+    val colors = OwnTVTheme.colors
+    val formatTime = rememberSystemTimeFormatter()
+    val slots = ((windowEnd - windowStart) / (GuideGridDefaults.SlotMin * 60_000L)).toInt()
+    val nowColor = Color(0xFFFF5C5C)
+    Row {
+        Spacer(Modifier.width(GuideGridDefaults.ChannelCol))
+        Box(Modifier.weight(1f).height(28.dp)) {
+            Row(Modifier.horizontalScroll(hScroll)) {
+                for (i in 0 until slots) {
+                    val slotMs = windowStart + i * GuideGridDefaults.SlotMin * 60_000L
+                    Text(
+                        formatTime(slotMs),
+                        style = MaterialTheme.typography.labelMedium.copy(textDirection = TextDirection.Content),
+                        color = colors.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.width((GuideGridDefaults.SlotMin * GuideGridDefaults.PxPerMin.value).dp).padding(start = 6.dp, top = 4.dp),
+                    )
+                }
+            }
+            val pxPerMin = with(androidx.compose.ui.platform.LocalDensity.current) { GuideGridDefaults.PxPerMin.toPx() }
+            val scrollPx = hScroll.value.toFloat()
+            androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+                if (now !in windowStart..windowEnd) return@Canvas
+                val x = ((now - windowStart) / 60_000f) * pxPerMin - scrollPx
+                if (x < 0f || x > size.width) return@Canvas
+                // A short tick at the bottom of the axis, continued by each row's now line.
+                drawRoundRect(
+                    color = nowColor,
+                    topLeft = androidx.compose.ui.geometry.Offset(x - 3f, size.height - 10f),
+                    size = androidx.compose.ui.geometry.Size(6f, 10f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One guide row: the frozen channel cell (logo, number, name) and the programme strip. Neither is
+ * focusable — the grid owns focus — so [focused] just lights the channel cell and [highlightTime]
+ * outlines the programme under the cursor. Programmes come from the VM's batch cache (instant), or one
+ * indexed query the first time a row scrolls into view.
+ */
+@Composable
+private fun GuideRow(
     vm: EpgViewModel,
     channel: ChannelEntity,
-    reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
+    focused: Boolean,
+    highlightTime: Long?,
+    reminderStarts: Set<Long>,
     windowStart: Long,
     windowEnd: Long,
     now: Long,
     hScroll: androidx.compose.foundation.ScrollState,
-    labelFocus: FocusRequester?,
-    onTune: () -> Unit,
-    onOpen: (EpgProgrammeEntity) -> Unit,
-    onMatchEpg: () -> Unit,
-    inCellMode: Boolean,
-    cursorTime: Long,
-    onEnterCell: () -> Unit,
-    onExitToChannels: () -> Unit,
-    onMoveCursor: (Long) -> Unit,
-    onStripFocused: (ChannelEntity) -> Unit,
     categoryColor: Color?,
 ) {
     val colors = OwnTVTheme.colors
@@ -771,120 +831,84 @@ private fun GuideChannelRow(
     val programmes by produceState(initialValue = vm.cachedProgrammes(channel), channel.id, windowStart, cacheRevision) {
         value = vm.cachedProgrammes(channel) ?: vm.programmesFor(channel)
     }
-    val labelFR = remember { FocusRequester() }
-    val stripFR = remember { FocusRequester() }
-    var stripFocused by remember { mutableStateOf(false) }
-
-    Row {
-        // Pinned channel label — OK tunes the channel; long-press opens the EPG-match chooser; Right
-        // steps into the timeline (the strip becomes the focus target).
-        FocusableSurface(
-            onClick = onTune,
-            onLongClick = onMatchEpg,
-            modifier = Modifier.width(GuideGridDefaults.ChannelCol).height(GuideGridDefaults.RowHeight).padding(end = 6.dp)
-                .focusRequester(labelFR)
-                .then(if (labelFocus != null) Modifier.focusRequester(labelFocus) else Modifier)
-                // Physical by design: the guide is an LTR timeline, so the strip is always right.
-                .focusProperties { right = stripFR }
-                .onFocusChanged { if (it.isFocused) onExitToChannels() }, // back on a label ⇒ leave CELL stage
-            shape = RoundedCornerShape(10.dp),
-            unfocusedContainerColor = colors.surfaceContainerHigh,
-            contentAlignment = Alignment.CenterStart,
-            surface = GlassSurface.CARDS,
-        ) { focused ->
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // Genre colour dot — best-effort keyword match on the channel's category name; no dot when
-                // the category is unknown (no wrong colour rather than a misleading one).
-                if (categoryColor != null) {
-                    Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(categoryColor))
+    Row(Modifier.height(GuideGridDefaults.RowHeight)) {
+        Row(
+            modifier = Modifier.width(GuideGridDefaults.ChannelCol).fillMaxHeight().padding(end = 6.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (focused) colors.primaryContainer else colors.surfaceContainerHigh)
+                .then(if (focused) Modifier.border(tv.own.owntv.ui.theme.LocalFocusBorderWidth.current, colors.focusBorder, RoundedCornerShape(10.dp)) else Modifier)
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            GuideChannelLogo(channel)
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Genre colour dot — best-effort keyword match on the category name; none when unknown.
+                    if (categoryColor != null) Box(Modifier.size(7.dp).clip(RoundedCornerShape(4.dp)).background(categoryColor))
+                    channel.number?.let { number ->
+                        Text(
+                            stringResource(R.string.common_number_grouped, number),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (focused) colors.onPrimaryContainer else colors.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
                 Text(
-                    channel.number?.let { stringResource(R.string.content_epg_channel_number, it, channel.name) } ?: channel.name,
+                    channel.name,
                     style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
-                    color = if (focused) colors.primary else colors.onSurface,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
+                    color = if (focused) colors.onPrimaryContainer else colors.onSurface,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        // Programme strip = ONE focus target (cells aren't individually focusable). ROW stage outlines
-        // the whole strip; OK enters CELL stage where Left/Right move the cursor and Up/Down jump rows.
-        val rowSelected = stripFocused && !inCellMode
-        Box(
-            modifier = Modifier.weight(1f).height(GuideGridDefaults.RowHeight)
-                .focusRequester(stripFR)
-                .onFocusChanged { stripFocused = it.isFocused; if (it.isFocused) onStripFocused(channel) }
-                .onKeyEvent { e ->
-                    if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
-                    val progs = programmes
-                    if (inCellMode) when (e.key) {
-                        // Physical by design: left is earlier and right is later on the LTR timeline.
-                        Key.DirectionLeft -> { moveGuideCursor(progs, cursorTime, -1, windowStart, onMoveCursor); true }
-                        Key.DirectionRight -> { moveGuideCursor(progs, cursorTime, +1, windowStart, onMoveCursor); true }
-                        Key.DirectionCenter, Key.Enter -> { progs?.let { openAtCursor(it, cursorTime, onOpen) }; true }
-                        else -> false // Up/Down fall through to spatial nav (jump to the next channel's row)
-                    } else when (e.key) {
-                        Key.DirectionCenter, Key.Enter -> { if (!progs.isNullOrEmpty()) onEnterCell(); true }
-                        // Physical by design: channel labels stay left of the timeline strip.
-                        Key.DirectionLeft -> { runCatching { labelFR.requestFocus() }; true } // back to the channel
-                        // Let spatial focus navigation continue: a docked mini-player may be to the
-                        // right of the guide and must remain reachable from this whole-row stage.
-                        Key.DirectionRight -> false
-                        else -> false
-                    }
-                }
-                .focusable()
-                .clip(RoundedCornerShape(10.dp))
-                .then(if (rowSelected) Modifier.border(tv.own.owntv.ui.theme.LocalFocusBorderWidth.current, colors.focusBorder, RoundedCornerShape(10.dp)) else Modifier),
-        ) {
+        Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(10.dp))) {
             programmes?.let { progs ->
                 // Catch-up-eligible programmes for this row — precomputed once per render (not per frame).
                 val catchupIds = remember(progs, channel, now) {
-                    progs.filter { vm.canCatchup(channel, it, now) }.map { it.id }.toSet()
+                    progs.filter { vm.canCatchup(channel, it, now) }.mapTo(HashSet()) { it.id }
                 }
                 ProgrammeStripCanvas(
                     programmes = progs,
                     windowStart = windowStart,
                     windowEnd = windowEnd,
                     now = now,
-                    highlightTime = if (stripFocused && inCellMode) cursorTime else null,
+                    highlightTime = highlightTime,
                     catchupIds = catchupIds,
                     hScroll = hScroll,
-                    reminderStarts = remember(reminderSlots, channel.id) {
-                        reminderSlots.filter { it.channelId == channel.id }.mapTo(HashSet()) { it.programStartMs }
-                    },
+                    reminderStarts = reminderStarts,
                 )
             }
         }
     }
 }
 
-/** Move the CELL-stage cursor [delta] programmes within [progs], reporting the new highlighted time. */
-private fun moveGuideCursor(
-    progs: List<EpgProgrammeEntity>?,
-    cursorTime: Long,
-    delta: Int,
-    windowStart: Long,
-    onMove: (Long) -> Unit,
-) {
-    if (progs.isNullOrEmpty()) return
-    val curIdx = progs.indexOfLast { it.startMs <= cursorTime }.let { if (it < 0) 0 else it }
-    val newIdx = (curIdx + delta).coerceIn(0, progs.size - 1)
-    onMove(progs[newIdx].startMs.coerceAtLeast(windowStart))
+/** Channel logo at row size (Coil requests it at this size and caches it), or the name's initials. */
+@Composable
+private fun GuideChannelLogo(channel: ChannelEntity) {
+    val colors = OwnTVTheme.colors
+    Box(
+        Modifier.size(width = 48.dp, height = 36.dp).clip(RoundedCornerShape(8.dp)).background(colors.surfaceContainerLowest),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!channel.logoUrl.isNullOrBlank()) {
+            coil3.compose.AsyncImage(
+                model = channel.logoUrl,
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.fillMaxSize().padding(3.dp),
+            )
+        } else {
+            Text(
+                channel.name.take(3).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.primary,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
 }
-
-/** Open the programme the cursor is on (the one airing at [cursorTime], else the nearest before it). */
-private fun openAtCursor(progs: List<EpgProgrammeEntity>, cursorTime: Long, onOpen: (EpgProgrammeEntity) -> Unit) {
-    val p = progs.firstOrNull { cursorTime in it.startMs until it.stopMs }
-        ?: progs.lastOrNull { it.startMs <= cursorTime }
-        ?: progs.firstOrNull()
-    p?.let(onOpen)
-}
-
 
 @Composable
 private fun CenterBox(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
@@ -893,62 +917,119 @@ private fun CenterBox(content: @Composable androidx.compose.foundation.layout.Co
     }
 }
 
-/** Non-modal bottom strip that previews the cursor programme while browsing a row in CELL mode. No
- *  focusable controls — it never steals D-pad from the grid; OK still opens the full detail dialog. */
+/**
+ * Details for the programme under the cursor (and what follows it on that channel). Never focusable —
+ * the grid keeps the D-pad; OK opens the full dialog. Reads the row cache only, plus one description
+ * lookup per highlighted programme.
+ */
 @Composable
-private fun GuideInfoStrip(
-    focusedChannel: ChannelEntity?,
+private fun GuideDetailsPanel(
+    channel: ChannelEntity?,
+    programmes: List<EpgProgrammeEntity>,
     cursorTime: Long,
-    inCellMode: Boolean,
-    vm: EpgViewModel,
     now: Long,
+    reminderStarts: Set<Long>,
+    hiddenEmpty: Boolean,
+    vm: EpgViewModel,
+    cacheRevision: Int,
 ) {
     val colors = OwnTVTheme.colors
     val formatTime = rememberSystemTimeFormatter()
-    val programme = remember(focusedChannel?.id, cursorTime, inCellMode, now) {
-        if (focusedChannel == null) null
-        else {
-            val t = if (inCellMode && cursorTime > 0L) cursorTime else now
-            vm.cachedProgrammes(focusedChannel)?.let { progs ->
-                progs.firstOrNull { t in it.startMs until it.stopMs }
-                    ?: progs.lastOrNull { it.startMs <= t }
-                    ?: progs.firstOrNull()
-            }
-        }
-    }
+    val programme = remember(channel?.id, programmes, cursorTime, cacheRevision) { GuideNav.programmeAt(programmes, cursorTime) }
+    val next = remember(programmes, programme) { GuideNav.nextAfter(programmes, programme) }
     val synopsis by produceState<String?>(null, programme?.id) {
-        value = programme?.id?.let { vm.programmeDescription(it) }
+        value = programme?.let { it.description ?: vm.programmeDescription(it.id) }
     }
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-            .clip(RoundedCornerShape(10.dp)).background(colors.surfaceContainerHigh)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).height(104.dp)
+            .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHigh)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         val p = programme
-        if (p != null && focusedChannel != null) {
-            val catchup = vm.canCatchup(focusedChannel, p, now)
+        if (p == null || channel == null) {
+            Text(
+                stringResource(R.string.content_epg_no_programme),
+                style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f),
+            )
+        } else {
             Column(Modifier.weight(1f)) {
-                Text(p.title, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val onAir = now in p.startMs until p.stopMs
                 val runtimeMin = ((p.stopMs - p.startMs) / 60_000L).coerceAtLeast(0L).toInt()
                 val bits = listOfNotNull(
-                    focusedChannel.name,
+                    if (onAir) stringResource(R.string.content_live_now_label) else null,
                     stringResource(R.string.content_epg_time_range, formatTime(p.startMs), formatTime(p.stopMs)),
                     runtimeMin.takeIf { it > 0 }?.let { stringResource(R.string.content_epg_runtime, it) },
-                    catchup.takeIf { it }?.let { stringResource(R.string.content_epg_catchup) },
+                    stringResource(R.string.content_epg_catchup).takeIf { vm.canCatchup(channel, p, now) },
+                    stringResource(R.string.content_reminder_active).takeIf { p.startMs in reminderStarts },
                 ).joinToString(stringResource(R.string.content_epg_bits_separator))
-                Text(bits, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(bits, style = MaterialTheme.typography.labelMedium, color = if (onAir) colors.primary else colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(p.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 synopsis?.takeIf { it.isNotBlank() }?.let { s ->
-                    Spacer(Modifier.height(4.dp))
                     Text(s, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
-        } else {
-            Text(
-                stringResource(R.string.content_epg_no_programme),
-                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f),
+            Column(Modifier.widthIn(max = 320.dp), horizontalAlignment = Alignment.End) {
+                next?.let { n ->
+                    Text(stringResource(R.string.content_live_next_label, formatTime(n.startMs)), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                    Text(n.title, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_hold_ok_hint),
+                    style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Guide → More: the advanced actions the header used to carry — sort, auto-match, search, the
+ * empty-channel filter and the EPG statistics. Back closes it before anything else.
+ */
+@Composable
+private fun GuideOptionsDialog(
+    sortLabel: String,
+    onCycleSort: () -> Unit,
+    matching: Boolean,
+    onAutoMatch: () -> Unit,
+    statsText: String?,
+    showAllChannels: Boolean,
+    onToggleShowAll: () -> Unit,
+    onSearch: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = OwnTVTheme.colors
+    BackHandler { onDismiss() }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); runCatching { firstFocus.requestFocus() } }
+    Box(
+        Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(Modifier.dialogPanel()) {
+            Text(stringResource(R.string.content_epg_options_title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+            statsText?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = colors.primary)
+            }
+            Spacer(Modifier.height(16.dp))
+            // Sort cycles in place, so the label shows the order the guide now uses.
+            OwnTVButton(stringResource(R.string.content_epg_sort_button, sortLabel), onClick = onCycleSort, icon = OwnTVIcon.SORT, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth().focusRequester(firstFocus))
+            Spacer(Modifier.height(10.dp))
+            if (!matching) {
+                OwnTVButton(stringResource(R.string.content_epg_match_button), onClick = onAutoMatch, icon = OwnTVIcon.EPG, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+            }
+            OwnTVButton(stringResource(R.string.content_epg_search_channels), onClick = onSearch, icon = OwnTVIcon.SEARCH, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            OwnTVButton(
+                stringResource(if (showAllChannels) R.string.content_epg_hide_empty_channels else R.string.content_epg_show_all_channels),
+                onClick = onToggleShowAll, icon = OwnTVIcon.LIVE_TV, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(16.dp))
+            OwnTVButton(stringResource(R.string.settings_close), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY)
         }
     }
 }
