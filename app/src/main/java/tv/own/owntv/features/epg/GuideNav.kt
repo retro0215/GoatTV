@@ -93,6 +93,76 @@ internal object GuideNav {
      */
     fun headerDay(programme: EpgProgrammeEntity?, cursorTime: Long): Long = programme?.startMs ?: cursorTime
 
+    // ---- Row data, selection, paging ------------------------------------------------------------
+
+    /**
+     * One row's display data, prepared off the main thread: the programmes as cached, and which of them
+     * the channel can replay. Channels without an archive skip the scan entirely.
+     */
+    fun prepareRow(channel: ChannelEntity, programmes: List<EpgProgrammeEntity>, now: Long, revision: Int): GuideRowData {
+        val catchupIds = if (!channel.catchup) emptySet() else programmes.filter { canCatchup(channel, it, now) }.mapTo(HashSet()) { it.id }
+        return GuideRowData(channel.id, programmes, catchupIds, revision)
+    }
+
+    /**
+     * The day the header shows for [cursor]: the start of the programme under it on the row's channel
+     * in [rows] (the CURRENT list — the Phase 3C header kept the list from its first composition, before
+     * the guide had loaded, so it always fell back to the cursor time and showed the next day after
+     * midnight). Falls back to the cursor time when the row or programme is unknown.
+     */
+    fun selectionDay(rows: List<ChannelEntity>, cursor: Cursor, programmesOf: (ChannelEntity) -> List<EpgProgrammeEntity>): Long {
+        val channel = rows.getOrNull(cursor.row) ?: return cursor.timeMs
+        return headerDay(programmeAt(programmesOf(channel), cursor.timeMs), cursor.timeMs)
+    }
+
+    /**
+     * The order rows are prepared in: the visible rows top to bottom first, then [margin] rows below and
+     * above, alternating outward (the direction of travel is the likelier next view). Indices only.
+     */
+    fun prepOrder(firstVisible: Int, visible: Int, margin: Int, rowCount: Int): List<Int> {
+        if (rowCount <= 0) return emptyList()
+        val first = firstVisible.coerceIn(0, rowCount - 1)
+        val last = (first + visible - 1).coerceAtMost(rowCount - 1)
+        val out = ArrayList<Int>(visible + margin * 2)
+        for (i in first..last) out += i
+        for (k in 1..margin) {
+            (last + k).takeIf { it < rowCount }?.let { out += it }
+            (first - k).takeIf { it >= 0 }?.let { out += it }
+        }
+        return out
+    }
+
+    /** Where a page move lands: the focused row and the list's first visible row after it. */
+    data class PageMove(val row: Int, val firstVisible: Int)
+
+    /**
+     * CH+/CH−: a full screen of rows ([visibleRows] fully visible), and the list scrolls by the same
+     * amount so the focused row keeps its place on screen — a page flip, not a crawl to the edge. At
+     * either end of the list the row still moves to the first/last channel. Null when it can't move.
+     */
+    fun pageMove(row: Int, pages: Int, visibleRows: Int, firstVisible: Int, rowCount: Int): PageMove? {
+        if (rowCount <= 0) return null
+        val page = visibleRows.coerceAtLeast(1)
+        val target = (row + pages * page).coerceIn(0, rowCount - 1)
+        if (target == row) return null
+        val maxFirst = (rowCount - page).coerceAtLeast(0)
+        val first = (firstVisible + (target - row)).coerceIn(0, maxFirst)
+        return PageMove(target, first.coerceAtMost(target).coerceAtLeast(target - page + 1).coerceAtLeast(0))
+    }
+
+    /**
+     * A focus target to honour the next time focus enters the guide from outside. [arm] before asking
+     * for the target; [disarm] once that request has run, whether or not the entry rule consumed it —
+     * a request left armed (Phase 3C) later hijacked the grid's return from the channel-options dialog.
+     */
+    class PendingFocus<T : Any> {
+        private var target: T? = null
+        fun arm(t: T) { target = t }
+        fun take(): T? = target.also { target = null }
+        fun disarm(t: T) { if (target == t) target = null }
+        val armed: T? get() = target
+    }
+
     /** The guide's overlays, and where focus goes when one closes. */
     enum class Overlay { PROGRAMME, CHANNEL_OPTIONS, EPG_MATCH, EPG_OFFSET, MORE, CATEGORY }
 

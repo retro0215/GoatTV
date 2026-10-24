@@ -47,6 +47,13 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import tv.own.owntv.R
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -76,68 +83,158 @@ internal object GuideGridDefaults {
 }
 
 /**
- * One channel's programmes on the shared timeline, drawn on a single Canvas (no per-cell composables).
+ * Draws a whole guide row — the frozen channel cell and the programme strip — on ONE Canvas, so a row is
+ * a single composable. Phase 3C measured ~27 ms to compose a row on the onn (two Text composables, an
+ * AsyncImage, a data-loading coroutine and a flow collector per row); everything here is plain drawing.
  *
- * Cost notes (Phase 3 measured ~300 ms per D-pad move on the onn): the scroll offset is read inside the
- * draw block, so moving the timeline redraws rows without recomposing them; time labels are formatted
- * only for cells that are actually drawn and then cached (a catch-up row can hold days of programmes);
- * text is measured with [measurer], which the guide shares across rows so repeated titles hit its cache.
+ * One renderer serves every row: the styles, px sizes, glyphs and the bounded time-label cache are built
+ * once per screen, and text is measured through the guide's shared [measurer] (repeated titles and the
+ * width-snapped clipped titles hit its cache). Nothing is allocated per programme beyond the label the
+ * first time a cell is drawn.
  */
-@Composable
-internal fun ProgrammeStripCanvas(
-    programmes: List<EpgProgrammeEntity>,
-    windowStart: Long,
-    windowEnd: Long,
-    now: Long,
-    // Read while drawing (not composing): moving the cursor redraws the rows it leaves and enters and
-    // recomposes none of them.
-    highlightTime: () -> Long?,
-    catchupIds: Set<Long>,
-    hScroll: androidx.compose.foundation.ScrollState,
-    // Start times (this channel) with a reminder from the active profile: a bell beside their titles.
-    reminderStarts: Set<Long> = emptySet(),
-    measurer: androidx.compose.ui.text.TextMeasurer? = null,
+internal class GuideRowRenderer(
+    density: androidx.compose.ui.unit.Density,
+    private val colors: tv.own.owntv.ui.theme.OwnTVColors,
+    typography: androidx.tv.material3.Typography,
+    private val measurer: androidx.compose.ui.text.TextMeasurer,
+    private val formatTime: (Long) -> String,
+    private val timeRangeTemplate: String,
+    private val nowTemplate: String,
+    focusBorder: androidx.compose.ui.unit.Dp,
 ) {
-    val colors = OwnTVTheme.colors
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val textMeasurer = measurer ?: rememberTextMeasurer(cacheSize = 64)
-    val typography = MaterialTheme.typography
+    private val pxPerMin = with(density) { GuideGridDefaults.PxPerMin.toPx() }
+    private val channelColPx = with(density) { GuideGridDefaults.ChannelCol.toPx() }
+    private val channelGapPx = with(density) { 6.dp.toPx() }
+    private val cellPadPx = with(density) { 10.dp.toPx() }
+    private val logoW = with(density) { 48.dp.toPx() }
+    private val logoH = with(density) { 36.dp.toPx() }
+    private val logoInsetPx = with(density) { 3.dp.toPx() }
+    private val dotPx = with(density) { 7.dp.toPx() }
+    private val gapPx = with(density) { 4.dp.toPx() }
+    private val padPx = with(density) { 10.dp.toPx() }
+    private val iconGapPx = with(density) { 6.dp.toPx() }
+    private val minTextPx = with(density) { 28.dp.toPx() }
+    private val borderPx = with(density) { focusBorder.toPx() }
+    private val airingBarPx = with(density) { 3.dp.toPx() }
+    private val airingBarInsetPx = with(density) { 4.dp.toPx() }
+    private val corner = with(density) { CornerRadius(10.dp.toPx(), 10.dp.toPx()) }
+    private val logoCorner = with(density) { CornerRadius(8.dp.toPx(), 8.dp.toPx()) }
+    private val nowLinePx = with(density) { 2.dp.toPx() }
+    private val nowColor = Color(0xFFFF5C5C)
 
-    val pxPerMin = with(density) { GuideGridDefaults.PxPerMin.toPx() }
-    val gapPx = with(density) { 4.dp.toPx() }
-    val padPx = with(density) { 10.dp.toPx() }
-    val iconGapPx = with(density) { 6.dp.toPx() }
-    val minTextPx = with(density) { 28.dp.toPx() }
-    val borderPx = with(density) { tv.own.owntv.ui.theme.LocalFocusBorderWidth.current.toPx() }
-    val airingBarPx = with(density) { 3.dp.toPx() }
-    val airingBarInsetPx = with(density) { 4.dp.toPx() }
-    val corner = with(density) { CornerRadius(10.dp.toPx(), 10.dp.toPx()) }
-    val nowLinePx = with(density) { 2.dp.toPx() }
-    val nowColor = Color(0xFFFF5C5C)
+    private val title = typography.titleSmall.copy(color = colors.onSurface, textDirection = TextDirection.Content)
+    private val time = typography.labelSmall.copy(color = colors.onSurfaceVariant, textDirection = TextDirection.Content)
+    // The focused programme sits on a filled primary container, so its text switches to the on-colour.
+    private val titleFocused = title.copy(color = colors.onPrimaryContainer)
+    private val timeFocused = time.copy(color = colors.onPrimaryContainer.copy(alpha = 0.8f))
+    private val badge = typography.labelMedium.copy(color = colors.primary, textDirection = TextDirection.Content)
+    private val bell = typography.titleSmall.copy(textDirection = TextDirection.Content)
+    private val number = typography.labelMedium.copy(color = colors.primary, fontWeight = FontWeight.Bold)
+    private val name = typography.titleSmall.copy(color = colors.onSurface, textDirection = TextDirection.Content)
+    private val initials = typography.labelSmall.copy(color = colors.primary, fontWeight = FontWeight.Bold)
 
-    // Styles are rebuilt only when the theme changes; equal styles keep the measurer's cache warm.
-    val styles = remember(colors, typography) { StripStyles(colors, typography) }
-    val catchupGlyph = remember(styles, textMeasurer) { textMeasurer.measure("↻", styles.badge) }
-    val reminderGlyph = remember(styles, textMeasurer) { textMeasurer.measure("🔔", styles.bell) }
+    private val catchupGlyph = measurer.measure("↻", badge)
+    private val reminderGlyph = measurer.measure("🔔", bell)
 
-    val formatTime = rememberSystemTimeFormatter()
-    // Resolve the templates through Compose so a live locale change invalidates the labels.
-    val timeRangeTemplate = stringResource(R.string.content_epg_time_range)
-    val nowTemplate = stringResource(R.string.content_epg_now)
-    // Labels for drawn cells only, kept per programme (and per on-air state, which adds the NOW prefix).
-    val labelCache = remember(programmes, formatTime, timeRangeTemplate, nowTemplate) { HashMap<Long, String>() }
-    fun label(p: EpgProgrammeEntity, isNow: Boolean): String = labelCache.getOrPut(p.id * 2 + if (isNow) 1 else 0) {
+    /** Time labels of drawn cells, keyed by programme and on-air state. Bounded (a catch-up guide holds days). */
+    private val labels = BoundedLru<Long, String>(LABEL_CACHE_SIZE)
+
+    private fun label(p: EpgProgrammeEntity, isNow: Boolean): String = labels.getOrPut(p.id * 2 + if (isNow) 1 else 0) {
         val t = String.format(java.util.Locale.ROOT, timeRangeTemplate, formatTime(p.startMs), formatTime(p.stopMs))
         if (isNow) String.format(java.util.Locale.ROOT, nowTemplate, t) else t
     }
 
-    Canvas(Modifier.fillMaxSize()) {
+    fun DrawScope.drawRow(
+        channel: ChannelEntity,
+        numberText: String?,
+        categoryDot: Color?,
+        logo: ImageBitmap?,
+        data: GuideRowData?,
+        highlight: Long?,
+        now: Long,
+        scrollPx: Float,
+        windowStart: Long,
+        windowEnd: Long,
+        reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
+    ) {
         android.os.Trace.beginSection("GuideRow.draw")
-        val scrollPx = hScroll.value.toFloat() // read while drawing: a scroll redraws, it does not recompose
-        val highlight = highlightTime()
-        val viewW = size.width
+        drawChannelCell(channel, numberText, categoryDot, logo, focused = highlight != null)
+        val stripX = channelColPx
+        val stripW = size.width - stripX
+        if (data != null && stripW > 0f) {
+            clipRect(left = stripX, top = 0f, right = size.width, bottom = size.height) {
+                translate(left = stripX) {
+                    drawStrip(channel.id, data, highlight, now, scrollPx, windowStart, windowEnd, stripW, reminderSlots)
+                }
+            }
+        }
+        android.os.Trace.endSection()
+    }
+
+    private fun DrawScope.drawChannelCell(channel: ChannelEntity, numberText: String?, dot: Color?, logo: ImageBitmap?, focused: Boolean) {
+        val w = channelColPx - channelGapPx
         val h = size.height
-        for (p in programmes) {
+        drawRoundRect(color = if (focused) colors.primaryContainer else colors.surfaceContainerHigh, size = Size(w, h), cornerRadius = corner)
+        if (focused) {
+            drawRoundRect(
+                color = colors.focusBorder,
+                topLeft = Offset(borderPx / 2f, borderPx / 2f),
+                size = Size(w - borderPx, h - borderPx),
+                cornerRadius = corner,
+                style = Stroke(borderPx),
+            )
+        }
+        // Logo box (or the name's initials).
+        val lx = cellPadPx
+        val ly = (h - logoH) / 2f
+        drawRoundRect(color = colors.surfaceContainerLowest, topLeft = Offset(lx, ly), size = Size(logoW, logoH), cornerRadius = logoCorner)
+        if (logo != null) {
+            val boxW = logoW - logoInsetPx * 2f
+            val boxH = logoH - logoInsetPx * 2f
+            val scale = minOf(boxW / logo.width, boxH / logo.height)
+            val dw = (logo.width * scale).toInt().coerceAtLeast(1)
+            val dh = (logo.height * scale).toInt().coerceAtLeast(1)
+            drawImage(
+                image = logo,
+                dstOffset = IntOffset((lx + (logoW - dw) / 2f).toInt(), (ly + (logoH - dh) / 2f).toInt()),
+                dstSize = IntSize(dw, dh),
+            )
+        } else {
+            val text = measurer.measure(channel.name.take(3).uppercase(), initials, maxLines = 1, constraints = Constraints(maxWidth = logoW.toInt()))
+            drawText(text, topLeft = Offset(lx + (logoW - text.size.width) / 2f, ly + (logoH - text.size.height) / 2f))
+        }
+        // Number (with the category dot) over the name.
+        val tx = lx + logoW + cellPadPx
+        val maxW = (w - tx - cellPadPx).toInt().coerceAtLeast(1)
+        val num = numberText?.let { measurer.measure(it, number, maxLines = 1, constraints = Constraints(maxWidth = maxW)) }
+        val nm = measurer.measure(channel.name, name, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+        val blockH = (num?.size?.height ?: 0) + nm.size.height
+        var y = (h - blockH) / 2f
+        if (num != null) {
+            var nx = tx
+            if (dot != null) {
+                drawCircle(color = dot, radius = dotPx / 2f, center = Offset(tx + dotPx / 2f, y + num.size.height / 2f))
+                nx += dotPx + iconGapPx
+            }
+            drawText(num, topLeft = Offset(nx, y))
+            y += num.size.height
+        }
+        drawText(nm, topLeft = Offset(tx, y))
+    }
+
+    private fun DrawScope.drawStrip(
+        channelId: Long,
+        data: GuideRowData,
+        highlight: Long?,
+        now: Long,
+        scrollPx: Float,
+        windowStart: Long,
+        windowEnd: Long,
+        viewW: Float,
+        reminderSlots: Set<tv.own.owntv.core.sync.work.ProgramReminders.Key>,
+    ) {
+        val h = size.height
+        for (p in data.programmes) {
             val s = p.startMs.coerceIn(windowStart, windowEnd)
             val e = p.stopMs.coerceIn(windowStart, windowEnd)
             if (e <= s) continue
@@ -163,8 +260,8 @@ internal fun ProgrammeStripCanvas(
             }
             if (hi) drawRoundRect(color = colors.focusBorder, topLeft = Offset(x, 0f), size = Size(w, h), cornerRadius = corner, style = Stroke(borderPx))
 
-            val hasBell = p.startMs in reminderStarts
-            val hasBadge = p.id in catchupIds
+            val hasBell = tv.own.owntv.core.sync.work.ProgramReminders.Key(channelId, p.startMs) in reminderSlots
+            val hasBadge = p.id in data.catchupIds
             val cell = GuideCellLayout.layout(
                 cellX = x, cellW = w, viewW = viewW, pad = padPx, gap = iconGapPx,
                 bellW = if (hasBell) reminderGlyph.size.width.toFloat() else 0f,
@@ -173,15 +270,13 @@ internal fun ProgrammeStripCanvas(
             )
             var titleBottom = h / 2f
             if (cell.textWidth > 0f) {
-                val tStyle = if (hi) styles.titleFocused else styles.title
-                val mStyle = if (hi) styles.timeFocused else styles.time
                 val maxW = cell.textWidth.toInt()
-                val title = textMeasurer.measure(p.title, tStyle, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
-                val time = textMeasurer.measure(label(p, isNow), mStyle, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
-                val top = (h - (title.size.height + time.size.height + 2)) / 2f
-                drawText(title, topLeft = Offset(cell.textX, top))
-                drawText(time, topLeft = Offset(cell.textX, top + title.size.height + 2))
-                titleBottom = top + title.size.height
+                val t = measurer.measure(p.title, if (hi) titleFocused else title, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+                val m = measurer.measure(label(p, isNow), if (hi) timeFocused else time, overflow = TextOverflow.Ellipsis, maxLines = 1, constraints = Constraints(maxWidth = maxW))
+                val top = (h - (t.size.height + m.size.height + 2)) / 2f
+                drawText(t, topLeft = Offset(cell.textX, top))
+                drawText(m, topLeft = Offset(cell.textX, top + t.size.height + 2))
+                titleBottom = top + t.size.height
             }
             cell.bellX?.let { bx ->
                 // Centred on the title line, so the bell reads as part of the title.
@@ -197,19 +292,27 @@ internal fun ProgrammeStripCanvas(
                 drawLine(color = nowColor, start = Offset(nowX, 0f), end = Offset(nowX, h), strokeWidth = nowLinePx)
             }
         }
-        android.os.Trace.endSection()
+    }
+
+    companion object {
+        /** About a dozen screens of cells; labels are short strings. */
+        const val LABEL_CACHE_SIZE = 2048
     }
 }
 
-/** The strip's text styles, built once per theme (see [ProgrammeStripCanvas]). */
-private class StripStyles(colors: tv.own.owntv.ui.theme.OwnTVColors, typography: androidx.tv.material3.Typography) {
-    val title = typography.titleSmall.copy(color = colors.onSurface, textDirection = TextDirection.Content)
-    val time = typography.labelSmall.copy(color = colors.onSurfaceVariant, textDirection = TextDirection.Content)
-    // The focused programme sits on a filled primary container, so its text switches to the on-colour.
-    val titleFocused = title.copy(color = colors.onPrimaryContainer)
-    val timeFocused = time.copy(color = colors.onPrimaryContainer.copy(alpha = 0.8f))
-    val badge = typography.labelMedium.copy(color = colors.primary, textDirection = TextDirection.Content)
-    val bell = typography.titleSmall.copy(textDirection = TextDirection.Content)
+/** The screen's one row renderer, rebuilt only when the theme, density, locale or time format changes. */
+@Composable
+internal fun rememberGuideRowRenderer(measurer: androidx.compose.ui.text.TextMeasurer): GuideRowRenderer {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val colors = OwnTVTheme.colors
+    val typography = MaterialTheme.typography
+    val formatTime = rememberSystemTimeFormatter()
+    val timeRangeTemplate = stringResource(R.string.content_epg_time_range)
+    val nowTemplate = stringResource(R.string.content_epg_now)
+    val focusBorder = tv.own.owntv.ui.theme.LocalFocusBorderWidth.current
+    return remember(density, colors, typography, measurer, formatTime, timeRangeTemplate, nowTemplate, focusBorder) {
+        GuideRowRenderer(density, colors, typography, measurer, formatTime, timeRangeTemplate, nowTemplate, focusBorder)
+    }
 }
 
 @Composable
