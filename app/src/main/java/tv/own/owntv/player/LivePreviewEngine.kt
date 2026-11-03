@@ -977,6 +977,7 @@ class LivePreviewEngine(
         mainHandler.removeCallbacks(progressWatchdog)
         mainHandler.removeCallbacks(openWatchdog)
         mainHandler.removeCallbacks(healthyReset)
+        mainHandler.removeCallbacks(handoffCheck)
         gaveUp = true
         _isPlaying.value = false; _buffering.value = false
         _error.value = PlayerErrors.visibleFailure(reason, currentUrl, PlaybackFailure.Channel)
@@ -1168,8 +1169,46 @@ class LivePreviewEngine(
 
     /** Attach the preview SurfaceView's surface, or null when it's destroyed. */
     fun setSurface(s: Surface?) {
+        if (s != null && s === surface) return // the same window again: re-pointing the codec is not free
+        val previous = surface ?: lastSurface
         surface = s
+        if (s != null) lastSurface = s
         if (s != null) player?.setVideoSurface(s) else player?.clearVideoSurface()
+        // Phase 4B: the picture moved to another view (Guide preview <-> full screen) — check it keeps rendering.
+        if (SurfaceHandoff.isSwitch(previous, s, hasPlayed)) armHandoffCheck(0)
+    }
+
+    // The last non-null surface: a switch is old view destroyed -> new view created, with a null between.
+    private var lastSurface: Surface? = null
+    private var handoffFrames = 0
+    private var handoffAttempt = 0
+    // Fresh surfaces asked for since frames last moved: one per freeze, so it can never loop.
+    private var handoffFreshSurfaces = 0
+    private val handoffCheck = Runnable {
+        val p = player
+        val playingVideo = p != null && p.playWhenReady && p.playbackState == Player.STATE_READY &&
+            p.videoFormat != null && !_audioOnly.value && surface != null
+        val framesNow = frameCounter.get()
+        when (SurfaceHandoff.afterSwitch(handoffFrames, framesNow, playingVideo, handoffAttempt)) {
+            SurfaceHandoff.Action.NONE -> if (framesNow != handoffFrames) handoffFreshSurfaces = 0
+            SurfaceHandoff.Action.REATTACH -> {
+                LiveDiagnosticsLog.event("surface handoff: no new frame ${SurfaceHandoff.CHECK_MS}ms after the switch - re-attaching")
+                surface?.let { sf -> p?.clearVideoSurface(); p?.setVideoSurface(sf) }
+                armHandoffCheck(1)
+            }
+            SurfaceHandoff.Action.NEW_SURFACE -> if (SurfaceHandoff.mayRecreate(handoffFreshSurfaces)) {
+                handoffFreshSurfaces++
+                LiveDiagnosticsLog.event("surface handoff: still no frame - asking for a fresh surface (same stream)")
+                recreateSurface()
+            }
+        }
+    }
+
+    private fun armHandoffCheck(attempt: Int) {
+        handoffAttempt = attempt
+        handoffFrames = frameCounter.get()
+        mainHandler.removeCallbacks(handoffCheck)
+        mainHandler.postDelayed(handoffCheck, SurfaceHandoff.CHECK_MS)
     }
 
     /** Enable/disable Media3's own Surface.setFrameRate mechanism. This is separate from the window-level
@@ -1474,6 +1513,7 @@ class LivePreviewEngine(
         mainHandler.removeCallbacks(stallWatchdog); mainHandler.removeCallbacks(progressWatchdog); mainHandler.removeCallbacks(fpsFastRefresh)
         mainHandler.removeCallbacks(openWatchdog)
         mainHandler.removeCallbacks(healthyReset)
+        mainHandler.removeCallbacks(handoffCheck)
         frameCounter.set(0); lastFrameCount = 0; everRendered = false; lastProgressPos = -1L; frozenChecks = 0
         audioTrackList = emptyList(); audioSelections = emptyList(); _audioCount.value = 0
         textTrackList = emptyList(); textSelections = emptyList(); _subCount.value = 0
@@ -1524,6 +1564,7 @@ class LivePreviewEngine(
         mainHandler.removeCallbacks(progressWatchdog)
         mainHandler.removeCallbacks(openWatchdog)
         mainHandler.removeCallbacks(healthyReset)
+        mainHandler.removeCallbacks(handoffCheck)
         mainHandler.removeCallbacks(audioOnlyConfirmation)
         player?.run { removeListener(listener); release() }
         player = null

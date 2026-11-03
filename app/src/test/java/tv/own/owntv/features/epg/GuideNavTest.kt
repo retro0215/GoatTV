@@ -96,9 +96,11 @@ class GuideNavTest {
 
     // ---- Header shortcut ----------------------------------------------------------------------------
 
-    @Test fun `back from the grid lands on the first header control shown`() {
-        assertEquals(GuideNav.HeaderTarget.JUMP_TO_NOW, GuideNav.headerTarget(jumpToNowShown = true, categoryShown = true))
+    @Test fun `back from the grid lands on Categories whenever it is shown`() {
+        // Phase 4B: one press from any row, ahead of Jump to Now.
+        assertEquals(GuideNav.HeaderTarget.CATEGORY, GuideNav.headerTarget(jumpToNowShown = true, categoryShown = true))
         assertEquals(GuideNav.HeaderTarget.CATEGORY, GuideNav.headerTarget(jumpToNowShown = false, categoryShown = true))
+        assertEquals(GuideNav.HeaderTarget.JUMP_TO_NOW, GuideNav.headerTarget(jumpToNowShown = true, categoryShown = false))
         assertEquals(GuideNav.HeaderTarget.MORE, GuideNav.headerTarget(jumpToNowShown = false, categoryShown = false))
     }
 

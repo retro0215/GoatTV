@@ -3651,15 +3651,8 @@
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill check failed
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	epgRefill sourceId=${src.id} — synced before but guide is empty, re-fetching
 1	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	migration_refill
-2	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	\0
-1	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	-
-1	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	EEE MMM d
-1	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	NOW ·
-1	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	·
-1	app/src/main/java/tv/own/owntv/features/shell/components/BottomTvGuideOverlay.kt	🔔
 2	app/src/main/java/tv/own/owntv/features/shell/components/CategoryRail.kt	\0
 1	app/src/main/java/tv/own/owntv/features/shell/components/CategoryRail.kt	__rail_search__
-1	app/src/main/java/tv/own/owntv/features/shell/components/LiveTvGuideOverlay.kt	🔔
 2	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/shell/components/MediaDetailsScreen.kt	·
 8	app/src/main/java/tv/own/owntv/features/shell/components/SettingsScreen.kt	\0

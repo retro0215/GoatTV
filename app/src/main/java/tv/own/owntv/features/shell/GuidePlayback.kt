@@ -23,8 +23,12 @@ internal object GuidePlayback {
 
     val NONE = Session()
 
-    /** The player's TV Guide button: only on a tuned live channel (not catch-up, a movie or an episode). */
-    fun canOpenGuide(isTunedLive: Boolean, isLiveStream: Boolean): Boolean = isTunedLive && isLiveStream
+    /**
+     * The player's TV Guide button: on a tuned live channel (not catch-up, a movie or an episode), whichever
+     * engine plays it. Phase 4 also required mpv's `isLiveContent`, a plain field the screen never
+     * re-reads, so the button was missing whenever the channel played on mpv.
+     */
+    fun canOpenGuide(isTunedLive: Boolean, hasChannel: Boolean): Boolean = isTunedLive && hasChannel
 
     /** TV Guide pressed in the full-screen player over [currentSection]. Playback is not touched. */
     fun openFromPlayer(currentSection: MainSection): Session =

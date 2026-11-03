@@ -5,7 +5,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import tv.own.owntv.features.epg.GuideNav
 import tv.own.owntv.features.shell.GuidePlayback.Back
 import tv.own.owntv.features.shell.GuidePlayback.FocusOwner
 import tv.own.owntv.features.shell.GuidePlayback.Surface
@@ -27,8 +26,8 @@ class GuidePlaybackTest {
 
     @Test fun `Back in a Guide opened from the player returns to the player`() {
         val s = GuidePlayback.openFromPlayer(MainSection.LIVE_TV)
+        // From the header (Back in the grid first steps to Categories): the shell returns to the player.
         assertEquals(Back.RETURN_TO_PLAYER, GuidePlayback.back(s))
-        assertEquals(GuideNav.GridBack.TO_PLAYER, GuideNav.gridBack(fromPlayer = true))
     }
 
     @Test fun `the return goes back over the section the player sat on`() {
@@ -36,9 +35,17 @@ class GuidePlaybackTest {
     }
 
     @Test fun `the TV Guide button is only offered on a tuned live channel`() {
-        assertTrue(GuidePlayback.canOpenGuide(isTunedLive = true, isLiveStream = true))
-        assertFalse("catch-up", GuidePlayback.canOpenGuide(isTunedLive = false, isLiveStream = true))
-        assertFalse("movie or episode", GuidePlayback.canOpenGuide(isTunedLive = false, isLiveStream = false))
+        assertTrue(GuidePlayback.canOpenGuide(isTunedLive = true, hasChannel = true))
+        assertFalse("catch-up", GuidePlayback.canOpenGuide(isTunedLive = false, hasChannel = true))
+        assertFalse("movie or episode", GuidePlayback.canOpenGuide(isTunedLive = false, hasChannel = false))
+        assertFalse("no channel tuned", GuidePlayback.canOpenGuide(isTunedLive = true, hasChannel = false))
+    }
+
+    @Test fun `the TV Guide button does not depend on the playback engine`() {
+        // Phase 4 hid it on mpv: its inputs are the tuned channel only, the same for ExoPlayer and mpv.
+        for (engineIsMpv in listOf(false, true)) {
+            assertTrue("mpv=$engineIsMpv", GuidePlayback.canOpenGuide(isTunedLive = true, hasChannel = true))
+        }
     }
 
     // ---- Player ownership and decoder reuse ---------------------------------------------------------------
@@ -130,7 +137,4 @@ class GuidePlaybackTest {
         assertNull(GuidePlayback.onSectionChanged(GuidePlayback.NONE, MainSection.HOME, playerShown = false))
     }
 
-    @Test fun `Back in a normal Guide steps out to the header first`() {
-        assertEquals(GuideNav.GridBack.TO_HEADER, GuideNav.gridBack(fromPlayer = false))
-    }
 }

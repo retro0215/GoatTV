@@ -3,9 +3,10 @@ package tv.own.owntv.features.shell.components
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 
 /**
- * Selection and clock rules for the Live TV bottom guide strip, kept out of [BottomTvGuideOverlay] so
- * they can be unit-tested. The strip holds a day of past schedule plus five days ahead; every rule here
- * is about landing on, and staying with, what is airing now.
+ * Selection and clock rules from the Live TV bottom guide strip, kept out of its UI so they could be
+ * unit-tested. Phase 4B removed the strip itself (customers have one guide: the full TV Guide); these
+ * rules stay because [normalize] is the reference the full guide's overlap rule mirrors, and
+ * [GuideBackKeys] drives Back in the reminder banner.
  */
 internal object BottomGuideNav {
     /** Never tick slower than this: the progress bar and "LIVE" badge move with it. */

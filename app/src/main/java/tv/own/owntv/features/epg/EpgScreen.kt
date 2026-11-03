@@ -207,8 +207,6 @@ fun EpgScreen(
     /** Phase 4: the playing channel's picture, hosted by the shell's shared player (never a second one).
      *  Null: nothing is playing here, and the preview says so — browsing never starts a channel. */
     previewVideo: (@Composable (Modifier) -> Unit)? = null,
-    /** Phase 4: set when the Guide was opened from the player; Back in the grid returns to it. */
-    onBackToPlayer: (() -> Unit)? = null,
 ) {
     val vm: EpgViewModel = koinViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
@@ -271,7 +269,7 @@ fun EpgScreen(
 
     // No BackHandler here: the Guide is a top-level section, so Back is the shell's job (content →
     // sidebar → exit dialog). Dialogs register their own, which win while they are open.
-    LaunchedEffect(Unit) { vm.load() } // re-reads the DB on open; the batch cache survives (no reload when unchanged)
+    LaunchedEffect(Unit) { vm.onGuideOpened(); vm.load() } // reuses the list when nothing changed (GuideLoad)
     // Lets the shared ViewModel skip data-change reloads while the guide is not on screen.
     androidx.compose.runtime.DisposableEffect(Unit) {
         vm.setScreenVisible(true)
@@ -346,6 +344,13 @@ fun EpgScreen(
         cursorChannelId = ids[open.row]
         runCatching { rowListState.scrollToItem((open.row - 2).coerceAtLeast(0)) }
         scrollTimelineTo(GuideNav.openingScrollMinutes(open.timeMs, state.windowStart))
+    }
+
+    // Phase 4B timing: the first frame drawn with rows on screen (logcat GuideTiming).
+    LaunchedEffect(state.loading, rows.isNotEmpty()) {
+        if (state.loading || rows.isEmpty()) return@LaunchedEffect
+        androidx.compose.runtime.withFrameNanos { }
+        vm.timing.firstUsableFrame()
     }
 
     // Prepare row data for the rows on screen and ROW_PREP_MARGIN either side: programmes from the VM
@@ -508,11 +513,9 @@ fun EpgScreen(
             if (e.type == KeyEventType.KeyDown) backDown = true
             else if (e.type == KeyEventType.KeyUp && backDown) {
                 backDown = false
-                // Opened from the player: straight back to the channel full screen (Up still reaches the header).
-                when (GuideNav.gridBack(fromPlayer = onBackToPlayer != null)) {
-                    GuideNav.GridBack.TO_PLAYER -> onBackToPlayer?.invoke()
-                    GuideNav.GridBack.TO_HEADER -> focusHeader()
-                }
+                // Back steps out to Categories (Phase 4B), so it is one press away from any row; Back again
+                // leaves the guide (to the player when the guide was opened from it — the shell's Back).
+                focusHeader()
             }
             return true
         }

@@ -359,6 +359,15 @@
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=other playlist
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	unsupported source type
 1	performance	app/src/main/java/tv/own/owntv/features/epg/EpgScreen.kt	Guide.scrollIntoView
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	background refresh complete
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	channel query end (${rawChannels.size} channels)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	channel query start
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	first channel data published (${channels.size} rows)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	load start
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	reused list on screen (no query)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	stored count done ($stored)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	window preload end (${forward.size} guide channels)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	window preload start
 1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.base
 1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.focus
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	🔔
@@ -366,6 +375,10 @@
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideLayers.kt	android.os.SystemProperties
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideLayers.kt	debug.owntv.guide.layers
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideLayers.kt	get
+1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	$step +${ms}ms
+1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	GuideTiming
+1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	first usable guide frame
+1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	guide open requested
 1	empty	app/src/main/java/tv/own/owntv/features/epg/GuideNav.kt	\0
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
@@ -666,6 +679,8 @@
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	https://www.youtube.com/watch?v=$videoId
 1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	launch refused by ${candidate.packageName ?: "handler"}
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	vnd.youtube:$videoId
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface handoff: no new frame ${SurfaceHandoff.CHECK_MS}ms after the switch - re-attaching
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface handoff: still no frame - asking for a fresh surface (same stream)
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway

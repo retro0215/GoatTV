@@ -769,7 +769,6 @@ fun OwnTVShell(
                                 GuidePlayback.Surface.MPV -> { m -> MpvVideoSurface(player = player, modifier = m, autoFrameRate = false) }
                                 GuidePlayback.Surface.PLACEHOLDER -> null
                             },
-                            onBackToPlayer = if (GuidePlayback.back(guideSession) == GuidePlayback.Back.RETURN_TO_PLAYER) returnToPlayerFromGuide else null,
                             onRestored = { restoreFocus = false }, onContentScrolled = { contentScrolled = it },
                             modifier = Modifier.fillMaxSize().onFocusChanged { if (it.hasFocus) focusedLayer = ShellLayer.CONTENT }.focusGroup(),
                         )
@@ -816,10 +815,6 @@ fun OwnTVShell(
                 tv.own.owntv.player.AutoFrameRatePrompt(fps = activeFps, afrEnabled = autoFrameRate, alreadyPrompted = afrPrompted, onEnable = { scope.launch { settingsRepo.setAutoFrameRate(true); settingsRepo.setAutoFrameRatePrompted() } }, onDismiss = { scope.launch { settingsRepo.setAutoFrameRatePrompted() } })
             }
             if (isFull) {
-                var showLiveGuide by remember { mutableStateOf(false) }
-                // Back out of the bottom guide lands on the Guide button it was opened from (the HUD is
-                // recreated when the guide closes); an inactivity close returns to plain video instead.
-                var focusGuideButton by remember { mutableStateOf(false) }
                 // The reminder listener and banner live at the shell's root now (Phase 4), so they work
                 // in every section, not only while this player is mounted.
                 val activeReminderBanner = reminderBanner
@@ -843,19 +838,6 @@ fun OwnTVShell(
                     zapSource == MainSection.SERIES -> playingSeries?.let { seriesFavoriteIds.contains(it.id) } ?: false
                     else -> false
                 }
-                if (showLiveGuide && zapSource == MainSection.LIVE_TV) {
-                    tv.own.owntv.features.shell.components.BottomTvGuideOverlay(
-                        channel = previewChannel,
-                        visible = showLiveGuide,
-                        onDismiss = { showLiveGuide = false; focusGuideButton = true },
-                        onTimedOut = { showLiveGuide = false },
-                        focusKey = activeReminderBanner == null,
-                        loadScheduleWindow = liveVm::loadScheduleWindow,
-                        onChannelUp = zap?.let { z -> { z(-1) } },
-                        onChannelDown = zap?.let { z -> { z(1) } },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
                     PlayerHud(
                         player = if (liveOnExo) liveVm.previewEngine else mpvEngine, onBack = exitPlayer, onPip = dockPlayer, onAudioMode = toAudioMode,
                         inert = showChannelList || showHistoryList || showCategoryBrowser || showSubtitleSearch || showLocalSubPicker || activeReminderBanner != null,
@@ -888,13 +870,12 @@ fun OwnTVShell(
                                 tv.own.owntv.features.shell.components.LiveEpgCard(epg = epg, modifier = if (watching == null) Modifier else Modifier.alpha(0.55f))
                             }
                         } } else null,
-                        onOpenGuide = if (zapSource == MainSection.LIVE_TV) { { showLiveGuide = true } } else null,
-                        onOpenFullGuide = if (GuidePlayback.canOpenGuide(isTunedLive, isLiveStream) && timeshiftOffset == null) openGuideFromPlayer else null,
-                        focusGuideOnShow = focusGuideButton,
-                        onGuideFocused = { focusGuideButton = false },
+                        // Phase 4B: one guide only — the full TV Guide (the bottom-strip guide is gone). Offered on
+                        // any tuned live channel, ExoPlayer or mpv: it no longer reads mpv's isLiveContent, a
+                        // plain field Compose never re-reads, which hid the button on mpv channels.
+                        onOpenFullGuide = if (GuidePlayback.canOpenGuide(isTunedLive, hasChannel = previewChannel != null) && timeshiftOffset == null) openGuideFromPlayer else null,
                         modifier = Modifier.fillMaxSize(),
                     )
-                }
 
                 if (showSubtitleSearch) tv.own.owntv.features.subtitles.SubtitleSearchScreen(onDismiss = { showSubtitleSearch = false }, modifier = Modifier.fillMaxSize())
                 if (showLocalSubPicker) tv.own.owntv.ui.components.StorageBrowser(title = stringResource(R.string.content_subtitle_select_file), mode = tv.own.owntv.ui.components.BrowseMode.FILE, fileExtensions = setOf("srt", "ass", "ssa", "vtt", "webvtt"), onPick = { file -> showLocalSubPicker = false; scope.launch { runCatching { subtitleController.applyLocal(file) }.onFailure { e -> localSubToast.show(e.message ?: subtitleLoadFailed) } } }, onDismiss = { showLocalSubPicker = false })
@@ -1164,7 +1145,9 @@ private fun ReminderWarningButton(
         modifier = modifier
             .focusRequester(focusRequester)
             .onFocusChanged { isFocused = it.hasFocus }
-            .focusable()
+            // ONE focus target that handles OK (Phase 4B). A separate focusable modifier ahead of clickable made
+            // two: the banner's focus request landed on the plain one, so the first OK did nothing and only
+            // a second press (after focus moved on to the clickable node) acted.
             .clickable { onClick() }
             .graphicsLayer {
                 if (isFocused) {

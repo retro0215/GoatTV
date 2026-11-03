@@ -141,6 +141,16 @@ class EpgViewModel(
     private class GuideBase(val profileId: Long, val query: String, val sorted: List<ChannelEntity>, val cust: tv.own.owntv.core.customize.SectionCustomizations)
     @Volatile private var lastBase: GuideBase? = null
 
+    /** Phase 4B: open timing (logcat `GuideTiming`) and the inputs of the list on screen (see GuideLoad). */
+    internal val timing = GuideTiming()
+    @Volatile private var lastKey: GuideLoad.Key? = null
+    @Volatile private var lastSignal: Long? = null
+    // The per-feed stored programme counts Room already observes (summed): a cheap "guide data changed" signal.
+    @Volatile private var dataSignal: Long? = null
+
+    /** Called by the Guide screen when it opens, before [load]. */
+    fun onGuideOpened() = timing.open()
+
     // Whether the Guide screen is on screen. The ViewModel is activity-scoped and outlives the screen;
     // data-change reloads are skipped while it is hidden because the screen reloads on every open anyway.
     private val screenVisible = MutableStateFlow(false)
@@ -153,6 +163,7 @@ class EpgViewModel(
         shiftedRowCache.clear()
         cachedWindow = null
         lastStored = -1
+        lastKey = null
         _cacheRevision.value++
     }
 
@@ -348,6 +359,7 @@ class EpgViewModel(
             .flatMapLatest { ids ->
                 if (ids.isEmpty()) flowOf(0) else combine(ids.map { epgDao.countForSource(it) }) { it.sum() }
             }
+            .onEach { dataSignal = it.toLong() }
             .let { counts -> guideReloadTriggers(counts, epgActivity.active.map { it.isEmpty() }, GUIDE_DATA_SETTLE_MS) }
             .onEach { if (screenVisible.value) load() }
             .launchIn(viewModelScope)
@@ -716,6 +728,7 @@ class EpgViewModel(
                 else -> null
             }
             _state.value = _state.value.copy(channels = channels, message = message, refreshing = false)
+            lastKey = lastKey?.copy(category = _categoryFilter.value)
         }
     }
 
@@ -736,6 +749,7 @@ class EpgViewModel(
             // (`refreshing` lets the screen show that a reload is under way without hiding the list.)
             if (_state.value.channels.isEmpty()) _state.value = _state.value.copy(loading = true, message = null)
             else _state.value = _state.value.copy(refreshing = true)
+            timing.mark("load start")
             val pid = currentProfileId()
             if (pid == null) {
                 _state.value = EpgUiState(
@@ -769,7 +783,22 @@ class EpgViewModel(
             // Respect customizations: hidden channels stay out of the guide, renames show.
             val cust = customize.observe(pid, MediaType.LIVE).first()
             val q = _query.value.trim()
+            val favoriteIdsEarly = favoriteDao.observeFavoriteIds(pid, MediaType.LIVE).first().toSet()
+            val key = GuideLoad.Key(
+                profileId = pid, sourceIds = ids, query = q, category = _categoryFilter.value,
+                sortLive = settings.sortLive.first().name, sortGuide = settings.sortGuide.first().name,
+                favoriteIds = favoriteIdsEarly, customizations = cust, windowStart = windowStart,
+            )
+            val signal = dataSignal
+            if (GuideLoad.reuse(lastKey, key, lastSignal, signal, _state.value.channels.isNotEmpty(), epgActivity.active.value.isNotEmpty())) {
+                // Nothing changed since the last load: the list and window cache on screen are current.
+                _state.value = _state.value.copy(loading = false, refreshing = false, now = now)
+                timing.mark("reused list on screen (no query)")
+                return@launch
+            }
+            timing.mark("channel query start")
             val rawChannels = channelDao.channelsWithGuide(ids, q, MAX_CHANNELS)
+            timing.mark("channel query end (${rawChannels.size} channels)")
             // Catch-up count comes from the playlist channels (the tv_archive flag), so it shows even
             // before any XMLTV guide is downloaded — it tells the user their provider supports catch-up.
             val catchupCount = channelDao.countCatchup(playlistIds)
@@ -829,7 +858,20 @@ class EpgViewModel(
             }
             // Kept for category changes; a custom category's list skipped the hidden-category filter.
             lastBase = if (customMemberIds == null) GuideBase(pid, q, sortedAll, cust) else null
+
+            // Show the guide now (Phase 4B): rows read their own programmes (one indexed query each) while the
+            // window preload, counts and stats below run behind them. An empty list still waits for the
+            // count, which decides between "no guide yet" and "no matches".
+            if (channels.isNotEmpty()) {
+                _state.value = _state.value.copy(
+                    channels = channels, windowStart = windowStart, windowEnd = windowEnd, now = now,
+                    loading = false, refreshing = true, message = null, hasEpgSources = epgIds.isNotEmpty(),
+                    catchupCount = catchupCount, favoriteCount = favoriteIds.size,
+                )
+                timing.mark("first channel data published (${channels.size} rows)")
+            }
             val stored = epgDao.countForSources(ids)
+            timing.mark("stored count done ($stored)")
 
 
             // Per-row programmes are loaded in ONE batched query and grouped into rowCache here, instead of
@@ -853,12 +895,16 @@ class EpgViewModel(
                 shiftedRowCache.clear()
                 _cacheRevision.value++
             } else if (windowChanged) {
-                cachedWindow = windowStart to windowEnd
+                cachedWindow = null
                 rowCache.clear()
                 shiftedRowCache.clear()
-                // Pass 1 (blocking): the forward window only, so the Guide opens instantly and fully from cache.
+                // Pass 1: the forward window, read behind the rows already on screen. Only once it is complete
+                // does the window count as cached (absent = empty); until then no row is hidden as empty.
+                timing.mark("window preload start")
                 val forward = loadWindowGrouped(ids, nowAligned, windowEnd)
                 forward.forEach { (k, list) -> rowCache[k] = list }
+                cachedWindow = windowStart to windowEnd
+                timing.mark("window preload end (${forward.size} guide channels)")
                 // Signal GuideChannelRow's produceState to re-read rowCache now that the batch load
                 // is complete — without this, the initial composition renders channels with empty
                 // programmes until the user scrolls and triggers fresh item composition.
@@ -884,6 +930,9 @@ class EpgViewModel(
                 loading = false, message = message, hasEpgSources = hasEpg, stats = stats, catchupCount = catchupCount,
                 favoriteCount = favoriteIds.size,
             )
+            lastKey = key
+            lastSignal = signal
+            timing.mark("background refresh complete")
 
             // Pass 2 (background): merge the catch-up lookback into rowCache gradually, so a multi-day × many-
             // channel window never blocks the open or spikes memory on low-RAM (1.8 GB) boxes. Only runs when
