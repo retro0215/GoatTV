@@ -2,6 +2,10 @@ package tv.own.owntv.features.epg
 
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.transformLatest
 import tv.own.owntv.core.sync.work.ProgramReminders
 
 /**
@@ -208,7 +212,10 @@ internal object GuideNav {
      */
     fun panelSettleMs(sinceLastMoveMs: Long): Long = if (sinceLastMoveMs < RAPID_MOVE_MS) 200L else 40L
 
-    /** The texts and wording the panel needs, resolved from resources by the screen. */
+    /**
+     * The texts and wording the panel needs, resolved from resources by the screen. Compared by identity
+     * (it holds functions), so the screen must remember one instance rather than build one per composition.
+     */
     class PanelStrings(
         val nowLabel: String,
         val catchup: String,
@@ -257,6 +264,84 @@ internal object GuideNav {
         ).joinToString(strings.separator)
         val next = nextAfter(programmes, p)
         return PanelText(p.id, bits, p.title, synopsis ?: p.description, next?.let { strings.nextLabel(it.startMs) }, next?.title, hint, onAir)
+    }
+
+    /** One snapshot of what the details panel depends on: the cursor, the panel's width, and everything else. */
+    data class PanelState<I>(val cursor: Cursor?, val widthPx: Int, val inputs: I)
+
+    /** What the panel should show, at a width. An equal request is never laid out again. */
+    data class PanelRequest(val text: PanelText, val widthPx: Int)
+
+    /**
+     * The panel's requests from its [states]. After a cursor move the panel waits [panelSettleMs] (not
+     * on its first showing), and a newer state cancels that wait — so held or rapid moves end in one
+     * update, for the programme the cursor stopped on. A state that describes the same text at the same
+     * width is dropped: in Phase 3F a state that changed without changing the text (strings rebuilt on
+     * every composition) re-laid out the panel ~50 times a second, forever, even behind the home screen.
+     * A move first emits null ("moving": keep what is shown, but drop a pending synopsis read for the
+     * programme the cursor just left).
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun <I> panelRequests(
+        states: kotlinx.coroutines.flow.Flow<PanelState<I>>,
+        clock: () -> Long,
+        describe: (Cursor?, I) -> PanelText,
+    ): kotlinx.coroutines.flow.Flow<PanelRequest?> = kotlinx.coroutines.flow.flow {
+        // Per collection. transformLatest finishes cancelling a run before it starts the next.
+        var lastCursor: Cursor? = null
+        var lastMoveAt = 0L
+        var settleUntil = 0L
+        var shown = false
+        val requests = states.transformLatest { s ->
+            val t = clock()
+            if (s.cursor != lastCursor) {
+                val since = t - lastMoveAt
+                lastCursor = s.cursor
+                lastMoveAt = t
+                settleUntil = if (shown) t + panelSettleMs(since) else t
+                if (shown) emit(null)
+            }
+            // Measured from the move, so a state that arrives mid-wait doesn't restart or skip it.
+            val wait = settleUntil - t
+            if (wait > 0) kotlinx.coroutines.delay(wait)
+            if (s.widthPx <= 0) return@transformLatest
+            shown = true
+            emit(PanelRequest(describe(s.cursor, s.inputs), s.widthPx))
+        }
+        emitAll(requests.distinctUntilChanged())
+    }
+
+    /**
+     * Shows each request with [layout]. The synopsis is a database read: it is loaded once the panel has
+     * shown a programme for [synopsisSettleMs] without a newer request, then the panel is laid out again
+     * with it. The last programme's synopsis is kept, so an update that keeps the same programme (the
+     * clock moving on, a reminder set) shows it straight away without another read. A null request
+     * (the cursor is moving) keeps the panel as it is and only cancels a pending synopsis read.
+     */
+    suspend fun showPanel(
+        requests: kotlinx.coroutines.flow.Flow<PanelRequest?>,
+        synopsisSettleMs: Long,
+        loadSynopsis: suspend (Long) -> String?,
+        layout: suspend (PanelText, Int) -> Unit,
+    ) {
+        var cachedId: Long? = null
+        var cached: String? = null
+        requests.collectLatest { r ->
+            if (r == null) return@collectLatest
+            val id = r.text.programmeId
+            when {
+                id == null || r.text.synopsis != null -> layout(r.text, r.widthPx)
+                id == cachedId -> layout(r.text.copy(synopsis = cached), r.widthPx)
+                else -> {
+                    layout(r.text, r.widthPx)
+                    kotlinx.coroutines.delay(synopsisSettleMs)
+                    val synopsis = loadSynopsis(id)?.takeIf { it.isNotBlank() }
+                    cachedId = id
+                    cached = synopsis
+                    if (synopsis != null) layout(r.text.copy(synopsis = synopsis), r.widthPx)
+                }
+            }
+        }
     }
 
     /** The timeline hour the view is in; row texts are prepared per bucket (see [textKey]). */

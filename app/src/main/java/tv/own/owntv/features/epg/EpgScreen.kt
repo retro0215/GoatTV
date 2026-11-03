@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import org.koin.androidx.compose.koinViewModel
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
@@ -1060,7 +1061,8 @@ private fun CenterBox(content: @Composable androidx.compose.foundation.layout.Co
  * plus text measurement inside the move's frame). Now: the cursor is read only in a collector, never
  * while composing; the panel waits for the cursor to settle (see [GuideNav.panelSettleMs]); its texts
  * are laid out on the guide's text thread; and the panel is one Canvas that only draws those layouts.
- * The synopsis (a database read) is fetched once the cursor rests on a programme.
+ * The synopsis (a database read) is fetched once the cursor rests on a programme. The update rules
+ * live in [GuideNav.panelRequests] / [GuideNav.showPanel]: unchanged text is never laid out again.
  */
 @Composable
 private fun GuideDetailsPanel(
@@ -1083,17 +1085,24 @@ private fun GuideDetailsPanel(
     val context = androidx.compose.ui.platform.LocalContext.current
     val formatTime = rememberSystemTimeFormatter()
     val rangeTemplate = stringResource(R.string.content_epg_time_range)
-    val strings = GuideNav.PanelStrings(
-        nowLabel = stringResource(R.string.content_live_now_label),
-        catchup = stringResource(R.string.content_epg_catchup),
-        reminderSet = stringResource(R.string.content_reminder_active),
-        separator = stringResource(R.string.content_epg_details_separator),
-        noProgramme = stringResource(R.string.content_epg_no_programme),
-        hint = stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_controls_hint),
-        range = { a, b -> String.format(java.util.Locale.ROOT, rangeTemplate, formatTime(a), formatTime(b)) },
-        runtime = { m -> context.resources.getString(R.string.content_epg_runtime, m) },
-        nextLabel = { t -> context.resources.getString(R.string.content_live_next_label, formatTime(t)) },
-    )
+    val nowLabel = stringResource(R.string.content_live_now_label)
+    val catchup = stringResource(R.string.content_epg_catchup)
+    val reminderSet = stringResource(R.string.content_reminder_active)
+    val separator = stringResource(R.string.content_epg_details_separator)
+    val noProgramme = stringResource(R.string.content_epg_no_programme)
+    val hint = stringResource(if (hiddenEmpty) R.string.content_epg_empty_hidden else R.string.content_epg_controls_hint)
+    // One instance until the wording changes. It is compared by identity, and Phase 3F built a new one
+    // on every composition: each layout recomposed the panel, which looked like new input, which laid
+    // it out again — ~50 layouts a second while idle, and on behind the home screen.
+    val strings = remember(rangeTemplate, nowLabel, catchup, reminderSet, separator, noProgramme, hint, formatTime, context) {
+        GuideNav.PanelStrings(
+            nowLabel = nowLabel, catchup = catchup, reminderSet = reminderSet, separator = separator,
+            noProgramme = noProgramme, hint = hint,
+            range = { a, b -> String.format(java.util.Locale.ROOT, rangeTemplate, formatTime(a), formatTime(b)) },
+            runtime = { m -> context.resources.getString(R.string.content_epg_runtime, m) },
+            nextLabel = { t -> context.resources.getString(R.string.content_live_next_label, formatTime(t)) },
+        )
+    }
     val styles = remember(colors, typography) { PanelStyles(colors, typography) }
     // Used only on the guide's text thread (a TextMeasurer is not thread-safe).
     val measurer = remember(fontResolver, density, layoutDirection) {
@@ -1109,33 +1118,26 @@ private fun GuideDetailsPanel(
     // Everything except the cursor that changes what the panel shows; read only by the collector below.
     val inputs = androidx.compose.runtime.rememberUpdatedState(PanelInputs(rows, now, reminderSlots, cacheRevision, strings))
 
-    LaunchedEffect(Unit) {
-        var lastCursor: GuideNav.Cursor? = null
-        var lastMoveAt = 0L
-        androidx.compose.runtime.snapshotFlow { Triple(cursor(), widthPx, inputs.value) }.collectLatest { (c, w, inp) ->
-            val t = android.os.SystemClock.uptimeMillis()
-            if (c != lastCursor) {
-                val since = t - lastMoveAt
-                lastCursor = c
-                lastMoveAt = t
-                if (layout != null) kotlinx.coroutines.delay(GuideNav.panelSettleMs(since))
+    // Only while the screen is started: Compose keeps producing frames for a stopped activity, so a
+    // collector left running would keep working behind the home screen.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner, measurer, styles) {
+        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            val states = androidx.compose.runtime.snapshotFlow { GuideNav.PanelState(cursor(), widthPx, inputs.value) }
+            val requests = GuideNav.panelRequests(states, clock = { android.os.SystemClock.uptimeMillis() }) { c, inp ->
+                val channel = c?.row?.let { inp.rows.getOrNull(it) }
+                val programmes = channel?.let { programmesOf(it) }.orEmpty()
+                val reminderStarts = channel?.let { GuideNav.reminderStarts(inp.reminderSlots, it.id) }.orEmpty()
+                GuideNav.panelText(
+                    programmes, c?.timeMs ?: inp.now, inp.now, reminderStarts,
+                    canCatchup = { p -> channel != null && vm.canCatchup(channel, p, inp.now) },
+                    synopsis = null, hint = inp.strings.hint, strings = inp.strings,
+                )
             }
-            if (w <= 0) return@collectLatest
-            val channel = c?.row?.let { inp.rows.getOrNull(it) }
-            val programmes = channel?.let { programmesOf(it) }.orEmpty()
-            val reminderStarts = channel?.let { GuideNav.reminderStarts(inp.reminderSlots, it.id) }.orEmpty()
-            val text = GuideNav.panelText(
-                programmes, c?.timeMs ?: inp.now, inp.now, reminderStarts,
-                canCatchup = { p -> channel != null && vm.canCatchup(channel, p, inp.now) },
-                synopsis = null, hint = inp.strings.hint, strings = inp.strings,
-            )
-            layout = kotlinx.coroutines.withContext(textDispatcher) { layoutPanel(text, w, measurer, styles, padH, gap, rightMax, inp.strings.separator) }
-            // The synopsis is a database read: only once the cursor has rested on this programme.
-            val id = text.programmeId ?: return@collectLatest
-            if (text.synopsis != null) return@collectLatest
-            kotlinx.coroutines.delay(SYNOPSIS_SETTLE_MS)
-            val synopsis = vm.programmeDescription(id)?.takeIf { it.isNotBlank() } ?: return@collectLatest
-            layout = kotlinx.coroutines.withContext(textDispatcher) { layoutPanel(text.copy(synopsis = synopsis), w, measurer, styles, padH, gap, rightMax, inp.strings.separator) }
+            GuideNav.showPanel(requests, SYNOPSIS_SETTLE_MS, loadSynopsis = { vm.programmeDescription(it) }) { text, w ->
+                val sep = inputs.value.strings.separator
+                layout = kotlinx.coroutines.withContext(textDispatcher) { layoutPanel(text, w, measurer, styles, padH, gap, rightMax, sep) }
+            }
         }
     }
 

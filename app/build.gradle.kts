@@ -787,6 +787,8 @@ dependencies {
     // on the JVM instead of android.jar's no-op stubs.
     testImplementation(libs.gson)
     testImplementation("io.mockk:mockk:1.13.13")
+    // Test-only, never packaged: virtual time for the guide details panel's update timing tests.
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.room.testing)
