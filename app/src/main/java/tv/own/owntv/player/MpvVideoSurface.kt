@@ -71,7 +71,7 @@ private class MpvSurfaceView(context: Context, private val player: OwnTVPlayer) 
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        player.detachSurface()
+        player.detachSurface(holder.surface)
     }
 }
 

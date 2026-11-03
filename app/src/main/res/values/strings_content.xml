@@ -568,6 +568,10 @@
     </plurals>
     <!-- Translators: Screen title for the TV Guide / EPG screen. -->
     <string name="content_epg_title">TV Guide</string>
+    <!-- TV Guide video preview: caption under the channel still playing from Live TV. -->
+    <string name="content_epg_preview_playing">Playing: <xliff:g id="channel">%1$s</xliff:g></string>
+    <!-- TV Guide video preview, nothing playing: browsing never starts a channel. -->
+    <string name="content_epg_preview_idle">Choose a program and Watch to start a channel</string>
     <!-- Translators: Loading status shown while EPG matching is in progress. -->
     <string name="content_epg_matching">Matching\u2026</string>
     <!-- Translators: Empty-state message when no EPG source has been added. -->
@@ -683,6 +687,9 @@
     <string name="content_reminder_active">Reminder set</string>
     <string name="content_reminder_title">PROGRAM STARTING SOON</string>
     <string name="content_reminder_message">Starts in 1 minute on <xliff:g id="channel">%1$s</xliff:g></string>
+    <!-- Multiscreen: the reminded programme has started; Watch leaves the layout to tune it. -->
+    <string name="content_reminder_started_title">PROGRAM STARTING NOW</string>
+    <string name="content_reminder_started_message">Now on <xliff:g id="channel">%1$s</xliff:g></string>
     <string name="content_reminder_watch">Watch channel</string>
     <string name="content_reminder_dismiss">Dismiss</string>
     <string name="content_channel_unavailable">Channel no longer available</string>

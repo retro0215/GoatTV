@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -166,6 +167,10 @@ fun OwnTVShell(
     var trendingSearchActive by remember { mutableStateOf(false) }
     var fullscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
     var multiscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
+    // Phase 4: the TV Guide's live preview — the channel the player was on, still playing (GuidePlayback).
+    var guideSession by remember { mutableStateOf(GuidePlayback.NONE) }
+    // Phase 4: the reminder banner, shown wherever the customer is (ReminderDelivery).
+    var reminderBanner by remember { mutableStateOf<ReminderBannerState?>(null) }
 
     val exitMultiscreen = {
         val sec = multiscreenReturnSection ?: MainSection.LIVE_TV
@@ -224,11 +229,18 @@ fun OwnTVShell(
     val catchupActive by liveVm.catchupActive.collectAsStateWithLifecycle()
     val vodExoActive by player.exoActiveState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(liveOnExo, playerMode) {
+    LaunchedEffect(liveOnExo, playerMode, guideSession) {
+        // The Guide's live preview is audible, so it keeps audio focus and the media session too.
         playbackSession.attach(
-            if (playerMode == PlayerMode.NONE) null else if (liveOnExo) liveVm.previewEngine else mpvEngine,
+            when (GuidePlayback.audioFocusOwner(playerMode != PlayerMode.NONE, guideSession, liveOnExo)) {
+                GuidePlayback.FocusOwner.EXO -> liveVm.previewEngine
+                GuidePlayback.FocusOwner.MPV -> mpvEngine
+                GuidePlayback.FocusOwner.NONE -> null
+            },
         )
     }
+    // Any player shown again (Watch, a reminder, back from the Guide) ends the Guide's preview session.
+    LaunchedEffect(playerMode) { if (playerMode != PlayerMode.NONE) guideSession = GuidePlayback.NONE }
 
     val autoFrameRate by settingsRepo.autoFrameRate.collectAsStateWithLifecycle(initialValue = false)
     val afrPrompted by settingsRepo.autoFrameRatePrompted.collectAsStateWithLifecycle(initialValue = true)
@@ -296,14 +308,30 @@ fun OwnTVShell(
         runCatching { liveVm.previewEngine.exitAudioOnly() }
     }
     val expandPlayer = { resumeVideo(); restoreFocus = false; playerMode = PlayerMode.FULLSCREEN }
-    val exitPlayer = {
+    val exitPlayer = exit@{
         movieVm.saveProgressNow()
         seriesVm.saveEpisodeProgressNow()
         resumeVideo()
+        // A live channel tuned from the Guide: Back returns to the Guide with the channel still playing in
+        // its preview (Phase 4), rather than stopping it as every other exit does.
+        // Full screen only: closing the mini player or the audio bar means stop.
+        val keepInGuide = if (playerMode != PlayerMode.FULLSCREEN) GuidePlayback.NONE else GuidePlayback.onPlayerExit(
+            section = selectedSection,
+            isTunedLive = zapSource == MainSection.LIVE_TV && !catchupActive,
+            isLiveStream = (liveOnExo || player.isLiveContent) && timeshiftOffset == null,
+            returnSection = fullscreenReturnSection,
+        )
         playerMode = PlayerMode.NONE
         showChannelList = false
         showHistoryList = false
         liveVm.hideCategoryBrowser()
+        if (keepInGuide.live) {
+            guideSession = keepInGuide
+            // The Guide focuses its grid on the tuned channel once it has loaded; the sidebar until then.
+            restoreFocus = true
+            runCatching { sidebarFocus.requestFocus() }
+            return@exit
+        }
         liveVm.onFullscreenExited()
         player.stop()
         subtitleController.clear()
@@ -315,6 +343,31 @@ fun OwnTVShell(
         }
         restoreFocus = true
         runCatching { sidebarFocus.requestFocus() }
+        Unit
+    }
+    // Phase 4: the player's TV Guide button. The stream keeps playing; its picture moves to the Guide's
+    // preview (the full-screen surface leaves, the preview's arrives — no release, no re-tune).
+    val openGuideFromPlayer = {
+        showChannelList = false
+        showHistoryList = false
+        liveVm.hideCategoryBrowser()
+        resumeVideo()
+        val session = GuidePlayback.openFromPlayer(selectedSection)
+        playerMode = PlayerMode.NONE
+        guideSession = session
+        // The Guide opens with focus in the grid, on the playing channel's row.
+        previewChannel?.let { epgVm.noteChannelTuned(it) }
+        restoreFocus = true
+        onSelectSection(MainSection.EPG)
+        Unit
+    }
+    // Back in a Guide opened from the player: the same channel full screen again, over the section it sat on.
+    val returnToPlayerFromGuide = {
+        val back = guideSession.returnSection ?: MainSection.LIVE_TV
+        guideSession = GuidePlayback.NONE
+        restoreFocus = false
+        playerMode = PlayerMode.FULLSCREEN
+        onSelectSection(back)
         Unit
     }
     val dockPlayer = {
@@ -375,7 +428,23 @@ fun OwnTVShell(
     }
 
     LaunchedEffect(selectedSection, playerMode) {
-        if (selectedSection != MainSection.LIVE_TV && playerMode == PlayerMode.NONE) player.stop()
+        // Leaving the Guide while it plays live ends that session: the stream stops as the player's exit
+        // would, except on Live TV, whose preview pane re-takes the ExoPlayer stream (muted).
+        when (GuidePlayback.onSectionChanged(guideSession, selectedSection, playerMode != PlayerMode.NONE)) {
+            null -> Unit
+            GuidePlayback.Teardown.KEEP_FOR_LIVE_PANE -> {
+                guideSession = GuidePlayback.NONE
+                liveVm.onFullscreenExited()
+                player.stop() // mpv has no pane preview to hand over to
+            }
+            GuidePlayback.Teardown.STOP -> {
+                guideSession = GuidePlayback.NONE
+                liveVm.onFullscreenExited()
+                liveVm.clearLiveOnExo()
+            }
+        }
+        // mpv may be the Guide's live picture, which keeps playing there.
+        if (GuidePlayback.mayStopMpvOffLive(selectedSection, playerMode != PlayerMode.NONE, guideSession)) player.stop()
         if (selectedSection != MainSection.HOME || playerMode != PlayerMode.NONE) homeVm.stopPreview()
         // Settings never shows the live preview, yet a preview left running when the user came here would
         // keep its decoder and provider connection behind the settings pages. Stopping frees both; the
@@ -398,9 +467,96 @@ fun OwnTVShell(
             showAvatarPicker -> showAvatarPicker = false
             showPlaylistPicker -> showPlaylistPicker = false
             showExit -> showExit = false
+            // A Guide opened from the player: Back returns to that channel full screen.
+            selectedSection == MainSection.EPG && GuidePlayback.back(guideSession) == GuidePlayback.Back.RETURN_TO_PLAYER -> returnToPlayerFromGuide()
             focusedLayer == ShellLayer.SIDEBAR -> showExit = true
             isMultiscreen -> exitMultiscreen()
             else -> runCatching { sidebarFocus.requestFocus() }
+        }
+    }
+
+    // ---- Programme reminders (Phase 4): one listener for the whole app, while it is in the foreground ----
+    // Until 4.6 this lived inside the full-screen player, and reminder events are not replayed, so one that
+    // fired on Home, in the Guide or in Settings was lost. The rules are in ReminderDelivery.
+    val programReminders = koinInject<tv.own.owntv.core.sync.work.ProgramReminders>()
+    val reminderRelinker = koinInject<tv.own.owntv.core.sync.work.ReminderRelinker>()
+    val handledReminders = remember { ReminderDelivery.Handled() }
+    val reminderToast = tv.own.owntv.ui.components.rememberInAppToast()
+    val reminderUnavailable = stringResource(R.string.content_channel_unavailable)
+    // Where focus was when a banner opened outside the player, so Dismiss can put it back.
+    val shellContentFocus = remember { FocusRequester() }
+    val isMultiscreenNow by androidx.compose.runtime.rememberUpdatedState(isMultiscreen)
+    val playerShownNow by androidx.compose.runtime.rememberUpdatedState(playerMode != PlayerMode.NONE)
+    // Tunes a reminder's channel full screen. From Multiscreen only after Watch: the layout is left first.
+    suspend fun tuneReminderChannel(channelId: Long): Boolean {
+        if (isMultiscreenNow) {
+            multiscreenReturnSection = null
+            onSelectSection(MainSection.LIVE_TV)
+        }
+        val tuned = liveVm.ensurePlayingByIdAsync(channelId)
+        if (tuned && !liveVm.externalPlayerOn.value) openFullscreen(MainSection.LIVE_TV)
+        return tuned
+    }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            programReminders.repairLegacyOwners()
+            reminderRelinker.restoreAfterRestart()
+        }
+    }
+    val shellLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(shellLifecycle) {
+        shellLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            launch {
+                tv.own.owntv.core.notification.ReminderEventBus.reminderEvents.collect { reminder ->
+                    // Another profile's reminder: no banner (its Watch could only be refused).
+                    if (!ReminderDelivery.showWarning(programReminders.belongsToActiveProfile(reminder))) return@collect
+                    if (handledReminders.contains(reminder.channelId, reminder.programStartMs)) return@collect
+                    if (reminderBanner == null && !playerShownNow) saveShellFocus(shellContentFocus)
+                    reminderBanner = ReminderBannerState(reminder, starting = false)
+                }
+            }
+            launch {
+                tv.own.owntv.core.notification.ReminderEventBus.autotuneEvents.collect { reminder ->
+                    // Only the active profile's reminder, on its own playlist's channel; an orphaned,
+                    // ambiguous or other-profile reminder tunes nothing (tuneChannelId is null).
+                    val channelId = programReminders.tuneChannelId(reminder)
+                    val place = ReminderDelivery.place(isMultiscreenNow, playerShownNow)
+                    val already = handledReminders.contains(reminder.channelId, reminder.programStartMs)
+                    when (val start = ReminderDelivery.onStart(place, channelId, already)) {
+                        is ReminderDelivery.Start.Tune -> {
+                            handledReminders.claim(reminder.channelId, reminder.programStartMs)
+                            if (reminderBanner?.matches(reminder) == true) reminderBanner = null
+                            tuneReminderChannel(start.channelId)
+                        }
+                        is ReminderDelivery.Start.Confirm -> {
+                            if (reminderBanner == null) saveShellFocus(shellContentFocus)
+                            reminderBanner = ReminderBannerState(reminder, starting = true)
+                        }
+                        ReminderDelivery.Start.Ignore -> Unit
+                    }
+                }
+            }
+        }
+    }
+    val dismissReminderBanner = {
+        val wasBrowsing = !playerShownNow
+        reminderBanner = null
+        if (wasBrowsing) scope.launch {
+            kotlinx.coroutines.android.awaitFrame()
+            if (!restoreShellFocus(shellContentFocus)) runCatching { sidebarFocus.requestFocus() }
+        }
+        Unit
+    }
+    val watchReminder: (tv.own.owntv.core.database.entity.ReminderEntity) -> Unit = { reminder ->
+        scope.launch {
+            reminderBanner = null
+            val channelId = programReminders.tuneChannelId(reminder)
+            if (channelId != null && handledReminders.claim(reminder.channelId, reminder.programStartMs) && tuneReminderChannel(channelId)) {
+                // Watched now: drop the row and its pending tune (same as 4.5.0).
+                programReminders.cancel(reminder.id)
+            } else {
+                reminderToast.show(reminderUnavailable)
+            }
         }
     }
 
@@ -416,12 +572,12 @@ fun OwnTVShell(
           MultiscreenScreen(
               onBack = exitMultiscreen,
               onChildFocused = { focusedLayer = ShellLayer.CONTENT },
-              modifier = Modifier.fillMaxSize(),
+              modifier = Modifier.fillMaxSize().focusRequester(shellContentFocus).focusGroup(),
           )
       } else {
         // Browse UI — hidden while the player is fullscreen.
         if (playerMode != PlayerMode.FULLSCREEN) {
-          Column(modifier = Modifier.fillMaxSize()) {
+          Column(modifier = Modifier.fillMaxSize().focusRequester(shellContentFocus).focusGroup()) {
             if (isOffline) OfflineBanner()
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
               Sidebar(
@@ -606,6 +762,14 @@ fun OwnTVShell(
                             onPlayCatchup = { ch, prog -> restoreFocus = false; liveVm.playCatchupProgramme(ch, prog); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI) playerMode = PlayerMode.FULLSCREEN },
                             onAddEpg = { openEpgAdd = true; onSelectSection(MainSection.SETTINGS) }, restoreFocus = restoreFocus,
                             watchingChannelId = previewChannel?.id,
+                            // Phase 4: the channel the player was on keeps playing here; browsing never tunes.
+                            previewChannel = previewChannel.takeIf { guideSession.live },
+                            previewVideo = when (GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo)) {
+                                GuidePlayback.Surface.EXO -> { m -> tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = m, keepAwake = true) }
+                                GuidePlayback.Surface.MPV -> { m -> MpvVideoSurface(player = player, modifier = m, autoFrameRate = false) }
+                                GuidePlayback.Surface.PLACEHOLDER -> null
+                            },
+                            onBackToPlayer = if (GuidePlayback.back(guideSession) == GuidePlayback.Back.RETURN_TO_PLAYER) returnToPlayerFromGuide else null,
                             onRestored = { restoreFocus = false }, onContentScrolled = { contentScrolled = it },
                             modifier = Modifier.fillMaxSize().onFocusChanged { if (it.hasFocus) focusedLayer = ShellLayer.CONTENT }.focusGroup(),
                         )
@@ -656,34 +820,9 @@ fun OwnTVShell(
                 // Back out of the bottom guide lands on the Guide button it was opened from (the HUD is
                 // recreated when the guide closes); an inactivity close returns to plain video instead.
                 var focusGuideButton by remember { mutableStateOf(false) }
-                val reminderRelinker = koinInject<tv.own.owntv.core.sync.work.ReminderRelinker>()
-                val programReminders = koinInject<tv.own.owntv.core.sync.work.ProgramReminders>()
-                var activeReminderBanner by remember { mutableStateOf<tv.own.owntv.core.database.entity.ReminderEntity?>(null) }
-                LaunchedEffect(Unit) {
-                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        programReminders.repairLegacyOwners()
-                        reminderRelinker.restoreAfterRestart()
-                    }
-                    launch {
-                        tv.own.owntv.core.notification.ReminderEventBus.reminderEvents.collect { reminder ->
-                            // Another profile's reminder: no banner (its Watch could only be refused).
-                            if (programReminders.belongsToActiveProfile(reminder)) activeReminderBanner = reminder
-                        }
-                    }
-                    launch {
-                        tv.own.owntv.core.notification.ReminderEventBus.autotuneEvents.collect { reminder ->
-                            scope.launch {
-                                // Only the active profile's reminder, on its own playlist's channel; an orphaned
-                                // or other-profile reminder tunes nothing.
-                                val channelId = programReminders.tuneChannelId(reminder)
-                                val success = channelId != null && liveVm.ensurePlayingByIdAsync(channelId)
-                                if (success) {
-                                    openFullscreen(MainSection.LIVE_TV)
-                                }
-                            }
-                        }
-                    }
-                }
+                // The reminder listener and banner live at the shell's root now (Phase 4), so they work
+                // in every section, not only while this player is mounted.
+                val activeReminderBanner = reminderBanner
 
                 val isLiveStream = liveOnExo || player.isLiveContent
                 val zap: ((Int) -> Unit)? = when {
@@ -750,122 +889,13 @@ fun OwnTVShell(
                             }
                         } } else null,
                         onOpenGuide = if (zapSource == MainSection.LIVE_TV) { { showLiveGuide = true } } else null,
+                        onOpenFullGuide = if (GuidePlayback.canOpenGuide(isTunedLive, isLiveStream) && timeshiftOffset == null) openGuideFromPlayer else null,
                         focusGuideOnShow = focusGuideButton,
                         onGuideFocused = { focusGuideButton = false },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
 
-                activeReminderBanner?.let { reminder ->
-                    val unavailableMsg = stringResource(R.string.content_channel_unavailable)
-                    val dismissLabel = stringResource(R.string.content_reminder_dismiss)
-                    val watchFocus = remember { FocusRequester() }
-                    val dismissFocus = remember { FocusRequester() }
-                    val bannerBackKeys = remember(reminder) { tv.own.owntv.features.shell.components.GuideBackKeys() }
-
-                    LaunchedEffect(reminder) {
-                        kotlinx.coroutines.android.awaitFrame()
-                        runCatching { watchFocus.requestFocus() }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .focusProperties {
-                                canFocus = activeReminderBanner != null
-                            }
-                            .focusable()
-                            .onPreviewKeyEvent { e ->
-                                if (e.key == Key.Back || e.key == Key.Escape) {
-                                    // Press consumed, release dismisses: dismissing on the press let the
-                                    // release fall through to the player's Back, which left Live TV.
-                                    if (e.type == KeyEventType.KeyDown) {
-                                        bannerBackKeys.onPress()
-                                    } else if (e.type == KeyEventType.KeyUp &&
-                                        bannerBackKeys.onRelease(reminderDialogOpen = true) != tv.own.owntv.features.shell.components.GuideBackKeys.Step.NONE
-                                    ) {
-                                        activeReminderBanner = null // Dismiss warning only, does NOT delete reminder or cancel autotune
-                                    }
-                                    true
-                                } else if (e.type == KeyEventType.KeyDown) {
-                                    when (e.key) {
-                                        Key.DirectionUp, Key.DirectionDown -> {
-                                            true // block vertical D-pad in warning popup
-                                        }
-                                        else -> false // let Left, Right, OK reach buttons naturally
-                                    }
-                                } else false
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .width(440.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFF1E1E1E))
-                                .border(1.dp, OwnTVTheme.colors.primary.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
-                                .padding(28.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(
-                                stringResource(R.string.content_reminder_title),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = OwnTVTheme.colors.primary,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                reminder.programTitle,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                            )
-                            Text(
-                                stringResource(R.string.content_reminder_message, reminder.channelName),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                ReminderWarningButton(
-                                    label = stringResource(R.string.content_reminder_watch),
-                                    onClick = {
-                                        scope.launch {
-                                            val channelId = programReminders.tuneChannelId(reminder)
-                                            if (channelId != null && liveVm.ensurePlayingByIdAsync(channelId)) {
-                                                openFullscreen(MainSection.LIVE_TV)
-                                                activeReminderBanner = null
-                                                // Watched now: drop the row and its pending tune (same as 4.5.0).
-                                                programReminders.cancel(reminder.id)
-                                            } else {
-                                                localSubToast.show(unavailableMsg)
-                                                activeReminderBanner = null
-                                            }
-                                        }
-                                    },
-                                    focusRequester = watchFocus,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                ReminderWarningButton(
-                                    label = dismissLabel,
-                                    onClick = {
-                                        activeReminderBanner = null // Dismiss warning only! Does NOT delete reminder or cancel autotune.
-                                    },
-                                    focusRequester = dismissFocus,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-                    }
-                }
                 if (showSubtitleSearch) tv.own.owntv.features.subtitles.SubtitleSearchScreen(onDismiss = { showSubtitleSearch = false }, modifier = Modifier.fillMaxSize())
                 if (showLocalSubPicker) tv.own.owntv.ui.components.StorageBrowser(title = stringResource(R.string.content_subtitle_select_file), mode = tv.own.owntv.ui.components.BrowseMode.FILE, fileExtensions = setOf("srt", "ass", "ssa", "vtt", "webvtt"), onPick = { file -> showLocalSubPicker = false; scope.launch { runCatching { subtitleController.applyLocal(file) }.onFailure { e -> localSubToast.show(e.message ?: subtitleLoadFailed) } } }, onDismiss = { showLocalSubPicker = false })
                 tv.own.owntv.ui.components.InAppToast(localSubToast)
@@ -897,6 +927,17 @@ fun OwnTVShell(
             }
         }
       }
+
+      // Over everything: the player, any section, Multiscreen (Phase 4).
+      reminderBanner?.let { banner ->
+          ReminderBanner(
+              reminder = banner.reminder,
+              starting = banner.starting,
+              onWatch = { watchReminder(banner.reminder) },
+              onDismiss = dismissReminderBanner,
+          )
+      }
+      tv.own.owntv.ui.components.InAppToast(reminderToast)
 
       if (showExit) ExitDialog(onConfirm = onExitApp, onDismiss = { showExit = false })
       if (showAvatarPicker) AvatarPickerDialog(selectedId = avatarId, onSelect = onSetAvatar, onDismiss = { showAvatarPicker = false })
@@ -991,6 +1032,117 @@ private fun placeholderCount(section: MainSection): String = when (section) {
     MainSection.MOVIES -> stringResource(R.string.content_zero_movies)
     MainSection.SERIES -> stringResource(R.string.content_zero_series)
     MainSection.DOWNLOADS -> stringResource(R.string.content_zero_downloads)
+}
+
+/** A reminder banner on screen: the 60-second warning, or (Multiscreen only) "starting now". */
+private data class ReminderBannerState(val reminder: tv.own.owntv.core.database.entity.ReminderEntity, val starting: Boolean) {
+    fun matches(other: tv.own.owntv.core.database.entity.ReminderEntity): Boolean =
+        reminder.channelId == other.channelId && reminder.programStartMs == other.programStartMs
+}
+
+/** Remembers which control inside [group] has focus, so a banner can hand it back when it closes. */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+private fun saveShellFocus(group: FocusRequester) {
+    runCatching { group.saveFocusedChild() }
+}
+
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+private fun restoreShellFocus(group: FocusRequester): Boolean =
+    runCatching { group.restoreFocusedChild() }.getOrDefault(false)
+
+/**
+ * The reminder banner: the programme, its channel, Watch and Dismiss. Takes focus while shown; Back (on
+ * release) dismisses. Dismiss never deletes the reminder or cancels its start. Multiscreen shows it
+ * again at the start ([starting]) instead of tuning, so leaving the layout always needs Watch.
+ */
+@Composable
+private fun ReminderBanner(
+    reminder: tv.own.owntv.core.database.entity.ReminderEntity,
+    starting: Boolean,
+    onWatch: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val watchFocus = remember { FocusRequester() }
+    val dismissFocus = remember { FocusRequester() }
+    val bannerBackKeys = remember(reminder) { tv.own.owntv.features.shell.components.GuideBackKeys() }
+    LaunchedEffect(reminder, starting) {
+        kotlinx.coroutines.android.awaitFrame()
+        runCatching { watchFocus.requestFocus() }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.7f))
+            .focusable()
+            .onPreviewKeyEvent { e ->
+                if (e.key == Key.Back || e.key == Key.Escape) {
+                    // Press consumed, release dismisses: dismissing on the press let the release fall
+                    // through to the screen's Back (which left Live TV, or the Multiscreen layout).
+                    if (e.type == KeyEventType.KeyDown) {
+                        bannerBackKeys.onPress()
+                    } else if (e.type == KeyEventType.KeyUp &&
+                        bannerBackKeys.onRelease(reminderDialogOpen = true) != tv.own.owntv.features.shell.components.GuideBackKeys.Step.NONE
+                    ) {
+                        onDismiss()
+                    }
+                    true
+                } else if (e.type == KeyEventType.KeyDown) {
+                    when (e.key) {
+                        Key.DirectionUp, Key.DirectionDown -> true // block vertical D-pad in the banner
+                        else -> false // Left, Right and OK reach the buttons
+                    }
+                } else false
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .width(440.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(Color(0xFF1E1E1E))
+                .border(1.dp, OwnTVTheme.colors.primary.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                stringResource(if (starting) R.string.content_reminder_started_title else R.string.content_reminder_title),
+                style = MaterialTheme.typography.labelLarge,
+                color = OwnTVTheme.colors.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                reminder.programTitle,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                stringResource(if (starting) R.string.content_reminder_started_message else R.string.content_reminder_message, reminder.channelName),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ReminderWarningButton(
+                    label = stringResource(R.string.content_reminder_watch),
+                    onClick = onWatch,
+                    focusRequester = watchFocus,
+                    modifier = Modifier.weight(1f),
+                )
+                ReminderWarningButton(
+                    label = stringResource(R.string.content_reminder_dismiss),
+                    onClick = onDismiss,
+                    focusRequester = dismissFocus,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
 }
 
 @Composable

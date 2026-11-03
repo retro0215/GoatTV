@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -201,6 +202,13 @@ fun EpgScreen(
     onPlayCatchup: (channel: ChannelEntity, programme: EpgProgrammeEntity) -> Unit,
     /** The channel Live TV is on, if any: the guide opens on its row. */
     watchingChannelId: Long? = null,
+    /** Phase 4: the channel still playing in the preview (from Live TV), for its caption. */
+    previewChannel: ChannelEntity? = null,
+    /** Phase 4: the playing channel's picture, hosted by the shell's shared player (never a second one).
+     *  Null: nothing is playing here, and the preview says so — browsing never starts a channel. */
+    previewVideo: (@Composable (Modifier) -> Unit)? = null,
+    /** Phase 4: set when the Guide was opened from the player; Back in the grid returns to it. */
+    onBackToPlayer: (() -> Unit)? = null,
 ) {
     val vm: EpgViewModel = koinViewModel()
     val state by vm.state.collectAsStateWithLifecycle()
@@ -498,7 +506,14 @@ fun EpgScreen(
         val isOk = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
         if (e.key == Key.Back) {
             if (e.type == KeyEventType.KeyDown) backDown = true
-            else if (e.type == KeyEventType.KeyUp && backDown) { backDown = false; focusHeader() }
+            else if (e.type == KeyEventType.KeyUp && backDown) {
+                backDown = false
+                // Opened from the player: straight back to the channel full screen (Up still reaches the header).
+                when (GuideNav.gridBack(fromPlayer = onBackToPlayer != null)) {
+                    GuideNav.GridBack.TO_PLAYER -> onBackToPlayer?.invoke()
+                    GuideNav.GridBack.TO_HEADER -> focusHeader()
+                }
+            }
             return true
         }
         if (e.type == KeyEventType.KeyUp) {
@@ -546,10 +561,23 @@ fun EpgScreen(
         }
     }
 
+    // Phase 4 rendering (GuideLayers): read once per opening, debug builds only.
+    val cachedLayers = remember {
+        val debuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        GuideLayers.enabled(debuggable, if (debuggable) GuideLayers.readProperty() else null)
+    }
+    Box(modifier.fillMaxSize()) {
+    // The panel's fill, border and light gradients: drawn once into their own layer, then composited, instead
+    // of being re-issued with every frame of a move. The content is not clipped to the rounded corners
+    // (its padding keeps it inside them), so no full-panel rounded clip is drawn per frame either.
+    Box(
+        Modifier.matchParentSize()
+            .then(if (cachedLayers) Modifier.graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen } else Modifier)
+            .roundedPanel(fillColor = ContentPanelFill),
+    )
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .roundedPanel(fillColor = ContentPanelFill)
             // Entry from the sidebar lands on the grid (the cursor already sits on the watched channel).
             .focusProperties {
                 onEnter = {
@@ -625,6 +653,27 @@ fun EpgScreen(
             )
         }
         Spacer(Modifier.height(12.dp))
+        // ---- Phase 4: details beside the live preview, above the timeline ------------------------------
+        Row(Modifier.fillMaxWidth().height(GuidePreviewHeight), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                if (!state.loading && rows.isNotEmpty()) {
+                    // The panel reads the cursor only in its own collector and updates once it settles.
+                    GuideDetailsPanel(
+                        cursor = { cursor },
+                        rows = rows,
+                        programmesOf = { programmesOf(it) },
+                        now = now,
+                        reminderSlots = reminderSlots,
+                        hiddenEmpty = hiddenEmpty,
+                        vm = vm,
+                        cacheRevision = cacheRevision,
+                        textDispatcher = textDispatcher,
+                    )
+                }
+            }
+            GuidePreview(channel = previewChannel, video = previewVideo)
+        }
+        Spacer(Modifier.height(12.dp))
 
         when {
             state.loading -> CenterBox { OwnTVSpinner(sizeDp = 56) }
@@ -650,7 +699,10 @@ fun EpgScreen(
             }
             else -> {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    GuideTimeAxis(windowStart = state.windowStart, windowEnd = state.windowEnd, now = now, hScroll = hScroll)
+                    // Its own layer: redrawn when the timeline scrolls or the clock ticks, never by a cursor move.
+                    Box(Modifier.graphicsLayer()) {
+                        GuideTimeAxis(windowStart = state.windowStart, windowEnd = state.windowEnd, now = now, hScroll = hScroll)
+                    }
                     Spacer(Modifier.height(6.dp))
                     // The grid: ONE focus target; rows are drawn, not focused.
                     Box(
@@ -705,7 +757,9 @@ fun EpgScreen(
                                                 )
                                             }
                                         }
-                                        .graphicsLayer()
+                                        // The row's static content in its own layer: cached (offscreen) so a cursor
+                                        // move or a vertical scroll composites it instead of re-issuing its cells.
+                                        .graphicsLayer { if (cachedLayers) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
                                         .drawBehind {
                                             with(rowRenderer) {
                                                 drawRowBase(
@@ -728,20 +782,9 @@ fun EpgScreen(
                         }
                     }
                 }
-                // The panel reads the cursor only in its own collector and updates once it settles.
-                GuideDetailsPanel(
-                    cursor = { cursor },
-                    rows = rows,
-                    programmesOf = { programmesOf(it) },
-                    now = now,
-                    reminderSlots = reminderSlots,
-                    hiddenEmpty = hiddenEmpty,
-                    vm = vm,
-                    cacheRevision = cacheRevision,
-                    textDispatcher = textDispatcher,
-                )
             }
         }
+    }
     }
 
     // The guide's own dialogs read in the app's main font, like the guide itself (the shared popup font
@@ -1142,13 +1185,16 @@ private fun GuideDetailsPanel(
     }
 
     val description = layout?.description.orEmpty()
+    val panelFill = colors.surfaceContainerHigh
+    val panelCorner = with(density) { 14.dp.toPx() }
     androidx.compose.foundation.Canvas(
-        Modifier.fillMaxWidth().padding(top = 10.dp).height(104.dp)
-            .clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHigh)
+        // Its own layer, redrawn only when a new layout lands. The rounded fill is drawn, not clipped.
+        Modifier.fillMaxSize().graphicsLayer()
             .onSizeChanged { widthPx = it.width }
             // Drawn text has no semantics of its own; screen readers get the panel as one description.
             .semantics { contentDescription = description },
     ) {
+        drawRoundRect(color = panelFill, cornerRadius = androidx.compose.ui.geometry.CornerRadius(panelCorner, panelCorner))
         val l = layout ?: return@Canvas
         var y = padV
         for (t in listOfNotNull(l.bits, l.title, l.synopsis)) {
@@ -1220,12 +1266,48 @@ private fun layoutPanel(
     return PanelLayout(
         bits = text.bits.takeIf { it.isNotEmpty() }?.let { m(it, if (text.onAir) styles.bitsOnAir else styles.bits, leftW) },
         title = m(text.title, styles.title, leftW),
-        synopsis = text.synopsis?.takeIf { it.isNotBlank() }?.let { m(it, styles.synopsis, leftW, lines = 2) },
+        synopsis = text.synopsis?.takeIf { it.isNotBlank() }?.let { m(it, styles.synopsis, leftW, lines = 3) },
         nextLabel = text.nextLabel?.let { m(it, styles.nextLabel, rightW) },
         nextTitle = text.nextTitle?.let { m(it, styles.nextTitle, rightW) },
         hint = m(text.hint, styles.hint, rightW),
         description = listOfNotNull(text.title, text.bits, text.nextLabel, text.nextTitle).joinToString(separator),
     )
+}
+
+/** Height of the band holding the details panel and the video preview (16:9 video plus its caption). */
+private val GuidePreviewHeight = 170.dp
+private val GuidePreviewWidth = 268.dp
+
+/**
+ * Phase 4: the TV Guide's video preview. Shows the channel still playing from Live TV, hosted by the
+ * shell's shared player ([video]); it never follows the cursor. With nothing playing it says how to start
+ * one, and starts nothing itself. The picture is a SurfaceView: nothing is drawn over it and it is not
+ * clipped, so it stays on the hardware video path.
+ */
+@Composable
+private fun GuidePreview(channel: ChannelEntity?, video: (@Composable (Modifier) -> Unit)?) {
+    val colors = OwnTVTheme.colors
+    Column(Modifier.width(GuidePreviewWidth).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black), contentAlignment = Alignment.Center) {
+            if (video != null) {
+                video(Modifier.fillMaxSize())
+            } else {
+                Text(
+                    stringResource(R.string.content_epg_preview_idle),
+                    style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+        }
+        if (video != null && channel != null) {
+            Text(
+                stringResource(R.string.content_epg_preview_playing, channel.name),
+                style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 /**

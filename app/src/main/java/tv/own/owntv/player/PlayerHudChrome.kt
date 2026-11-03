@@ -322,6 +322,7 @@ internal fun BottomBar(
     onInfo: (() -> Unit)? = null, infoOn: Boolean = false, onReport: (() -> Unit)? = null,
     favorite: Boolean = false, onToggleFavorite: (() -> Unit)? = null,
     onOpenDialog: (HudDialog) -> Unit, onPip: (() -> Unit)?, onAudioMode: (() -> Unit)?, onOpenGuide: (() -> Unit)? = null, guideFocus: FocusRequester? = null, onBack: () -> Unit, modifier: Modifier = Modifier,
+    onOpenFullGuide: (() -> Unit)? = null,
 ) {
     val seekStep by player.seekStepMs.collectAsStateWithLifecycle() // Settings -> Seek step
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 20.dp)) {
@@ -370,6 +371,7 @@ internal fun BottomBar(
                 // (see MpvVideoSurface), GL mode scales internally.
                 CtrlButton(OwnTVIcon.ASPECT, active = zoomMode != ZoomMode.FIT) { onOpenDialog(HudDialog.ZOOM) }
                 if (onPip != null) CtrlButton(OwnTVIcon.PIP) { onPip() }
+                if (onOpenFullGuide != null) GuideButton(label = stringResource(R.string.content_epg_title)) { onOpenFullGuide() }
                 if (onOpenGuide != null) {
                     CtrlButton(OwnTVIcon.EPG, modifier = guideFocus?.let { Modifier.focusRequester(it) } ?: Modifier) { onOpenGuide() }
                 }

@@ -3649,6 +3649,16 @@ class OwnTVPlayer(
         if (initialized) mpvAsync { setPropertyString("android-surface-size", "${width}x$height") }
     }
 
+    /**
+     * The view hosting [surface] is going away. Ignored when another view has already attached its own
+     * surface: the Guide's preview and the full-screen player hand mpv's picture between two views, and
+     * the old one's destroy callback can arrive after the new one's create (Phase 4).
+     */
+    fun detachSurface(surface: Surface) {
+        if (attachedSurface !== surface && attachedSurface != null) return
+        detachSurface()
+    }
+
     fun detachSurface() {
         assertMainThread("detachSurface")
         surfaceAttached = false

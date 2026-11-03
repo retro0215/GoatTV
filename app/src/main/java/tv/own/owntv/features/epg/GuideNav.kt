@@ -55,6 +55,12 @@ internal object GuideNav {
 
     // ---- Header access -------------------------------------------------------------------------
 
+    /** What Back in the grid does (Phase 4): a Guide opened from the player's TV Guide button goes straight
+     *  back to the channel full screen; otherwise Back steps out to the header first. */
+    enum class GridBack { TO_PLAYER, TO_HEADER }
+
+    fun gridBack(fromPlayer: Boolean): GridBack = if (fromPlayer) GridBack.TO_PLAYER else GridBack.TO_HEADER
+
     /** The header control Back (from the grid) lands on. */
     enum class HeaderTarget { JUMP_TO_NOW, CATEGORY, MORE }
 

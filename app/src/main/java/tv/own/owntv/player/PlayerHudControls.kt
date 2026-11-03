@@ -125,6 +125,31 @@ internal fun EngineToggle(label: String, active: Boolean, onClick: () -> Unit) {
     }
 }
 
+/** "TV Guide": opens the full guide with this channel still playing in its preview (Phase 4). Labelled,
+ *  unlike the icon beside it, which opens the quick guide strip over the video. */
+@Composable
+internal fun GuideButton(label: String, onClick: () -> Unit) {
+    FocusableSurface(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = 44.dp),
+        shape = RoundedCornerShape(12.dp),
+        focusedContainerColor = Color.White.copy(alpha = 0.16f),
+        unfocusedContainerColor = Color.Transparent,
+        selectedContainerColor = Color.Transparent,
+        contentAlignment = Alignment.Center,
+    ) { focused ->
+        Row(
+            Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val tint = if (focused) Color.White else Color.White.copy(alpha = 0.78f)
+            OwnTVIcon(OwnTVIcon.EPG, tint = tint, filled = true, modifier = Modifier.size(18.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = tint, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
 @Composable
 internal fun CtrlButton(icon: OwnTVIcon, badge: Int? = null, active: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
     FocusableSurface(

@@ -177,6 +177,8 @@ fun PlayerHud(
     liveEpgCard: (@Composable () -> Unit)? = null,
     // Open the full TV Guide overlay on Fullscreen Live TV.
     onOpenGuide: (() -> Unit)? = null,
+    // Open the full TV Guide with this channel kept playing in its preview (Phase 4).
+    onOpenFullGuide: (() -> Unit)? = null,
     // Set after Back closed that overlay: open with the controls up and focus on the Guide button, then
     // [onGuideFocused] (so a later HUD rebuild starts on plain video again).
     focusGuideOnShow: Boolean = false,
@@ -579,7 +581,7 @@ fun PlayerHud(
                         engineFlash++
                     },
                     favorite = favorite, onToggleFavorite = onToggleFavorite,
-                    onOpenDialog = { dialog = it }, onPip = onPip, onAudioMode = onAudioMode, onOpenGuide = onOpenGuide, guideFocus = guideFocus, onBack = onBack,
+                    onOpenDialog = { dialog = it }, onPip = onPip, onAudioMode = onAudioMode, onOpenGuide = onOpenGuide, guideFocus = guideFocus, onBack = onBack, onOpenFullGuide = onOpenFullGuide,
                     modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
