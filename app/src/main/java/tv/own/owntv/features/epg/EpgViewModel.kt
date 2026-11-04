@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import tv.own.owntv.core.customize.SectionCustomizations
 import tv.own.owntv.core.database.dao.ChannelDao
@@ -144,6 +145,9 @@ class EpgViewModel(
 
     /** Phase 4B: open timing (logcat `GuideTiming`) and the inputs of the list on screen (see GuideLoad). */
     internal val timing = GuideTiming()
+
+    /** 4.6.0: the Guide screen's prepared rows, texts, logos and scroll position, kept between visits. */
+    internal val screenCache = GuideScreenCache()
     @Volatile private var lastKey: GuideLoad.Key? = null
     @Volatile private var lastSignal: GuideLoad.Signal? = null
     // The per-feed stored programme counts Room already observes (summed): a cheap "guide data changed" signal.
@@ -169,6 +173,8 @@ class EpgViewModel(
         rowCache.clear()
         shiftedRowCache.clear()
         cachedWindow = null
+        coverage = null
+        preloadProgress.clear()
         lastStored = -1
         lastKey = null
         guideKeyCache.clear()
@@ -249,6 +255,12 @@ class EpgViewModel(
     // keeps the same window, so the cache stays valid and we skip the reload entirely).
     @Volatile private var cachedWindow: Pair<Long, Long>? = null
     @Volatile private var lastStored = -1 // stored programme count the cache was built from (data-change guard)
+    // 4.6.0: what rowCache holds IN FULL — every programme overlapping [from, to) of these sources, for this
+    // stored guide — so a half-hour window move can keep it and read only what the window gained.
+    private data class Coverage(val ids: List<Long>, val from: Long, val to: Long, val stored: Int, val maxProgrammeId: Long)
+    @Volatile private var coverage: Coverage? = null
+    // 4.6.0: the pages of an interrupted window preload, continued by the next load of the same window.
+    private val preloadProgress = GuideWindowProgress<EpgProgrammeEntity>()
     // Bumped when the background catch-up lookback (pass 2) merges into rowCache, so visible rows re-read it.
     private val _cacheRevision = MutableStateFlow(0)
     val cacheRevision: StateFlow<Int> = _cacheRevision.asStateFlow()
@@ -313,17 +325,30 @@ class EpgViewModel(
      * grouped by EPG channel id with every row list ordered by start time for the grid. A big lineup
      * returns far more rows than one ~2 MB window holds, so it MUST be paged. Runs off the main thread.
      */
-    private suspend fun loadWindowGrouped(ids: List<Long>, from: Long, to: Long): Map<String, List<EpgProgrammeEntity>> =
+    private suspend fun loadWindowGrouped(key: GuideWindowProgress.Key): Map<String, List<EpgProgrammeEntity>> =
+        withContext(Dispatchers.Default) {
+            // 4.6.0: one run at a time, continuing the pages an interrupted run of the same read left.
+            preloadProgress.lock.withLock {
+                val run = preloadProgress.resume(key)
+                while (true) {
+                    inputGate.awaitQuiet()
+                    val page = epgDao.programmesInWindowPage(key.sourceIds, key.from, key.to, run.afterId, EPG_WINDOW_PAGE)
+                    if (page.isEmpty()) break
+                    run.add(page, page.last().id)
+                    if (page.size < EPG_WINDOW_PAGE) break
+                }
+                preloadProgress.finished(run)
+                run.rows.groupBy { it.epgChannelId }.mapValues { (_, v) -> v.sortedBy { it.startMs } }
+            }
+        }
+
+    /** 4.6.0: what a moved window gained: the programmes of [keys] starting in [from, to) (GuideWindowMove). */
+    private suspend fun loadWindowTopUp(ids: List<Long>, keys: Set<String>, from: Long, to: Long): Map<String, List<EpgProgrammeEntity>> =
         withContext(Dispatchers.Default) {
             val all = ArrayList<EpgProgrammeEntity>()
-            var afterId = 0L
-            while (true) {
+            for (chunk in keys.toList().chunked(GuideChannelQuery.CHUNK)) {
                 inputGate.awaitQuiet()
-                val page = epgDao.programmesInWindowPage(ids, from, to, afterId, EPG_WINDOW_PAGE)
-                if (page.isEmpty()) break
-                all += page
-                afterId = page.last().id
-                if (page.size < EPG_WINDOW_PAGE) break
+                all += epgDao.programmesStartingIn(ids, chunk, from, to)
             }
             all.groupBy { it.epgChannelId }.mapValues { (_, v) -> v.sortedBy { it.startMs } }
         }
@@ -775,7 +800,7 @@ class EpgViewModel(
      * rows by primary key in window-sized chunks.
      */
     private suspend fun guideChannels(ids: List<Long>, query: String, signal: GuideLoad.Signal, importRunning: Boolean): List<ChannelEntity> {
-        val keys = guideKeyCache.get(ids, signal, importRunning) ?: GuideKeys.read(ids) { epgDao.guideKeysForSource(it) }.also {
+        val keys = guideKeyCache.get(ids, signal, importRunning) ?: epgDao.guideKeys(ids).toHashSet().also {
             guideKeyCache.put(ids, signal, importRunning, it)
             timing.mark("guide keys read (${it.size})")
         }
@@ -823,6 +848,7 @@ class EpgViewModel(
             val sourcesChanged = rowSources.prepare(ids)
             if (sourcesChanged) {
                 cachedWindow = null
+                coverage = null
                 rowCache.clear()
                 shiftedRowCache.clear()
             }
@@ -972,22 +998,47 @@ class EpgViewModel(
             // Rows then load lazily as they scroll into view (programmesFor); the one reload when the sync
             // finishes restores the fast preloaded grid.
             val importRunning = epgActivity.active.value.isNotEmpty()
+            // 4.6.0: only the half-hour window moved on the same stored guide: keep what is loaded and read
+            // what the window gained (GuideWindowMove), instead of the whole 24-hour preload again.
+            val loaded = coverage
+            val guideKeys = guideKeyCache.get(ids, signal, importRunning)
+            val move = if (!windowChanged) null else GuideWindowMove.plan(
+                coveredFrom = loaded?.from, coveredTo = loaded?.to, forwardFrom = nowAligned, windowEnd = windowEnd,
+                dataUnchanged = loaded != null && loaded.ids == ids && loaded.stored == stored && loaded.maxProgrammeId == inputs.maxProgrammeId,
+                sourcesChanged = sourcesChanged, importRunning = importRunning, keysKnown = guideKeys != null,
+            )
             if (windowChanged && importRunning) {
                 cachedWindow = null
+                coverage = null
                 lastStored = -1
                 rowCache.clear()
                 shiftedRowCache.clear()
                 _cacheRevision.value++
+            } else if (move != null && loaded != null && guideKeys != null) {
+                cachedWindow = null
+                shiftedRowCache.clear() // read per row for its own shifted window; re-read lazily
+                timing.mark("window top-up start (loaded guide kept)")
+                val added = if (move.fetchFrom < move.fetchTo) loadWindowTopUp(ids, guideKeys, move.fetchFrom, move.fetchTo) else emptyMap()
+                val merged = GuideWindowMove.merge(HashMap(rowCache), added, windowStart, { it.id }, { it.startMs }, { it.stopMs })
+                rowCache.keys.retainAll(merged.keys)
+                rowCache.putAll(merged)
+                cachedWindow = windowStart to windowEnd
+                coverage = Coverage(ids, maxOf(loaded.from, windowStart), windowEnd, stored, inputs.maxProgrammeId)
+                timing.mark("window top-up end (${added.size} guide channels)")
+                _cacheRevision.value++
             } else if (windowChanged) {
                 cachedWindow = null
+                coverage = null
                 rowCache.clear()
                 shiftedRowCache.clear()
                 // Pass 1: the forward window, read behind the rows already on screen. Only once it is complete
                 // does the window count as cached (absent = empty); until then no row is hidden as empty.
+                val forwardKey = GuideWindowProgress.Key(ids, nowAligned, windowEnd, stored, inputs.maxProgrammeId)
                 timing.mark("window preload start")
-                val forward = loadWindowGrouped(ids, nowAligned, windowEnd)
+                val forward = loadWindowGrouped(forwardKey)
                 forward.forEach { (k, list) -> rowCache[k] = list }
                 cachedWindow = windowStart to windowEnd
+                coverage = Coverage(ids, nowAligned, windowEnd, stored, inputs.maxProgrammeId)
                 timing.mark("window preload end (${forward.size} guide channels)")
                 // Signal GuideChannelRow's produceState to re-read rowCache now that the batch load
                 // is complete — without this, the initial composition renders channels with empty
@@ -1022,15 +1073,19 @@ class EpgViewModel(
             // channel window never blocks the open or spikes memory on low-RAM (1.8 GB) boxes. Only runs when
             // there's a real lookback (catch-up channels). distinctBy(id): a programme straddling `now` is in
             // both window queries. The revision bump makes already-visible rows re-read the completed cache.
-            if (windowChanged && !importRunning && windowStart < nowAligned) {
+            // 4.6.0: only the part not loaded yet (a moved window usually has its lookback already).
+            val forwardLoaded = coverage
+            val backTo = forwardLoaded?.from?.coerceAtMost(nowAligned) ?: nowAligned
+            if (windowChanged && !importRunning && forwardLoaded != null && windowStart < backTo) {
                 backfillJob = viewModelScope.launch {
-                    val back = loadWindowGrouped(ids, windowStart, nowAligned)
+                    val back = loadWindowGrouped(GuideWindowProgress.Key(ids, windowStart, backTo, stored, inputs.maxProgrammeId))
                     if (back.isNotEmpty()) {
                         back.forEach { (k, extra) ->
                             rowCache[k] = (extra + (rowCache[k] ?: emptyList())).distinctBy { it.id }.sortedBy { it.startMs }
                         }
                         _cacheRevision.value++
                     }
+                    if (coverage === forwardLoaded) coverage = forwardLoaded.copy(from = windowStart)
                 }
             }
         }

@@ -805,7 +805,6 @@
 1	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT epgChannelId, iconUrl FROM epg_channels WHERE sourceId IN (:sourceIds) AND iconUrl IS NOT NULL AND iconUrl != ''
 1	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT id, epgChannelId, startMs, contentHash FROM epg_programmes WHERE sourceId = :sourceId AND epgChannelId = :epgChannelId
 3	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, 0 AS contentHash
-1	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, contentHash FROM epg_programmes WHERE sourceId IN (:sourceIds) AND stopMs > :from AND startMs < :to AND id > :afterId ORDER BY id ASC LIMIT :limit
 1	app/src/main/java/tv/own/owntv/core/database/dao/FavoriteDao.kt	(:type = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/FavoriteDao.kt	(:type = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/FavoriteDao.kt	(:type = 'SERIES' AND itemId NOT IN (SELECT id FROM series))

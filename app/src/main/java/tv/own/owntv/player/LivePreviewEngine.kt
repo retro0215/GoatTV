@@ -718,7 +718,10 @@ class LivePreviewEngine(
     // all), we never false-trigger a reconnect on healthy playback; we fall back to the position check.
     private var everRendered = false
     private var videoRenderer: Renderer? = null
-    private val frameListener = VideoFrameMetadataListener { _, _, _, _ -> frameCounter.incrementAndGet() }
+    // 4.6.0: every frame rendered by any player this engine has built. Never reset (the count above restarts
+    // at each READY and with each new player), so the surface-switch watch can compare across a rebuild.
+    private val renderedTotal = java.util.concurrent.atomic.AtomicLong(0)
+    private val frameListener = VideoFrameMetadataListener { _, _, _, _ -> frameCounter.incrementAndGet(); renderedTotal.incrementAndGet() }
     private var fpsAttempts = 0
     private val fpsFastRefresh: Runnable = Runnable {
         val fresh = player?.let { fpsSample.peek(it) }
@@ -1177,19 +1180,13 @@ class LivePreviewEngine(
 
     /** Names the view that drives the decoder. Its surface, if it already has one, is attached now. */
     internal fun setSurfaceOwner(role: SurfaceOwnership.Role?) {
-        surfaceOwners.setOwner(role) { it.isValid }?.let { setSurface(it); _attachedRole.value = role }
+        surfaceOwners.setOwner(role) { it.isValid }?.let { setSurface(it) }
     }
-
-    // 4.6.0: the kind of view whose surface the decoder renders to now (null: none, or one attached without a
-    // role). The shell keeps the outgoing view until the incoming one is attached here (GuideHandoff).
-    private val _attachedRole = MutableStateFlow<SurfaceOwnership.Role?>(null)
-    internal val attachedRole: StateFlow<SurfaceOwnership.Role?> = _attachedRole
 
     /** A view of kind [role] has a surface. It reaches the decoder only if [role] owns the picture. */
     internal fun offerSurface(role: SurfaceOwnership.Role, s: Surface) {
         if (surfaceOwners.offer(role, s)) {
             setSurface(s)
-            _attachedRole.value = role
         } else {
             LiveDiagnosticsLog.event("surface from $role kept off the decoder (owner $surfaceOwner)")
         }
@@ -1204,7 +1201,6 @@ class LivePreviewEngine(
     /** Attach the preview SurfaceView's surface, or null when it's destroyed. */
     fun setSurface(s: Surface?) {
         if (s != null && s === surface) return // the same window again: re-pointing the codec is not free
-        _attachedRole.value = null // the ownership calls set it again right after
         val previous = surface ?: lastSurface
         surface = s
         if (s != null) lastSurface = s
@@ -1218,16 +1214,16 @@ class LivePreviewEngine(
 
     // The last non-null surface: a switch is old view destroyed -> new view created, with a null between.
     private var lastSurface: Surface? = null
-    private var handoffFrames = 0
+    private var handoffFrames = 0L
     private var handoffCheckIndex = 0
-    private var handoffFramesAtSwitch = 0
+    private var handoffFramesAtSwitch = 0L
     // Phase 4C: when a frozen picture last got a decoder rebuild (elapsedRealtime; 0 = not this tune).
     private var lastFreezeRebuildMs = 0L
     private val handoffCheck = Runnable {
         val p = player
         val playingVideo = p != null && p.playWhenReady && p.playbackState == Player.STATE_READY &&
             p.videoFormat != null && !_audioOnly.value && surface != null
-        val framesNow = frameCounter.get()
+        val framesNow = renderedTotal.get()
         when (SurfaceHandoff.afterCheck(handoffFrames, framesNow, playingVideo, handoffCheckIndex)) {
             SurfaceHandoff.Action.WATCH -> armHandoffCheck(handoffCheckIndex + 1)
             SurfaceHandoff.Action.NONE ->
@@ -1241,7 +1237,7 @@ class LivePreviewEngine(
 
     private fun armHandoffCheck(check: Int) {
         handoffCheckIndex = check
-        handoffFrames = frameCounter.get()
+        handoffFrames = renderedTotal.get()
         if (check == 0) handoffFramesAtSwitch = handoffFrames
         mainHandler.removeCallbacks(handoffCheck)
         mainHandler.postDelayed(handoffCheck, SurfaceHandoff.CHECK_MS)

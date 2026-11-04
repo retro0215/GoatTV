@@ -83,8 +83,12 @@ interface EpgDao {
      * Caller loops with `afterId = lastId` until a short page, then groups by channel. description is
      * fetched lazily via [programmeDescription] when a programme's detail dialog opens.
      */
-    @Query("SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, contentHash FROM epg_programmes WHERE sourceId IN (:sourceIds) AND stopMs > :from AND startMs < :to AND id > :afterId ORDER BY id ASC LIMIT :limit")
+    @Query(GuideSql.WINDOW_PAGE)
     suspend fun programmesInWindowPage(sourceIds: List<Long>, from: Long, to: Long, afterId: Long, limit: Int): List<EpgProgrammeEntity>
+
+    /** 4.6.0: the programmes of [epgKeys] that START in [from, to) — what a moved guide window gained. */
+    @Query(GuideSql.WINDOW_TOP_UP)
+    suspend fun programmesStartingIn(sourceIds: List<Long>, epgKeys: List<String>, from: Long, to: Long): List<EpgProgrammeEntity>
 
     /** One programme's synopsis, loaded on demand for the detail dialog (the grid load drops it). */
     @Query("SELECT description FROM epg_programmes WHERE id = :programmeId LIMIT 1")
@@ -125,10 +129,6 @@ interface EpgDao {
      */
     @Query(GuideSql.GUIDE_KEYS)
     suspend fun guideKeys(sourceIds: List<Long>): List<String>
-
-    /** [guideKeys] for one source, as an index skip scan (GuideSql.GUIDE_KEYS_FOR_SOURCE). */
-    @Query(GuideSql.GUIDE_KEYS_FOR_SOURCE)
-    suspend fun guideKeysForSource(sourceId: Long): List<String>
 
     /** The newest programme row id (a rowid lookup): rises whenever programmes are added. */
     @Query("SELECT COALESCE(MAX(id), 0) FROM epg_programmes")

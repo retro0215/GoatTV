@@ -272,20 +272,17 @@
 3	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE sourceId IN (:sourceIds)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT COALESCE(MAX(id), 0) FROM epg_programmes
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	) ORDER BY number ASC, name ASC LIMIT :limit
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	) SELECT id FROM k WHERE id IS NOT NULL
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%')
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%') ORDER BY number ASC, name ASC
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND LOWER(TRIM(epgChannelId)) IN (
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND epgChannelId IS NOT NULL AND epgChannelId != ''
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	FROM k WHERE k.id IS NOT NULL
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT (SELECT MIN(epgChannelId) FROM epg_programmes WHERE sourceId = :sourceId AND epgChannelId > k.id)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT * FROM channels WHERE id IN (:ids)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT * FROM channels WHERE sourceId IN (:sourceIds) AND epgChannelId IS NOT NULL AND epgChannelId != ''
 2	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT DISTINCT epgChannelId FROM epg_programmes WHERE sourceId IN (:sourceIds)
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT MIN(epgChannelId) FROM epg_programmes WHERE sourceId = :sourceId
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT id, LOWER(TRIM(epgChannelId)) AS guideKey FROM channels WHERE sourceId IN (:sourceIds)
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	UNION ALL
-1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	WITH RECURSIVE k(id) AS (
+2	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, contentHash FROM epg_programmes
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	WHERE epgChannelId IN (:epgKeys) AND sourceId IN (:sourceIds) AND startMs >= :from AND startMs < :to
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	WHERE sourceId IN (:sourceIds) AND stopMs > :from AND startMs < :to AND id > :afterId ORDER BY id ASC LIMIT :limit
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/HistoryDao.kt	SELECT itemId FROM watch_history WHERE profileId = :profileId AND mediaType = :type ORDER BY watchedAt DESC LIMIT 1
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
@@ -388,6 +385,8 @@
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	stored count done ($stored)
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	window preload end (${forward.size} guide channels)
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	window preload start
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	window top-up end (${added.size} guide channels)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	window top-up start (loaded guide kept)
 1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.base
 1	performance	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	GuideRow.focus
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideCore.kt	🔔

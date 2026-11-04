@@ -94,15 +94,6 @@ internal class GuideKeyCache {
     fun clear() { stamp = null; keys = null }
 }
 
-/** 4.6.0: the guide keys of several sources, read source by source (each an index skip scan). */
-internal object GuideKeys {
-    suspend fun read(sourceIds: List<Long>, forSource: suspend (Long) -> List<String>): Set<String> {
-        val keys = HashSet<String>()
-        for (id in sourceIds.distinct()) keys += forSource(id)
-        return keys
-    }
-}
-
 /**
  * 4.6.0: recent D-pad activity in the guide. The background window preload reads ~10k channels' programmes
  * in pages for ~30 s after an open; between pages it waits while a key was pressed in the last [QUIET_MS],
@@ -186,4 +177,85 @@ internal class GuideTiming(private val clock: () -> Long = { android.os.SystemCl
     }
 
     private companion object { const val TAG = "GuideTiming" }
+}
+
+/**
+ * 4.6.0: the guide window moving on at a half-hour boundary, with the stored guide unchanged. Before, the
+ * whole cache was dropped and the 24-hour preload ran again (~30 s on the onn, the rows meanwhile re-read one
+ * by one). Now the loaded programmes stay; only those starting in the part the window gained are read
+ * (an indexed read per guide key), and programmes that ended before the new window are dropped. The result
+ * is what a full read of the new window gives: the programmes overlapping it.
+ */
+internal object GuideWindowMove {
+
+    /** The part of the window to read: programmes starting in [[fetchFrom], [fetchTo]). Empty when from == to. */
+    data class Plan(val fetchFrom: Long, val fetchTo: Long)
+
+    /**
+     * The plan, or null when the cache can't be extended and the full read runs: the stored guide or the
+     * sources changed, an import is running, or the loaded range [coveredFrom, coveredTo) doesn't reach
+     * from the new window's forward start ([forwardFrom], "now") to somewhere inside it.
+     */
+    fun plan(
+        coveredFrom: Long?, coveredTo: Long?, forwardFrom: Long, windowEnd: Long,
+        dataUnchanged: Boolean, sourcesChanged: Boolean, importRunning: Boolean, keysKnown: Boolean,
+    ): Plan? {
+        if (coveredFrom == null || coveredTo == null) return null
+        if (!dataUnchanged || sourcesChanged || importRunning || !keysKnown) return null
+        if (coveredFrom > forwardFrom || coveredTo < forwardFrom) return null
+        val from = minOf(coveredTo, windowEnd)
+        return Plan(from, windowEnd)
+    }
+
+    /**
+     * The cached rows ([cached], each sorted by start) with the [added] programmes merged in, without those
+     * that ended by [windowStart]. A programme that runs across the old window's end was already loaded (it
+     * overlapped it), so [added] only needs those starting after it; ids are unique, so nothing doubles.
+     */
+    fun <P> merge(
+        cached: Map<String, List<P>>, added: Map<String, List<P>>, windowStart: Long,
+        id: (P) -> Long, start: (P) -> Long, stop: (P) -> Long,
+    ): Map<String, List<P>> {
+        val out = HashMap<String, List<P>>(cached.size + added.size)
+        for (key in cached.keys + added.keys) {
+            val old = cached[key].orEmpty()
+            val more = added[key].orEmpty()
+            val kept = old.filter { stop(it) > windowStart }
+            val list = if (more.isEmpty()) kept else (kept + more).distinctBy(id).sortedBy(start)
+            if (list.isNotEmpty()) out[key] = list
+        }
+        return out
+    }
+}
+
+/**
+ * 4.6.0: an interrupted window preload picks up where it stopped. The preload reads ~30 s of pages; leaving
+ * and reopening the guide cancelled it and the next open started again from the first page, so on the onn it
+ * rarely finished. The pages read so far are kept for the same read (sources, range, stored guide) and the
+ * next run continues after the last id; any other read starts afresh. One run at a time ([lock]).
+ */
+internal class GuideWindowProgress<P> {
+    data class Key(val sourceIds: List<Long>, val from: Long, val to: Long, val stored: Int, val maxProgrammeId: Long)
+
+    class Run<P>(val key: Key) {
+        val rows = ArrayList<P>()
+        var afterId = 0L
+            private set
+        var done = false
+            private set
+
+        fun add(page: List<P>, lastId: Long) { rows += page; afterId = lastId }
+        fun finish() { done = true }
+    }
+
+    val lock = kotlinx.coroutines.sync.Mutex()
+    private var current: Run<P>? = null
+
+    /** The run for [key]: the interrupted one, or a new one. Call while holding [lock]. */
+    fun resume(key: Key): Run<P> = current?.takeIf { it.key == key && !it.done } ?: Run<P>(key).also { current = it }
+
+    /** The read for [key] completed; its rows now live in the caller's cache. */
+    fun finished(run: Run<P>) { run.finish(); if (current === run) current = null }
+
+    fun clear() { current = null }
 }

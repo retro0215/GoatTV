@@ -235,11 +235,23 @@ fun EpgScreen(
     // Channel numbers are identifiers, not quantities: no thousands separator ("5001", not "5,001").
     val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0] ?: java.util.Locale.ROOT
     val channelNumberFormat = remember(locale) { java.text.NumberFormat.getIntegerInstance(locale).apply { isGroupingUsed = false } }
-    val hScroll = rememberScrollState()
+    // 4.6.0: back on the same rows, the guide opens where it was left, so the rows and texts kept from the
+    // last visit are the ones on screen (GuideScreenCache).
+    val screenCache = vm.screenCache
+    val keptScroll = remember { screenCache.scroll.restore(vm.state.value.channels, vm.cacheRevision.value) }
+    val hScroll = rememberScrollState(keptScroll?.timelinePx ?: 0)
     // Default prefetch (the next row in the scroll direction). Phase 3C kept two row-heights either side
     // composed, which moved ~27 ms row builds into idle frames and raised jank (57-77 % on the onn); rows
     // are now a single Canvas, cheap to build, and their data is prepared off the main thread (rowStore).
-    val rowListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val rowListState = androidx.compose.foundation.lazy.rememberLazyListState(keptScroll?.firstRow ?: 0, keptScroll?.firstRowOffset ?: 0)
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            screenCache.scroll.save(
+                vm.state.value.channels, vm.cacheRevision.value,
+                GuideScrollMemory.Position(rowListState.firstVisibleItemIndex, rowListState.firstVisibleItemScrollOffset, hScroll.value),
+            )
+        }
+    }
     val rowStridePx = with(density) { (GuideGridDefaults.RowHeight + GuideGridDefaults.RowGap).roundToPx() }
     val chromeScrollThresholdPx = with(density) { 8.dp.roundToPx() }
     val contentScrolled by remember(hScroll, rowListState, chromeScrollThresholdPx) {
@@ -284,14 +296,20 @@ fun EpgScreen(
     val hiddenEmpty = !showAllChannels && rows.size < state.channels.size
 
     // ---- Row data (off the main thread), logos, the shared renderer ----------------------------------
-    val rowStore = remember { GuideRowStore() }
-    // Cell texts measured off the UI thread for the rows in view (bounded; see GuideRowRenderer.prepareTexts).
-    val textStore = remember { KeyedStates<Long, GuideRowTexts>(ROW_TEXT_ROWS) }
+    // 4.6.0: kept by the ViewModel between visits (GuideScreenCache); entries carry their cache revision.
+    val rowStore = screenCache.rows
     // The guide's one text thread: text layout for rows and the details panel runs here, in order.
     val textDispatcher = remember { kotlinx.coroutines.Dispatchers.Default.limitedParallelism(1) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    // Cell texts measured off the UI thread for the rows in view (bounded; see GuideRowRenderer.prepareTexts),
+    // kept while they would measure the same: same density, font scale, typography, colours and time format.
+    val textStyle = listOf(
+        density.density, density.fontScale, colors, MaterialTheme.typography, locale,
+        android.text.format.DateFormat.is24HourFormat(context),
+    )
+    val textStore = screenCache.texts(textStyle, ROW_TEXT_ROWS)
     val logoSizePx = with(density) { 48.dp.roundToPx() }
-    val logoCache = remember(logoSizePx) { GuideLogoCache(context.applicationContext, logoSizePx) }
+    val logoCache = screenCache.logos(logoSizePx) { GuideLogoCache(context.applicationContext, logoSizePx) }
     val rowRenderer = rememberGuideRowRenderer(stripMeasurer)
     // Category dot colours by category id, once per category list (was a keyword match per row build).
     val categoryDots = remember(guideCategories) {
@@ -383,9 +401,10 @@ fun EpgScreen(
                             GuideNav.prepareRow(ch, progs, System.currentTimeMillis(), cacheRevision)
                         }
                         rowStore.put(data)
-                        // Phase 4C timing: the first on-screen row with programme cells to draw.
-                        if (data.programmes.isNotEmpty() && i in first until first + visible) vm.timing.firstProgrammes()
                     }
+                    // Phase 4C timing: the first on-screen row with programme cells to draw (prepared now, or
+                    // kept from the last visit).
+                    if (i in first until first + visible && rowStore[ch.id]?.programmes?.isNotEmpty() == true) vm.timing.firstProgrammes()
                     // Cell texts for rows in view (and one either side), for this part of the timeline.
                     if (i !in (first - 1)..(first + visible) || viewportMin <= 0) continue
                     val key = GuideNav.textKey(cacheRevision, bucket)
@@ -1031,6 +1050,9 @@ private fun EpgMatchChooserDialog(
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); runCatching { firstFocus.requestFocus() } }
 
+    // 4.6.0: its own window, like the guide's other dialogs, so it stays above the live preview's video view
+    // (the shell draws that view over the Guide). Full size, so the dialog looks as it did in place.
+    tv.own.owntv.ui.components.OwnTVPopup(onDismissRequest = onDismiss, scale = 1f, fontScale = 1f) {
     Box(
         Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup()
             .longPressMenuGuard(), // long-press OK is still held — don't auto-click the first option
@@ -1059,6 +1081,7 @@ private fun EpgMatchChooserDialog(
             Spacer(Modifier.height(16.dp))
             OwnTVButton(stringResource(R.string.common_cancel), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY)
         }
+    }
     }
 }
 
@@ -1295,7 +1318,8 @@ private fun layoutPanel(
  * Phase 4: the TV Guide's video preview. Shows the channel still playing from Live TV, hosted by the
  * shell's shared player ([video]); it never follows the cursor. With nothing playing it says how to start
  * one, and starts nothing itself. The picture is a SurfaceView: nothing is drawn over it and it is not
- * clipped, so it stays on the hardware video path.
+ * clipped, so it stays on the hardware video path. 4.6.0: on ExoPlayer [video] is an empty box the shell
+ * draws its full-screen video view over (GuideVideoDock), so the decoder never changes surface.
  */
 @Composable
 private fun GuidePreview(channel: ChannelEntity?, video: (@Composable (Modifier) -> Unit)?, width: androidx.compose.ui.unit.Dp) {
@@ -1343,6 +1367,9 @@ private fun GuideOptionsDialog(
     BackHandler { onDismiss() }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(60); runCatching { firstFocus.requestFocus() } }
+    // 4.6.0: its own window, like the guide's other dialogs, so it stays above the live preview's video view
+    // (the shell draws that view over the Guide). Full size, so the dialog looks as it did in place.
+    tv.own.owntv.ui.components.OwnTVPopup(onDismissRequest = onDismiss, scale = 1f, fontScale = 1f) {
     Box(
         Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
         contentAlignment = Alignment.Center,
@@ -1370,6 +1397,7 @@ private fun GuideOptionsDialog(
             Spacer(Modifier.height(16.dp))
             OwnTVButton(stringResource(R.string.settings_close), onClick = onDismiss, style = OwnTVButtonStyle.SECONDARY)
         }
+    }
     }
 }
 

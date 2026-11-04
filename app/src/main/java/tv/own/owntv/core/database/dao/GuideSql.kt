@@ -29,17 +29,21 @@ object GuideSql {
     const val GUIDE_KEYS = "SELECT DISTINCT epgChannelId FROM epg_programmes WHERE sourceId IN (:sourceIds)"
 
     /**
-     * 4.6.0: [GUIDE_KEYS] for ONE source, as a skip scan: from each key straight to the next one through the
-     * (sourceId, epgChannelId) index — one seek per distinct key instead of visiting every programme. The
-     * same keys (binary order, as DISTINCT compares them); ~5x faster on a 2.1M-programme table.
+     * One page of the guide window preload: the programmes overlapping [:from, :to), in id order after
+     * :afterId, without the synopsis (fetched on demand).
      */
-    const val GUIDE_KEYS_FOR_SOURCE =
-        "WITH RECURSIVE k(id) AS (" +
-            "SELECT MIN(epgChannelId) FROM epg_programmes WHERE sourceId = :sourceId " +
-            "UNION ALL " +
-            "SELECT (SELECT MIN(epgChannelId) FROM epg_programmes WHERE sourceId = :sourceId AND epgChannelId > k.id) " +
-            "FROM k WHERE k.id IS NOT NULL" +
-            ") SELECT id FROM k WHERE id IS NOT NULL"
+    const val WINDOW_PAGE =
+        "SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, contentHash FROM epg_programmes " +
+            "WHERE sourceId IN (:sourceIds) AND stopMs > :from AND startMs < :to AND id > :afterId ORDER BY id ASC LIMIT :limit"
+
+    /**
+     * 4.6.0: the programmes of some guide keys that START in [:from, :to): what the window gained when it moved
+     * on (GuideWindowMove). One short range per key on the (epgChannelId, startMs) index, instead of the
+     * whole-table pass [WINDOW_PAGE] makes.
+     */
+    const val WINDOW_TOP_UP =
+        "SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, contentHash FROM epg_programmes " +
+            "WHERE epgChannelId IN (:epgKeys) AND sourceId IN (:sourceIds) AND startMs >= :from AND startMs < :to"
 
     /** Full channel rows by primary key. */
     const val CHANNELS_BY_IDS = "SELECT * FROM channels WHERE id IN (:ids)"

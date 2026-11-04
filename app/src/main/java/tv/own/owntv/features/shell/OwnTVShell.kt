@@ -45,6 +45,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,6 +87,7 @@ import tv.own.owntv.player.MiniPlayer
 import tv.own.owntv.player.MpvVideoSurface
 import tv.own.owntv.player.OwnTVPlayer
 import tv.own.owntv.player.PlayerHud
+import tv.own.owntv.player.dockedAt
 import tv.own.owntv.features.shell.components.AvatarPickerDialog
 import tv.own.owntv.features.shell.components.CategoryRail
 import tv.own.owntv.features.shell.components.ContentPane
@@ -169,8 +172,9 @@ fun OwnTVShell(
     var multiscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
     // Phase 4: the TV Guide's live preview — the channel the player was on, still playing (GuidePlayback).
     var guideSession by remember { mutableStateOf(GuidePlayback.NONE) }
-    // 4.6.0: a full screen <-> Guide preview move of the live ExoPlayer picture in progress (GuideHandoff).
-    var videoHandoff by remember { mutableStateOf(GuideHandoff.Phase.NONE) }
+    // 4.6.0: where the Guide's preview box is: the shell draws its live ExoPlayer view there (GuideVideoDock).
+    val guideDock = remember { tv.own.owntv.player.VideoDockSlot() }
+    var shellOrigin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     // Phase 4: the reminder banner, shown wherever the customer is (ReminderDelivery).
     var reminderBanner by remember { mutableStateOf<ReminderBannerState?>(null) }
 
@@ -348,15 +352,14 @@ fun OwnTVShell(
         Unit
     }
     // Phase 4: the player's TV Guide button. The stream keeps playing; its picture moves to the Guide's
-    // preview — no release, no re-tune. 4.6.0: the full-screen video stays until the preview's surface is
-    // attached, so the decoder moves once (GuideHandoff.TO_GUIDE).
+    // preview — no release, no re-tune. 4.6.0: on ExoPlayer the same video view shrinks into the preview
+    // box, so the decoder keeps its surface (GuideVideoDock).
     val openGuideFromPlayer = {
         showChannelList = false
         showHistoryList = false
         liveVm.hideCategoryBrowser()
         resumeVideo()
         val session = GuidePlayback.openFromPlayer(selectedSection)
-        videoHandoff = GuideHandoff.start(liveOnExo, videoHandoff, GuideHandoff.Phase.TO_GUIDE)
         playerMode = PlayerMode.NONE
         guideSession = session
         // The Guide opens with focus in the grid, on the playing channel's row.
@@ -366,32 +369,14 @@ fun OwnTVShell(
         Unit
     }
     // Back in a Guide opened from the player: the same channel full screen again, over the section it sat on.
-    val completeReturnToPlayer = {
+    // On ExoPlayer the docked video view grows back to full screen in the same frame (GuideVideoDock).
+    val returnToPlayerFromGuide = {
         val back = guideSession.returnSection ?: MainSection.LIVE_TV
         guideSession = GuidePlayback.NONE
         restoreFocus = false
         playerMode = PlayerMode.FULLSCREEN
         onSelectSection(back)
         Unit
-    }
-    // 4.6.0: on ExoPlayer the full-screen video is shown over the Guide first and the Guide leaves once that
-    // surface is attached (GuideHandoff.TO_PLAYER, finished by the effect below); mpv returns at once.
-    val returnToPlayerFromGuide = {
-        when (GuideHandoff.start(liveOnExo, if (videoHandoff == GuideHandoff.Phase.TO_GUIDE) GuideHandoff.Phase.NONE else videoHandoff, GuideHandoff.Phase.TO_PLAYER)) {
-            GuideHandoff.Phase.TO_PLAYER -> videoHandoff = GuideHandoff.Phase.TO_PLAYER
-            else -> { videoHandoff = GuideHandoff.Phase.NONE; completeReturnToPlayer() }
-        }
-        Unit
-    }
-    // Ends a handoff once the incoming view's surface is on the decoder, or after its timeout (the old order).
-    LaunchedEffect(videoHandoff) {
-        val phase = videoHandoff
-        val target = GuideHandoff.target(phase) ?: return@LaunchedEffect
-        kotlinx.coroutines.withTimeoutOrNull(GuideHandoff.timeoutMs(phase)) {
-            liveVm.previewEngine.attachedRole.first { it == target }
-        }
-        if (phase == GuideHandoff.Phase.TO_PLAYER) completeReturnToPlayer()
-        videoHandoff = GuideHandoff.Phase.NONE
     }
     val dockPlayer = {
         resumeVideo()
@@ -484,14 +469,15 @@ fun OwnTVShell(
 
     val isMultiscreen = selectedSection == MainSection.MULTISCREEN
 
-    // Phase 4C: the view that drives the live decoder, named before any new view creates its surface (a
-    // SideEffect runs after composition, ahead of layout and surfaceCreated). The full-screen player, or the
-    // Guide's live preview; elsewhere none, and the last surface offered wins as before.
-    val surfaceOwner = tv.own.owntv.player.SurfaceOwnership.ownerFor(
-        playerFullscreen = GuideHandoff.playerOwnsPicture(playerMode == PlayerMode.FULLSCREEN, videoHandoff),
-        guidePreview = selectedSection == MainSection.EPG &&
-            GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo) == GuidePlayback.Surface.EXO,
+    // 4.6.0: the Guide's live ExoPlayer preview is the shell's own video view, placed over its preview box.
+    val guideDocked = GuideVideoDock.docked(
+        guideOnScreen = selectedSection == MainSection.EPG,
+        previewSurface = GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo),
     )
+    // Phase 4C: the view that drives the live decoder, named before any new view creates its surface (a
+    // SideEffect runs after composition, ahead of layout and surfaceCreated). The shell's player view, in
+    // full screen and docked in the Guide; elsewhere none, and the last surface offered wins as before.
+    val surfaceOwner = GuideVideoDock.owner(fullscreen = playerMode == PlayerMode.FULLSCREEN, docked = guideDocked)
     androidx.compose.runtime.SideEffect { liveVm.previewEngine.setSurfaceOwner(surfaceOwner) }
 
     BackHandler {
@@ -601,8 +587,8 @@ fun OwnTVShell(
     CompositionLocalProvider(LocalContentScrolled provides contentScrolled) {
     Box(
         modifier = modifier.fillMaxSize().background(if (isMultiscreen) Color.Black else shellBase)
-            // 4.6.0: while the picture returns to full screen, keys wait (the Guide is still underneath).
-            .onPreviewKeyEvent { GuideHandoff.keysHeld(videoHandoff) },
+            // 4.6.0: the docked video view is placed relative to this box (GuideVideoDock).
+            .onGloballyPositioned { shellOrigin = it.positionInRoot() },
     ) {
       
       if (isMultiscreen) {
@@ -804,7 +790,8 @@ fun OwnTVShell(
                             // Phase 4: the channel the player was on keeps playing here; browsing never tunes.
                             previewChannel = previewChannel.takeIf { guideSession.live },
                             previewVideo = when (GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo)) {
-                                GuidePlayback.Surface.EXO -> { m -> tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = m, keepAwake = true, role = tv.own.owntv.player.SurfaceOwnership.Role.GUIDE) }
+                                // 4.6.0: an empty box; the shell's own video view is drawn over it (GuideVideoDock).
+                                GuidePlayback.Surface.EXO -> { m -> tv.own.owntv.player.VideoDockTarget(guideDock, m) }
                                 GuidePlayback.Surface.MPV -> { m -> MpvVideoSurface(player = player, modifier = m, autoFrameRate = false) }
                                 GuidePlayback.Surface.PLACEHOLDER -> null
                             },
@@ -837,16 +824,26 @@ fun OwnTVShell(
           }
       }
 
-      // One slot for the video layer, also during a Guide handoff, so its video view is never rebuilt.
-      if (GuideHandoff.videoLayerShown(playerMode == PlayerMode.FULLSCREEN || playerMode == PlayerMode.MINI, videoHandoff)) {
-        val isFull = GuideHandoff.videoLayerFullScreen(playerMode == PlayerMode.FULLSCREEN, videoHandoff)
-        val controlsShown = GuideHandoff.controlsShown(playerMode == PlayerMode.FULLSCREEN, videoHandoff)
+      // One slot for the video layer — full screen, mini, or docked in the Guide's preview — so its video view
+      // (and the decoder's surface) is never rebuilt when the picture moves between them (GuideVideoDock).
+      if (GuideVideoDock.layerShown(fullscreen = playerMode == PlayerMode.FULLSCREEN, mini = playerMode == PlayerMode.MINI, docked = guideDocked)) {
+        val dockRect = guideDock.bounds
+        val placement = GuideVideoDock.placement(
+            fullscreen = playerMode == PlayerMode.FULLSCREEN, mini = playerMode == PlayerMode.MINI,
+            docked = guideDocked, previewKnown = dockRect != null,
+        )
+        val isFull = placement == GuideVideoDock.Placement.FULL_SCREEN
+        val controlsShown = GuideVideoDock.controlsShown(fullscreen = playerMode == PlayerMode.FULLSCREEN)
         Box(
-            modifier = if (isFull) Modifier.fillMaxSize().background(Color.Black)
-            else Modifier.align(miniPos.alignment).padding(24.dp).fillMaxWidth(tv.own.owntv.player.MiniPlayerSize.fraction(miniSizePct)).aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color.Black),
+            modifier = when {
+                placement == GuideVideoDock.Placement.GUIDE_PREVIEW && dockRect != null ->
+                    Modifier.dockedAt(dockRect, shellOrigin).background(Color.Black)
+                isFull -> Modifier.fillMaxSize().background(Color.Black)
+                else -> Modifier.align(miniPos.alignment).padding(24.dp).fillMaxWidth(tv.own.owntv.player.MiniPlayerSize.fraction(miniSizePct)).aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color.Black)
+            },
         ) {
             if (liveOnExo) {
-                tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = Modifier.fillMaxSize(), keepAwake = true, autoFrameRate = isFull && autoFrameRate, role = tv.own.owntv.player.SurfaceOwnership.Role.PLAYER)
+                tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = Modifier.fillMaxSize(), keepAwake = true, autoFrameRate = playerMode == PlayerMode.FULLSCREEN && autoFrameRate, role = tv.own.owntv.player.SurfaceOwnership.Role.PLAYER)
             } else {
                 MpvVideoSurface(player = player, modifier = Modifier.fillMaxSize(), autoFrameRate = isFull && autoFrameRate)
             }

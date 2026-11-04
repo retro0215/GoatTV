@@ -41,6 +41,8 @@ fun OwnTVPopup(
     dismissOnBackPress: Boolean = true,
     dismissOnClickOutside: Boolean = true,
     fontScale: Float = 0.70f,
+    /** The popup's size against the app's (dp geometry). 1 keeps a screen's own dialog at the size it had in place. */
+    scale: Float = 0.70f,
     content: @Composable () -> Unit,
 ) {
     Dialog(
@@ -105,7 +107,7 @@ fun OwnTVPopup(
         val availableHeightPx = (usableBottomPx - topSafePx).coerceAtLeast(1)
         val availableHeightDp = with(baseDensity) { availableHeightPx.toDp() }
 
-        val popupScale = 0.70f
+        val popupScale = scale
         // Shrink dp geometry while compensating fontScale; PopupFontTheme applies exactly the same
         // 30% reduction to sp typography instead of accidentally scaling text twice.
         val popupDensity = Density(

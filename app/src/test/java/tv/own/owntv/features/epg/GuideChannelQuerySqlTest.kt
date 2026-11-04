@@ -143,50 +143,6 @@ class GuideChannelQuerySqlTest {
         assertTrue(new(listOf(1L, 3L)).size > 500)
     }
 
-    // ---- 4.6.0: guide keys by index skip scan, source by source ------------------------------------------
-
-    private fun keysOld(sourceIds: List<Long>): Set<String> = db.createStatement().use { st ->
-        st.executeQuery(bind(GuideSql.GUIDE_KEYS, sourceIds)).use { rs -> buildSet { while (rs.next()) add(rs.getString(1)) } }
-    }
-
-    private fun keysSkipScan(sourceIds: List<Long>): Set<String> = kotlinx.coroutines.runBlocking {
-        GuideKeys.read(sourceIds) { id ->
-            db.createStatement().use { st ->
-                st.executeQuery(GuideSql.GUIDE_KEYS_FOR_SOURCE.replace(":sourceId", id.toString())).use { rs ->
-                    buildList { while (rs.next()) add(rs.getString(1)) }
-                }
-            }
-        }
-    }
-
-    @Test fun `the skip scan finds exactly the keys the DISTINCT query finds`() {
-        // Edge cases: an empty key, case and punctuation (binary order), one programme only, shared keys
-        // across feeds, and a source with no programmes.
-        listOf("", "A.tv", "a.tv", "a.tv ", "b-1", "b_1", "é.fr", "zz").forEach { programme(1, it) }
-        repeat(30) { programme(1, "busy.tv", it.toLong()) }
-        listOf("a.tv", "only3.tv").forEach { programme(3, it) }
-        val rnd = java.util.Random(7)
-        repeat(4_000) { programme(9, "k" + rnd.nextInt(700), it.toLong()) }
-        for (sources in listOf(listOf(1L), listOf(3L), listOf(1L, 3L), listOf(1L, 3L, 9L), listOf(42L), listOf(1L, 1L))) {
-            assertEquals("sources=$sources", keysOld(sources), keysSkipScan(sources))
-        }
-        assertTrue("" in keysSkipScan(listOf(1L)))
-    }
-
-    @Test fun `the channel list is the same with skip-scan keys`() {
-        listOf("fox.us", "cnn.us", "abc").forEach { programme(1, it) }
-        programme(3, "nbc.us")
-        channel(1, 1, "Fox", 1, " FOX.us "); channel(2, 1, "CNN", 2, "cnn.us"); channel(3, 1, "NBC", 3, "nbc.us")
-        channel(4, 1, "None", 4, "none.us")
-        val keys = keysSkipScan(listOf(1L, 3L))
-        val candidates = db.createStatement().use { st ->
-            st.executeQuery(bind(GuideSql.GUIDE_CANDIDATES, listOf(1L, 3L))).use { rs ->
-                buildList { while (rs.next()) add(GuideChannelCandidate(rs.getLong("id"), rs.getString("guideKey"))) }
-            }
-        }
-        assertEquals(old(listOf(1L, 3L)), GuideChannelQuery.select(candidates, keys, 50_000))
-    }
-
     @Test fun `full rows are read in chunks under the SQLite variable limit`() {
         programme(1, "k")
         (1L..2_000L).forEach { channel(it, 1, "C$it", it.toInt(), "k") }

@@ -98,3 +98,52 @@ internal class GuideCellText(
  * prepared for (data revision and timeline bucket) — see [GuideNav.textKey].
  */
 internal class GuideRowTexts(val key: Long, val cells: Map<Long, GuideCellText>)
+
+/** A value made for [key], kept while the key is unchanged and replaced when it changes. */
+internal class KeptFor<K, V : Any> {
+    private var key: Any? = NO_KEY
+    private var value: V? = null
+
+    fun get(key: K, create: () -> V): V {
+        val kept = value
+        if (kept != null && this.key == key) return kept
+        return create().also { value = it; this.key = key }
+    }
+
+    private companion object { val NO_KEY = Any() }
+}
+
+/** Where the guide was scrolled when it was left, reused only for the same list of rows. */
+internal class GuideScrollMemory {
+    class Position(val firstRow: Int, val firstRowOffset: Int, val timelinePx: Int)
+
+    private var list: Any? = null
+    private var revision = -1
+    private var position: Position? = null
+
+    fun save(list: Any, revision: Int, position: Position) {
+        this.list = list; this.revision = revision; this.position = position
+    }
+
+    /** The saved position, if the guide shows the same rows ([list] is the same object, same [revision]). */
+    fun restore(list: Any, revision: Int): Position? = position?.takeIf { this.list === list && this.revision == revision }
+}
+
+/**
+ * 4.6.0: what the Guide screen prepared — row data, cell texts, logos and its scroll position — kept by the
+ * activity-scoped EpgViewModel between visits. Each Guide open built them again from nothing: back from
+ * full screen the rows on screen stayed empty for 1–2 s on the onn while they were re-prepared and their
+ * texts re-measured. Row data and texts carry the cache revision they were made from, so a changed guide
+ * still refreshes them; texts and logos are kept only for the same text style and logo size.
+ */
+internal class GuideScreenCache {
+    val rows = GuideRowStore()
+    private val texts = KeptFor<Any, KeyedStates<Long, GuideRowTexts>>()
+    private val logos = KeptFor<Int, GuideLogoCache>()
+    val scroll = GuideScrollMemory()
+
+    /** Cell texts measured with [style] (density, font scale, typography, colours, locale, time format). */
+    fun texts(style: Any, maxRows: Int): KeyedStates<Long, GuideRowTexts> = texts.get(style) { KeyedStates(maxRows) }
+
+    fun logos(sizePx: Int, create: () -> GuideLogoCache): GuideLogoCache = logos.get(sizePx, create)
+}

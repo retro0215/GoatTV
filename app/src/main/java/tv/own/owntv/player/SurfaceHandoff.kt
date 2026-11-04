@@ -13,6 +13,11 @@ package tv.own.owntv.player
  * A picture that stops while the stream is playing gets one decoder rebuild on the same stream (one decoder
  * at a time, no re-tune of the channel). A second freeze within [REBUILD_COOLDOWN_MS] goes to the regular
  * ladder (reconnect, then mpv), so recovery can never loop.
+ *
+ * 4.6.0: the onn's freeze follows ANY move of the decoder to another surface (~1 in 10, Phase 4D), so the
+ * Guide's preview no longer moves it: it is the full-screen view, resized (see GuideVideoDock). This watch
+ * stays for the moves that remain (a page's preview pane to full screen, a recreated surface). It counts
+ * every rendered frame across players, so a rebuilt decoder that is still frozen is seen too.
  */
 internal object SurfaceHandoff {
 
@@ -32,7 +37,7 @@ internal object SurfaceHandoff {
      * and not one frame was rendered since the previous check; paused, buffering and audio-only playback
      * render nothing by design and only keep the watch going.
      */
-    fun afterCheck(framesBefore: Int, framesNow: Int, playingVideo: Boolean, check: Int): Action = when {
+    fun afterCheck(framesBefore: Long, framesNow: Long, playingVideo: Boolean, check: Int): Action = when {
         playingVideo && framesNow == framesBefore -> Action.REBUILD_DECODER
         check + 1 < WATCH_CHECKS -> Action.WATCH
         else -> Action.NONE
@@ -55,22 +60,12 @@ internal object SurfaceHandoff {
  * the last view created took the decoder. On the onn every Guide <-> full-screen round trip attached 3–4
  * surfaces, including the Guide preview's own surface again ~0.2 s AFTER returning to full screen. Now the
  * shell names the [Role] that owns the picture; a surface from any other role is remembered but kept off
- * the decoder until its role becomes the owner.
+ * the decoder until its role becomes the owner. 4.6.0: the Guide's ExoPlayer preview is the PLAYER view
+ * itself (GuideVideoDock), so GUIDE is no longer named as an owner.
  */
 object SurfaceOwnership {
 
     enum class Role { PLAYER, GUIDE, PAGE }
-
-    /**
-     * The owner for the shell's state: the full-screen player, else the Guide's live preview. Anywhere else
-     * (pages, the mini player) no owner is named and the last surface offered wins, exactly as before, so
-     * Sports and Live TV page previews behave as they always have.
-     */
-    fun ownerFor(playerFullscreen: Boolean, guidePreview: Boolean): Role? = when {
-        playerFullscreen -> Role.PLAYER
-        guidePreview -> Role.GUIDE
-        else -> null
-    }
 
     /** Whether a surface offered by [role] goes to the decoder. No owner set: the last one offered (as before). */
     fun accepts(owner: Role?, role: Role): Boolean = owner == null || owner == role

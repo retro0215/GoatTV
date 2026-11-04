@@ -60,11 +60,13 @@ class SurfaceHandoffTest {
 
     // ---- Surface ownership -----------------------------------------------------------------------------
 
-    @Test fun `the full-screen player owns the picture, else the Guide preview, else nobody`() {
-        assertEquals(Role.PLAYER, SurfaceOwnership.ownerFor(playerFullscreen = true, guidePreview = false))
-        assertEquals(Role.PLAYER, SurfaceOwnership.ownerFor(playerFullscreen = true, guidePreview = true))
-        assertEquals(Role.GUIDE, SurfaceOwnership.ownerFor(playerFullscreen = false, guidePreview = true))
-        assertNull("pages and the mini player: as before", SurfaceOwnership.ownerFor(playerFullscreen = false, guidePreview = false))
+    @Test fun `a frozen rebuilt decoder is still seen - the count survives the new player`() {
+        // 4.6.0, the onn: after a rebuild the per-player count restarted at 0, below the count at the switch,
+        // and the watch logged "-8176 frames since the switch" and passed. The total never goes back.
+        val atSwitch = 8_391L
+        val afterRebuild = atSwitch + 3 // three frames from the new decoder, then nothing
+        assertEquals(Action.WATCH, SurfaceHandoff.afterCheck(atSwitch, afterRebuild, playingVideo = true, check = 0))
+        assertEquals(Action.REBUILD_DECODER, SurfaceHandoff.afterCheck(afterRebuild, afterRebuild, playingVideo = true, check = 1))
     }
 
     /** Replays the attaches logged on the onn for one Guide <-> full-screen round trip. */
@@ -109,11 +111,20 @@ class SurfaceHandoffTest {
 
     private fun src(path: String) = File("src/main/java/tv/own/owntv/$path").readText().replace("\r\n", "\n")
 
-    @Test fun `the shell names the owner and gives its two views their roles`() {
+    @Test fun `the shell names the owner of its one player view`() {
         val shell = src("features/shell/OwnTVShell.kt")
         assertTrue("SideEffect { liveVm.previewEngine.setSurfaceOwner(surfaceOwner) }" in shell)
-        assertTrue("role = tv.own.owntv.player.SurfaceOwnership.Role.GUIDE" in shell)
         assertTrue("role = tv.own.owntv.player.SurfaceOwnership.Role.PLAYER" in shell)
+    }
+
+    @Test fun `the switch watch counts frames across players, never with the per-player count`() {
+        val engine = src("player/LivePreviewEngine.kt")
+        assertTrue("frameCounter.incrementAndGet(); renderedTotal.incrementAndGet()" in engine)
+        assertFalse("renderedTotal.set(" in engine)
+        val check = engine.substringAfter("private val handoffCheck = Runnable {").substringBefore("\n    }\n")
+        assertTrue("val framesNow = renderedTotal.get()" in check)
+        val arm = engine.substringAfter("private fun armHandoffCheck(").substringBefore("\n    }\n")
+        assertTrue("handoffFrames = renderedTotal.get()" in arm)
     }
 
     @Test fun `views offer and withdraw their surfaces through ownership`() {

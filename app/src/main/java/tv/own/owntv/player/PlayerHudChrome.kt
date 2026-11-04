@@ -103,9 +103,23 @@ internal fun TopBar(
                         if (!isLive && durMin > 0) add(stringResource(R.string.player_duration_minutes, durMin))
                         addAll(chips) // aspect · resolution · fps · audio
                     }
-                    parts.forEachIndexed { i, label ->
-                        if (i > 0) Box(Modifier.size(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
-                        Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.5f))
+                    // 4.6.0: the chips share what the LIVE badge leaves (a weighted child is measured last), one
+                    // line each, ending in "…" when short of room. Measured first, mpv's longer chip list (with
+                    // the bitrate) used to take the whole width and left the badge a few pixels, so "LIVE"
+                    // wrapped letter by letter into a thin red bar.
+                    if (parts.isNotEmpty()) {
+                        Row(
+                            Modifier.weight(1f, fill = false),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            parts.forEachIndexed { i, label ->
+                                if (i > 0) Box(Modifier.size(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
+                                Text(
+                                    label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.5f),
+                                    maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                     if (isLive) {
                         if (parts.isNotEmpty()) Box(Modifier.size(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
@@ -175,7 +189,7 @@ private fun LiveBadge() {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(Modifier.size(6.dp).clip(CircleShape).background(Color.White))
-        Text(stringResource(R.string.player_live), style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.player_live), style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }
 
