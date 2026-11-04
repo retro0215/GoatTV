@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -79,6 +81,8 @@ fun Sidebar(
     onFocused: () -> Unit,
     counts: (MainSection) -> Int = { 0 },
     topInset: Dp = Dimens.TopBarHeight,
+    /** 4.6.0: the floating name beside the focused icon (drawn by the shell's [SidebarFocusLabel]). */
+    focusLabel: SidebarLabelState? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = OwnTVTheme.colors
@@ -109,6 +113,8 @@ fun Sidebar(
                 // Deferred a frame: requesting focus inside onFocusChanged is rejected mid-transaction.
                 val entered = it.hasFocus && !hasFocus
                 hasFocus = it.hasFocus
+                // Focus left the rail: no label.
+                if (!it.hasFocus) focusLabel?.clear()
                 if (it.hasFocus) onFocused()
                 if (entered) scope.launch { runCatching { selectedItemFocusRequester.requestFocus() } }
             }
@@ -153,6 +159,7 @@ fun Sidebar(
                         expanded = expanded,
                         count = counts(section),
                         onClick = { onSelect(section) },
+                        focusLabel = focusLabel,
                         modifier = if (section == focusSection) {
                             Modifier.focusRequester(selectedItemFocusRequester)
                         } else Modifier,
@@ -166,6 +173,7 @@ fun Sidebar(
                     expanded = expanded,
                     count = 0,
                     onClick = { onSelect(MainSection.SETTINGS) },
+                    focusLabel = focusLabel,
                     modifier = if (focusSection == MainSection.SETTINGS) {
                         Modifier.focusRequester(selectedItemFocusRequester)
                     } else Modifier,
@@ -337,15 +345,25 @@ private fun NavItem(
     expanded: Boolean,
     count: Int,
     onClick: () -> Unit,
+    focusLabel: SidebarLabelState? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = OwnTVTheme.colors
+    // 4.6.0 focus label: this icon reports its focus and its position (the rail can scroll under UI zoom).
+    val bounds = remember { arrayOfNulls<androidx.compose.ui.geometry.Rect>(1) }
+    val labelModifier = if (focusLabel == null) Modifier else Modifier
+        .onFocusChanged { if (it.hasFocus) focusLabel.focus(section, bounds[0]) else focusLabel.clear(section) }
+        .onGloballyPositioned { c ->
+            val b = c.boundsInRoot()
+            bounds[0] = b
+            focusLabel.move(section, b)
+        }
     // Approved compact beacon: the focus owner still spans the rail for reliable D-pad targeting,
     // while the visible selection is a centered 48 dp tile with its own marker and soft halo.
     val shape = RoundedCornerShape(13.dp)
     FocusableSurface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.then(labelModifier).fillMaxWidth(),
         selected = active,
         shape = shape,
         focusedContainerColor = Color.Transparent,

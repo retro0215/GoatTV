@@ -126,6 +126,10 @@ interface EpgDao {
     @Query(GuideSql.GUIDE_KEYS)
     suspend fun guideKeys(sourceIds: List<Long>): List<String>
 
+    /** [guideKeys] for one source, as an index skip scan (GuideSql.GUIDE_KEYS_FOR_SOURCE). */
+    @Query(GuideSql.GUIDE_KEYS_FOR_SOURCE)
+    suspend fun guideKeysForSource(sourceId: Long): List<String>
+
     /** The newest programme row id (a rowid lookup): rises whenever programmes are added. */
     @Query("SELECT COALESCE(MAX(id), 0) FROM epg_programmes")
     suspend fun maxProgrammeId(): Long

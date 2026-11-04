@@ -169,6 +169,8 @@ fun OwnTVShell(
     var multiscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
     // Phase 4: the TV Guide's live preview — the channel the player was on, still playing (GuidePlayback).
     var guideSession by remember { mutableStateOf(GuidePlayback.NONE) }
+    // 4.6.0: a full screen <-> Guide preview move of the live ExoPlayer picture in progress (GuideHandoff).
+    var videoHandoff by remember { mutableStateOf(GuideHandoff.Phase.NONE) }
     // Phase 4: the reminder banner, shown wherever the customer is (ReminderDelivery).
     var reminderBanner by remember { mutableStateOf<ReminderBannerState?>(null) }
 
@@ -346,13 +348,15 @@ fun OwnTVShell(
         Unit
     }
     // Phase 4: the player's TV Guide button. The stream keeps playing; its picture moves to the Guide's
-    // preview (the full-screen surface leaves, the preview's arrives — no release, no re-tune).
+    // preview — no release, no re-tune. 4.6.0: the full-screen video stays until the preview's surface is
+    // attached, so the decoder moves once (GuideHandoff.TO_GUIDE).
     val openGuideFromPlayer = {
         showChannelList = false
         showHistoryList = false
         liveVm.hideCategoryBrowser()
         resumeVideo()
         val session = GuidePlayback.openFromPlayer(selectedSection)
+        videoHandoff = GuideHandoff.start(liveOnExo, videoHandoff, GuideHandoff.Phase.TO_GUIDE)
         playerMode = PlayerMode.NONE
         guideSession = session
         // The Guide opens with focus in the grid, on the playing channel's row.
@@ -362,13 +366,32 @@ fun OwnTVShell(
         Unit
     }
     // Back in a Guide opened from the player: the same channel full screen again, over the section it sat on.
-    val returnToPlayerFromGuide = {
+    val completeReturnToPlayer = {
         val back = guideSession.returnSection ?: MainSection.LIVE_TV
         guideSession = GuidePlayback.NONE
         restoreFocus = false
         playerMode = PlayerMode.FULLSCREEN
         onSelectSection(back)
         Unit
+    }
+    // 4.6.0: on ExoPlayer the full-screen video is shown over the Guide first and the Guide leaves once that
+    // surface is attached (GuideHandoff.TO_PLAYER, finished by the effect below); mpv returns at once.
+    val returnToPlayerFromGuide = {
+        when (GuideHandoff.start(liveOnExo, if (videoHandoff == GuideHandoff.Phase.TO_GUIDE) GuideHandoff.Phase.NONE else videoHandoff, GuideHandoff.Phase.TO_PLAYER)) {
+            GuideHandoff.Phase.TO_PLAYER -> videoHandoff = GuideHandoff.Phase.TO_PLAYER
+            else -> { videoHandoff = GuideHandoff.Phase.NONE; completeReturnToPlayer() }
+        }
+        Unit
+    }
+    // Ends a handoff once the incoming view's surface is on the decoder, or after its timeout (the old order).
+    LaunchedEffect(videoHandoff) {
+        val phase = videoHandoff
+        val target = GuideHandoff.target(phase) ?: return@LaunchedEffect
+        kotlinx.coroutines.withTimeoutOrNull(GuideHandoff.timeoutMs(phase)) {
+            liveVm.previewEngine.attachedRole.first { it == target }
+        }
+        if (phase == GuideHandoff.Phase.TO_PLAYER) completeReturnToPlayer()
+        videoHandoff = GuideHandoff.Phase.NONE
     }
     val dockPlayer = {
         resumeVideo()
@@ -465,7 +488,7 @@ fun OwnTVShell(
     // SideEffect runs after composition, ahead of layout and surfaceCreated). The full-screen player, or the
     // Guide's live preview; elsewhere none, and the last surface offered wins as before.
     val surfaceOwner = tv.own.owntv.player.SurfaceOwnership.ownerFor(
-        playerFullscreen = playerMode == PlayerMode.FULLSCREEN,
+        playerFullscreen = GuideHandoff.playerOwnsPicture(playerMode == PlayerMode.FULLSCREEN, videoHandoff),
         guidePreview = selectedSection == MainSection.EPG &&
             GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo) == GuidePlayback.Surface.EXO,
     )
@@ -570,12 +593,17 @@ fun OwnTVShell(
         }
     }
 
+    val sidebarLabel = remember { tv.own.owntv.features.shell.components.SidebarLabelState() }
     val glass = LocalGlass.current
     val shellBase = if (glass.isGlassy(GlassSurface.PANELS) || glass.isGlassy(GlassSurface.SIDEBAR)) Color.Transparent else colors.background
     val shellTopBarHeight = if (playerMode == PlayerMode.AUDIO) Dimens.TopBarHeight else Dimens.TopBarCompactHeight
 
     CompositionLocalProvider(LocalContentScrolled provides contentScrolled) {
-    Box(modifier = modifier.fillMaxSize().background(if (isMultiscreen) Color.Black else shellBase)) {
+    Box(
+        modifier = modifier.fillMaxSize().background(if (isMultiscreen) Color.Black else shellBase)
+            // 4.6.0: while the picture returns to full screen, keys wait (the Guide is still underneath).
+            .onPreviewKeyEvent { GuideHandoff.keysHeld(videoHandoff) },
+    ) {
       
       if (isMultiscreen) {
           // CLEAN SEPARATION: Multiscreen mode hides EVERYTHING else.
@@ -609,6 +637,7 @@ fun OwnTVShell(
                 selectedItemFocusRequester = sidebarFocus,
                 onFocused = { focusedLayer = ShellLayer.SIDEBAR },
                 topInset = shellTopBarHeight,
+                focusLabel = sidebarLabel,
               )
 
               Column(
@@ -802,10 +831,16 @@ fun OwnTVShell(
 
       if (playerMode != PlayerMode.FULLSCREEN && !isMultiscreen) {
           tv.own.owntv.features.shell.components.SyncStatusPill(modifier = Modifier.align(Alignment.BottomCenter))
+          // 4.6.0: the focused rail icon's name, drawn over the content (the rail itself never widens).
+          if (focusedLayer == ShellLayer.SIDEBAR) {
+              tv.own.owntv.features.shell.components.SidebarFocusLabel(sidebarLabel, Modifier.fillMaxSize())
+          }
       }
 
-      if (playerMode == PlayerMode.FULLSCREEN || playerMode == PlayerMode.MINI) {
-        val isFull = playerMode == PlayerMode.FULLSCREEN
+      // One slot for the video layer, also during a Guide handoff, so its video view is never rebuilt.
+      if (GuideHandoff.videoLayerShown(playerMode == PlayerMode.FULLSCREEN || playerMode == PlayerMode.MINI, videoHandoff)) {
+        val isFull = GuideHandoff.videoLayerFullScreen(playerMode == PlayerMode.FULLSCREEN, videoHandoff)
+        val controlsShown = GuideHandoff.controlsShown(playerMode == PlayerMode.FULLSCREEN, videoHandoff)
         Box(
             modifier = if (isFull) Modifier.fillMaxSize().background(Color.Black)
             else Modifier.align(miniPos.alignment).padding(24.dp).fillMaxWidth(tv.own.owntv.player.MiniPlayerSize.fraction(miniSizePct)).aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color.Black),
@@ -820,11 +855,11 @@ fun OwnTVShell(
             if (!liveOnExo) {
                 tv.own.owntv.player.SubtitleOverlay(player = player, modifier = Modifier.fillMaxSize(), sizeScale = if (isFull) 1f else (tv.own.owntv.player.MiniPlayerSize.fraction(miniSizePct) * 1.5f).coerceIn(0.35f, 0.7f))
             }
-            if (isFull && !autoFrameRate && !afrPrompted) {
+            if (controlsShown && !autoFrameRate && !afrPrompted) {
                 val activeFps by if (liveOnExo) liveVm.previewEngine.videoFps.collectAsStateWithLifecycle() else player.videoFps.collectAsStateWithLifecycle()
                 tv.own.owntv.player.AutoFrameRatePrompt(fps = activeFps, afrEnabled = autoFrameRate, alreadyPrompted = afrPrompted, onEnable = { scope.launch { settingsRepo.setAutoFrameRate(true); settingsRepo.setAutoFrameRatePrompted() } }, onDismiss = { scope.launch { settingsRepo.setAutoFrameRatePrompted() } })
             }
-            if (isFull) {
+            if (controlsShown) {
                 // The reminder listener and banner live at the shell's root now (Phase 4), so they work
                 // in every section, not only while this player is mounted.
                 val activeReminderBanner = reminderBanner

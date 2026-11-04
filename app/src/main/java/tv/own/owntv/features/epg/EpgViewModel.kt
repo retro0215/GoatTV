@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.own.owntv.core.customize.SectionCustomizations
@@ -150,6 +151,12 @@ class EpgViewModel(
 
     /** Called by the Guide screen when it opens, before [load]. */
     fun onGuideOpened() = timing.open()
+
+    // 4.6.0: D-pad activity in the guide; the background window preload waits while it is recent.
+    private val inputGate = GuideInputGate()
+
+    /** Called by the Guide screen on each key press in the grid. */
+    fun noteGuideInput() = inputGate.note()
 
     // Whether the Guide screen is on screen. The ViewModel is activity-scoped and outlives the screen;
     // data-change reloads are skipped while it is hidden because the screen reloads on every open anyway.
@@ -311,6 +318,7 @@ class EpgViewModel(
             val all = ArrayList<EpgProgrammeEntity>()
             var afterId = 0L
             while (true) {
+                inputGate.awaitQuiet()
                 val page = epgDao.programmesInWindowPage(ids, from, to, afterId, EPG_WINDOW_PAGE)
                 if (page.isEmpty()) break
                 all += page
@@ -745,6 +753,17 @@ class EpgViewModel(
         return runCatching { historyDao.mostRecentItemId(pid, MediaType.LIVE) }.getOrNull()
     }
 
+    /** What one load reads before its channel query (read together, see load()). */
+    private class LoadInputs(
+        val maxCatchupDays: Int,
+        val cust: tv.own.owntv.core.customize.SectionCustomizations,
+        val favoriteIds: Set<Long>,
+        val sortLive: SettingsRepository.SortMode,
+        val sortGuide: SettingsRepository.GuideSort,
+        val maxProgrammeId: Long,
+        val channelCount: Int,
+    )
+
     /** One load's channel list, with the counts shown beside it. */
     private class BuiltList(val channels: List<ChannelEntity>, val catchupCount: Int, val favoriteIds: Set<Long>)
 
@@ -756,7 +775,7 @@ class EpgViewModel(
      * rows by primary key in window-sized chunks.
      */
     private suspend fun guideChannels(ids: List<Long>, query: String, signal: GuideLoad.Signal, importRunning: Boolean): List<ChannelEntity> {
-        val keys = guideKeyCache.get(ids, signal, importRunning) ?: epgDao.guideKeys(ids).toHashSet().also {
+        val keys = guideKeyCache.get(ids, signal, importRunning) ?: GuideKeys.read(ids) { epgDao.guideKeysForSource(it) }.also {
             guideKeyCache.put(ids, signal, importRunning, it)
             timing.mark("guide keys read (${it.size})")
         }
@@ -810,24 +829,40 @@ class EpgViewModel(
 
             val now = System.currentTimeMillis()
             val nowAligned = now - (now % HALF_HOUR_MS) // align to the half hour
+            // 4.6.0: the reads the channel query waits on are independent, so they run together (Room serves
+            // reads from its pool). Phase 4C measured ~2.1 s of them back to back before the query.
+            val inputs = kotlinx.coroutines.coroutineScope {
+                val catchupDays = async { channelDao.maxCatchupDays(playlistIds) }
+                val custAsync = async { customize.observe(pid, MediaType.LIVE).first() }
+                val favAsync = async { favoriteDao.observeFavoriteIds(pid, MediaType.LIVE).first().toSet() }
+                val sortLiveAsync = async { settings.sortLive.first() }
+                val sortGuideAsync = async { settings.sortGuide.first() }
+                val maxIdAsync = async { epgDao.maxProgrammeId() }
+                val channelCountAsync = async { channelDao.countForSources(playlistIds) }
+                LoadInputs(
+                    catchupDays.await(), custAsync.await(), favAsync.await(), sortLiveAsync.await(),
+                    sortGuideAsync.await(), maxIdAsync.await(), channelCountAsync.await(),
+                )
+            }
+            timing.mark("inputs read")
             // When the profile has catch-up channels, extend the guide BACKWARD so archived programmes
             // are visible (and playable), bounded by both the archive depth and what EPG we retain.
-            val maxCatchupDays = channelDao.maxCatchupDays(playlistIds)
+            val maxCatchupDays = inputs.maxCatchupDays
             val lookbackMs = if (maxCatchupDays > 0)
                 minOf(maxCatchupDays * DAY_MS, CATCHUP_LOOKBACK_CAP_MS) else 0L
             val windowStart = nowAligned - lookbackMs
             val windowEnd = nowAligned + GRID_HOURS * 60L * 60 * 1000
 
             // Respect customizations: hidden channels stay out of the guide, renames show.
-            val cust = customize.observe(pid, MediaType.LIVE).first()
+            val cust = inputs.cust
             val q = _query.value.trim()
-            val favoriteIdsEarly = favoriteDao.observeFavoriteIds(pid, MediaType.LIVE).first().toSet()
+            val favoriteIdsEarly = inputs.favoriteIds
             val key = GuideLoad.Key(
                 profileId = pid, sourceIds = ids, query = q, category = _categoryFilter.value,
-                sortLive = settings.sortLive.first().name, sortGuide = settings.sortGuide.first().name,
+                sortLive = inputs.sortLive.name, sortGuide = inputs.sortGuide.name,
                 favoriteIds = favoriteIdsEarly, customizations = cust, windowStart = windowStart,
             )
-            val signal = GuideLoad.Signal(dataSignal, epgDao.maxProgrammeId(), channelDao.countForSources(playlistIds))
+            val signal = GuideLoad.Signal(dataSignal, inputs.maxProgrammeId, inputs.channelCount)
             val importRunningAtOpen = epgActivity.active.value.isNotEmpty()
             if (GuideLoad.reuse(lastKey, key, lastSignal, signal, _state.value.channels.isNotEmpty(), importRunningAtOpen)) {
                 // Nothing changed since the last load: the list and window cache on screen are current.
@@ -847,9 +882,9 @@ class EpgViewModel(
                 // Catch-up count comes from the playlist channels (the tv_archive flag), so it shows even
                 // before any XMLTV guide is downloaded — it tells the user their provider supports catch-up.
                 val catchupCount = channelDao.countCatchup(playlistIds)
-                val favoriteIds = favoriteDao.observeFavoriteIds(pid, MediaType.LIVE).first().toSet()
-                val sortLiveMode = settings.sortLive.first()
-                val sortGuideMode = settings.sortGuide.first()
+                val favoriteIds = favoriteIdsEarly
+                val sortLiveMode = inputs.sortLive
+                val sortGuideMode = inputs.sortGuide
                 // Hidden categories keep their channels out of the guide too (parity with Live TV), and a
                 // filter pointing at a now-hidden category falls back to "All" instead of an empty grid.
             val isKidsProfile = profileDao.getById(pid)?.isKids == true

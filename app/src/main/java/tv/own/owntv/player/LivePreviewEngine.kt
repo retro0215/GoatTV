@@ -1177,13 +1177,19 @@ class LivePreviewEngine(
 
     /** Names the view that drives the decoder. Its surface, if it already has one, is attached now. */
     internal fun setSurfaceOwner(role: SurfaceOwnership.Role?) {
-        surfaceOwners.setOwner(role) { it.isValid }?.let { setSurface(it) }
+        surfaceOwners.setOwner(role) { it.isValid }?.let { setSurface(it); _attachedRole.value = role }
     }
+
+    // 4.6.0: the kind of view whose surface the decoder renders to now (null: none, or one attached without a
+    // role). The shell keeps the outgoing view until the incoming one is attached here (GuideHandoff).
+    private val _attachedRole = MutableStateFlow<SurfaceOwnership.Role?>(null)
+    internal val attachedRole: StateFlow<SurfaceOwnership.Role?> = _attachedRole
 
     /** A view of kind [role] has a surface. It reaches the decoder only if [role] owns the picture. */
     internal fun offerSurface(role: SurfaceOwnership.Role, s: Surface) {
         if (surfaceOwners.offer(role, s)) {
             setSurface(s)
+            _attachedRole.value = role
         } else {
             LiveDiagnosticsLog.event("surface from $role kept off the decoder (owner $surfaceOwner)")
         }
@@ -1198,6 +1204,7 @@ class LivePreviewEngine(
     /** Attach the preview SurfaceView's surface, or null when it's destroyed. */
     fun setSurface(s: Surface?) {
         if (s != null && s === surface) return // the same window again: re-pointing the codec is not free
+        _attachedRole.value = null // the ownership calls set it again right after
         val previous = surface ?: lastSurface
         surface = s
         if (s != null) lastSurface = s

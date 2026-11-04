@@ -94,6 +94,39 @@ internal class GuideKeyCache {
     fun clear() { stamp = null; keys = null }
 }
 
+/** 4.6.0: the guide keys of several sources, read source by source (each an index skip scan). */
+internal object GuideKeys {
+    suspend fun read(sourceIds: List<Long>, forSource: suspend (Long) -> List<String>): Set<String> {
+        val keys = HashSet<String>()
+        for (id in sourceIds.distinct()) keys += forSource(id)
+        return keys
+    }
+}
+
+/**
+ * 4.6.0: recent D-pad activity in the guide. The background window preload reads ~10k channels' programmes
+ * in pages for ~30 s after an open; between pages it waits while a key was pressed in the last [QUIET_MS],
+ * so browsing gets the CPU and the database first (rows on screen read their own programmes meanwhile).
+ */
+internal class GuideInputGate(private val clock: () -> Long = { android.os.SystemClock.elapsedRealtime() }) {
+    @Volatile private var lastInputAt = Long.MIN_VALUE / 2
+
+    fun note() { lastInputAt = clock() }
+
+    /** How long to wait now before the next page (0: go). */
+    fun pauseMs(): Long = (QUIET_MS - (clock() - lastInputAt)).coerceAtLeast(0L)
+
+    suspend fun awaitQuiet() {
+        while (true) {
+            val p = pauseMs()
+            if (p <= 0L) return
+            kotlinx.coroutines.delay(p)
+        }
+    }
+
+    companion object { const val QUIET_MS = 500L }
+}
+
 /**
  * Phase 4C: the guide's channel list without re-running the programme-table match per CursorWindow.
  * Same result as `ChannelDao.channelsWithGuide`: the same candidates in the same order, kept when their

@@ -28,6 +28,19 @@ object GuideSql {
     /** The guide keys with programmes: [CHANNELS_WITH_GUIDE]'s sub-select, run on its own. */
     const val GUIDE_KEYS = "SELECT DISTINCT epgChannelId FROM epg_programmes WHERE sourceId IN (:sourceIds)"
 
+    /**
+     * 4.6.0: [GUIDE_KEYS] for ONE source, as a skip scan: from each key straight to the next one through the
+     * (sourceId, epgChannelId) index — one seek per distinct key instead of visiting every programme. The
+     * same keys (binary order, as DISTINCT compares them); ~5x faster on a 2.1M-programme table.
+     */
+    const val GUIDE_KEYS_FOR_SOURCE =
+        "WITH RECURSIVE k(id) AS (" +
+            "SELECT MIN(epgChannelId) FROM epg_programmes WHERE sourceId = :sourceId " +
+            "UNION ALL " +
+            "SELECT (SELECT MIN(epgChannelId) FROM epg_programmes WHERE sourceId = :sourceId AND epgChannelId > k.id) " +
+            "FROM k WHERE k.id IS NOT NULL" +
+            ") SELECT id FROM k WHERE id IS NOT NULL"
+
     /** Full channel rows by primary key. */
     const val CHANNELS_BY_IDS = "SELECT * FROM channels WHERE id IN (:ids)"
 }

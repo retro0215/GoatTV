@@ -509,6 +509,8 @@ fun EpgScreen(
     var okDown by remember { mutableStateOf(false) }
     var okLongPressed by remember { mutableStateOf(false) }
     fun onGridKey(e: androidx.compose.ui.input.key.KeyEvent): Boolean {
+        // 4.6.0: browsing now; the background window preload waits (GuideInputGate).
+        if (e.type == KeyEventType.KeyDown) vm.noteGuideInput()
         val c = cursor ?: return false
         val channel = rows.getOrNull(c.row) ?: return false
         val isOk = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
