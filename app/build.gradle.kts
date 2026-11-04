@@ -789,6 +789,9 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.13")
     // Test-only, never packaged: virtual time for the guide details panel's update timing tests.
     testImplementation(libs.kotlinx.coroutines.test)
+    // Test-only, never packaged: a real SQLite on the JVM (the build already uses it, for Room's query
+    // checks), so the TV Guide's channel-matching SQL is tested as written (GuideChannelQuerySqlTest).
+    testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.room.testing)

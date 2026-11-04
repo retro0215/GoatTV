@@ -1,38 +1,105 @@
 package tv.own.owntv.player
 
 /**
- * Phase 4B: keeping the picture alive when the live player's video moves to another view (the TV Guide
- * preview ⇄ full screen).
+ * Keeping the live picture alive when its video moves to another view (TV Guide preview <-> full screen).
  *
- * On the onn, the Amlogic decoder sometimes stopped rendering after such a switch: audio went on, the
- * frame count froze, the engine's freeze watchdog reconnected the stream (which renders into the same
- * dead window) and ~30 s later the ladder fell back to mpv. The engine's own notes already name the cure
- * for a decoder that lost its window: a fresh Surface, not a fresh stream. So, after a switch, the
- * engine checks that frames resume and, if they do not, first re-attaches the same surface and then
- * asks for a brand-new one — the same decoder and stream throughout (no re-tune, no second decoder).
+ * Phase 4B measured on the onn (Amlogic): after a few Guide <-> full-screen round trips the decoder stops
+ * rendering a moment after a surface switch. Audio and the stream go on; re-attaching the surface, a fresh
+ * surface and stream reconnects all leave it stuck (ExoPlayer's prepare() reuses the wedged codec), and
+ * ~30 s later the ladder fell back to mpv. Only a new decoder on the same stream fixes it — the same cure
+ * [LivePreviewEngine] already uses for a decoder that fails before its first frame.
+ *
+ * Phase 4C: after a switch the engine watches the frame count for [WATCH_CHECKS] checks of [CHECK_MS].
+ * A picture that stops while the stream is playing gets one decoder rebuild on the same stream (one decoder
+ * at a time, no re-tune of the channel). A second freeze within [REBUILD_COOLDOWN_MS] goes to the regular
+ * ladder (reconnect, then mpv), so recovery can never loop.
  */
 internal object SurfaceHandoff {
 
-    /** How long after a switch frames must have moved on. */
+    /** Time between frame checks after a switch. */
     const val CHECK_MS = 1_200L
 
-    enum class Action { NONE, REATTACH, NEW_SURFACE }
+    /** Checks after a switch (~4.8 s): the onn froze within ~2 s of the switch. */
+    const val WATCH_CHECKS = 4
+
+    /** A second decoder rebuild for a frozen picture within this long goes to the regular ladder instead. */
+    const val REBUILD_COOLDOWN_MS = 60_000L
+
+    enum class Action { NONE, WATCH, REBUILD_DECODER }
 
     /**
-     * What to do [attempt] checks after a switch (0 = the first). Only while the stream is playing with
-     * video and has rendered before; a paused, audio-only or not-yet-started stream renders nothing by design.
+     * What to do at check [check] (0 = the first) after a switch. Frozen means the stream is playing video
+     * and not one frame was rendered since the previous check; paused, buffering and audio-only playback
+     * render nothing by design and only keep the watch going.
      */
-    fun afterSwitch(framesAtSwitch: Int, framesNow: Int, playingVideo: Boolean, attempt: Int): Action = when {
-        !playingVideo || framesNow != framesAtSwitch -> Action.NONE
-        attempt == 0 -> Action.REATTACH
-        attempt == 1 -> Action.NEW_SURFACE
-        else -> Action.NONE // the regular freeze watchdog and the engine ladder take it from here
+    fun afterCheck(framesBefore: Int, framesNow: Int, playingVideo: Boolean, check: Int): Action = when {
+        playingVideo && framesNow == framesBefore -> Action.REBUILD_DECODER
+        check + 1 < WATCH_CHECKS -> Action.WATCH
+        else -> Action.NONE
     }
 
-    /** At most one fresh surface per freeze (reset once frames move again), so recovery can never loop. */
-    fun mayRecreate(freshSurfacesSinceFrames: Int): Boolean = freshSurfacesSinceFrames < 1
+    /** Whether a frozen picture may get a decoder rebuild now ([lastRebuildMs] 0 = never). */
+    fun mayRebuild(lastRebuildMs: Long, nowMs: Long): Boolean =
+        lastRebuildMs == 0L || nowMs - lastRebuildMs >= REBUILD_COOLDOWN_MS
 
-    /** A switch worth checking: a real, different surface while something is already playing. */
+    /** A switch worth watching: a real, different surface while something is already playing. */
     fun isSwitch(previous: Any?, next: Any?, hasPlayed: Boolean): Boolean =
         next != null && previous != null && next !== previous && hasPlayed
+}
+
+/**
+ * Phase 4C: which view's surface drives the live decoder.
+ *
+ * The shell's player (full screen or mini), the TV Guide preview and a page's preview pane each host a
+ * SurfaceView for the same [LivePreviewEngine], and each handed over its surface when it was created, so
+ * the last view created took the decoder. On the onn every Guide <-> full-screen round trip attached 3–4
+ * surfaces, including the Guide preview's own surface again ~0.2 s AFTER returning to full screen. Now the
+ * shell names the [Role] that owns the picture; a surface from any other role is remembered but kept off
+ * the decoder until its role becomes the owner.
+ */
+object SurfaceOwnership {
+
+    enum class Role { PLAYER, GUIDE, PAGE }
+
+    /**
+     * The owner for the shell's state: the full-screen player, else the Guide's live preview. Anywhere else
+     * (pages, the mini player) no owner is named and the last surface offered wins, exactly as before, so
+     * Sports and Live TV page previews behave as they always have.
+     */
+    fun ownerFor(playerFullscreen: Boolean, guidePreview: Boolean): Role? = when {
+        playerFullscreen -> Role.PLAYER
+        guidePreview -> Role.GUIDE
+        else -> null
+    }
+
+    /** Whether a surface offered by [role] goes to the decoder. No owner set: the last one offered (as before). */
+    fun accepts(owner: Role?, role: Role): Boolean = owner == null || owner == role
+}
+
+/**
+ * The bookkeeping behind [SurfaceOwnership]: the surface each role last offered and the current owner.
+ * Says which surface to attach; [LivePreviewEngine] does the attaching. Main thread only.
+ */
+class SurfaceOwners<S : Any> {
+    private val offered = HashMap<SurfaceOwnership.Role, S>()
+    var owner: SurfaceOwnership.Role? = null
+        private set
+
+    /** A new owner. Returns its surface when it already has a usable one (attach it now), else null. */
+    fun setOwner(role: SurfaceOwnership.Role?, usable: (S) -> Boolean): S? {
+        if (owner == role) return null
+        owner = role
+        return role?.let { offered[it] }?.takeIf(usable)
+    }
+
+    /** [role]'s view has [surface]. True when it goes to the decoder now. */
+    fun offer(role: SurfaceOwnership.Role, surface: S): Boolean {
+        offered[role] = surface
+        return SurfaceOwnership.accepts(owner, role)
+    }
+
+    /** [role]'s view lost [surface]. */
+    fun withdraw(role: SurfaceOwnership.Role, surface: S) {
+        if (offered[role] === surface) offered.remove(role)
+    }
 }

@@ -461,6 +461,16 @@ fun OwnTVShell(
 
     val isMultiscreen = selectedSection == MainSection.MULTISCREEN
 
+    // Phase 4C: the view that drives the live decoder, named before any new view creates its surface (a
+    // SideEffect runs after composition, ahead of layout and surfaceCreated). The full-screen player, or the
+    // Guide's live preview; elsewhere none, and the last surface offered wins as before.
+    val surfaceOwner = tv.own.owntv.player.SurfaceOwnership.ownerFor(
+        playerFullscreen = playerMode == PlayerMode.FULLSCREEN,
+        guidePreview = selectedSection == MainSection.EPG &&
+            GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo) == GuidePlayback.Surface.EXO,
+    )
+    androidx.compose.runtime.SideEffect { liveVm.previewEngine.setSurfaceOwner(surfaceOwner) }
+
     BackHandler {
         when {
             playerMode == PlayerMode.FULLSCREEN -> exitPlayer()
@@ -765,7 +775,7 @@ fun OwnTVShell(
                             // Phase 4: the channel the player was on keeps playing here; browsing never tunes.
                             previewChannel = previewChannel.takeIf { guideSession.live },
                             previewVideo = when (GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo)) {
-                                GuidePlayback.Surface.EXO -> { m -> tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = m, keepAwake = true) }
+                                GuidePlayback.Surface.EXO -> { m -> tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = m, keepAwake = true, role = tv.own.owntv.player.SurfaceOwnership.Role.GUIDE) }
                                 GuidePlayback.Surface.MPV -> { m -> MpvVideoSurface(player = player, modifier = m, autoFrameRate = false) }
                                 GuidePlayback.Surface.PLACEHOLDER -> null
                             },
@@ -801,7 +811,7 @@ fun OwnTVShell(
             else Modifier.align(miniPos.alignment).padding(24.dp).fillMaxWidth(tv.own.owntv.player.MiniPlayerSize.fraction(miniSizePct)).aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).background(Color.Black),
         ) {
             if (liveOnExo) {
-                tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = Modifier.fillMaxSize(), keepAwake = true, autoFrameRate = isFull && autoFrameRate)
+                tv.own.owntv.player.ExoPreviewSurface(engine = liveVm.previewEngine, modifier = Modifier.fillMaxSize(), keepAwake = true, autoFrameRate = isFull && autoFrameRate, role = tv.own.owntv.player.SurfaceOwnership.Role.PLAYER)
             } else {
                 MpvVideoSurface(player = player, modifier = Modifier.fillMaxSize(), autoFrameRate = isFull && autoFrameRate)
             }

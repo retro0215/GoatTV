@@ -269,6 +269,17 @@
 1	file-path	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	remote-backup-export
 3	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionHtml.kt	\0
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId
+3	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE sourceId IN (:sourceIds)
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT COALESCE(MAX(id), 0) FROM epg_programmes
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	) ORDER BY number ASC, name ASC LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%')
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%') ORDER BY number ASC, name ASC
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND LOWER(TRIM(epgChannelId)) IN (
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND epgChannelId IS NOT NULL AND epgChannelId != ''
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT * FROM channels WHERE id IN (:ids)
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT * FROM channels WHERE sourceId IN (:sourceIds) AND epgChannelId IS NOT NULL AND epgChannelId != ''
+2	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT DISTINCT epgChannelId FROM epg_programmes WHERE sourceId IN (:sourceIds)
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	SELECT id, LOWER(TRIM(epgChannelId)) AS guideKey FROM channels WHERE sourceId IN (:sourceIds)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/HistoryDao.kt	SELECT itemId FROM watch_history WHERE profileId = :profileId AND mediaType = :type ORDER BY watchedAt DESC LIMIT 1
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
@@ -360,9 +371,11 @@
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	unsupported source type
 1	performance	app/src/main/java/tv/own/owntv/features/epg/EpgScreen.kt	Guide.scrollIntoView
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	background refresh complete
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	channel list kept (window moved)
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	channel query end (${rawChannels.size} channels)
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	channel query start
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	first channel data published (${channels.size} rows)
+1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	guide keys read (${it.size})
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	load start
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	reused list on screen (no query)
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	stored count done ($stored)
@@ -377,6 +390,7 @@
 1	technical	app/src/main/java/tv/own/owntv/features/epg/GuideLayers.kt	get
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	$step +${ms}ms
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	GuideTiming
+1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	first programme cells ready
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	first usable guide frame
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	guide open requested
 1	empty	app/src/main/java/tv/own/owntv/features/epg/GuideNav.kt	\0
@@ -679,8 +693,13 @@
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	https://www.youtube.com/watch?v=$videoId
 1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	launch refused by ${candidate.packageName ?: "handler"}
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	vnd.youtube:$videoId
-1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface handoff: no new frame ${SurfaceHandoff.CHECK_MS}ms after the switch - re-attaching
-1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface handoff: still no frame - asking for a fresh surface (same stream)
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	$why - new decoder on the same stream
+2	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	picture frozen
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface from $role kept off the decoder (owner $surfaceOwner)
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch (owner $surfaceOwner) - watching frames
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch ok: ${framesNow - handoffFramesAtSwitch} frames since the switch
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch: no new frame for ${SurfaceHandoff.CHECK_MS}ms
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch: picture frozen again - left to the freeze watchdog
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway

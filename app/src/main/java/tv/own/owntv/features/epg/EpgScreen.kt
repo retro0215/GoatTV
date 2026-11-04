@@ -383,6 +383,8 @@ fun EpgScreen(
                             GuideNav.prepareRow(ch, progs, System.currentTimeMillis(), cacheRevision)
                         }
                         rowStore.put(data)
+                        // Phase 4C timing: the first on-screen row with programme cells to draw.
+                        if (data.programmes.isNotEmpty() && i in first until first + visible) vm.timing.firstProgrammes()
                     }
                     // Cell texts for rows in view (and one either side), for this part of the timeline.
                     if (i !in (first - 1)..(first + visible) || viewportMin <= 0) continue

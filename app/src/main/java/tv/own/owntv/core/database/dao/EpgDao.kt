@@ -118,6 +118,18 @@ interface EpgDao {
     @Query("SELECT COUNT(*) FROM epg_programmes WHERE sourceId IN (:sourceIds)")
     suspend fun countForSources(sourceIds: List<Long>): Int
 
+    /**
+     * The guide keys that have programmes for these sources: the set [ChannelDao.channelsWithGuide]
+     * matches channels against. ~10k short strings on the onn, one CursorWindow, so it runs once; the
+     * Guide keeps the result until the stored guide changes (4.6.0).
+     */
+    @Query(GuideSql.GUIDE_KEYS)
+    suspend fun guideKeys(sourceIds: List<Long>): List<String>
+
+    /** The newest programme row id (a rowid lookup): rises whenever programmes are added. */
+    @Query("SELECT COALESCE(MAX(id), 0) FROM epg_programmes")
+    suspend fun maxProgrammeId(): Long
+
     /** Current/upcoming programmes for one (normalized) EPG channel id — 0 means the feed has nothing
      *  scheduled from now on, so a freshly-matched channel would show an empty guide row. */
     @Query("SELECT COUNT(*) FROM epg_programmes WHERE epgChannelId = :epgChannelId AND stopMs > :now")
