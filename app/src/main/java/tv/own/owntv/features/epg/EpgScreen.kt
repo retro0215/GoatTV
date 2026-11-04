@@ -181,8 +181,8 @@ private fun epgMatchSummaryText(summary: EpgMatchSummary): String = when (summar
  * The full TV Guide: a frozen channel column (logo, number, name) beside a horizontal programme
  * timeline that every row shares, with the current time marked and a details panel for the highlighted
  * programme. The grid is ONE focus target driven by a [GuideNav.Cursor]: Up/Down change channel, Left/
- * Right change programme, OK opens the programme (it never tunes by itself), and holding OK (or Menu)
- * opens the channel's options. Rows still read the shared EpgViewModel cache — nothing reloads on a move.
+ * Right change programme, OK plays the programme's channel in the preview and OK again opens the programme
+ * (4.6.0, [GuideOkStage]), and holding OK (or Menu) opens the channel's options. Moving never tunes. Rows still read the shared EpgViewModel cache — nothing reloads on a move.
  */
 @Composable
 fun EpgScreen(
@@ -200,6 +200,12 @@ fun EpgScreen(
     /** "Watch from start" on a catch-up programme. Required for the same reason, and additionally so the
      *  archive is tracked as catch-up playback (which decides what engine toggle the player HUD offers). */
     onPlayCatchup: (channel: ChannelEntity, programme: EpgProgrammeEntity) -> Unit,
+    /** 4.6.0: first OK on a programme — play its channel's live broadcast in the preview, the Guide staying
+     *  open (a no-op when it is already playing there). False: no in-app preview to play it in (external
+     *  player, mini player), so OK opens the programme's details at once instead. */
+    onPreviewChannel: (channel: ChannelEntity) -> Boolean = { false },
+    /** The selected profile and playlist: a change starts OK's two stages over. */
+    okStageKey: Any? = null,
     /** The channel Live TV is on, if any: the guide opens on its row. */
     watchingChannelId: Long? = null,
     /** Phase 4: the channel still playing in the preview (from Live TV), for its caption. */
@@ -523,9 +529,20 @@ fun EpgScreen(
         runCatching { target.requestFocus() }
     }
 
-    // OK is acted on at release, so a long press (channel options) never also opens the programme.
+    // OK is acted on at release, so a long press (channel options) never also previews or opens the programme.
     var okDown by remember { mutableStateOf(false) }
     var okLongPressed by remember { mutableStateOf(false) }
+    // 4.6.0: the programme the last OK previewed (GuideOkStage); OK on it again opens its details. Kept only for
+    // this visit (a reopened Guide starts over) and for the same profile and playlist.
+    var okArmed by remember(okStageKey) { mutableStateOf<GuideOkStage.Target?>(null) }
+    fun okTargetAt(c: GuideNav.Cursor?): GuideOkStage.Target? {
+        val ch = c?.let { rowsState.value.getOrNull(it.row) } ?: return null
+        return GuideOkStage.target(ch.id, GuideNav.programmeAt(programmesOf(ch), c.timeMs))
+    }
+    // Moving to another programme or channel starts over; a re-sort or refresh that keeps it does not.
+    LaunchedEffect(okStageKey) {
+        androidx.compose.runtime.snapshotFlow { okTargetAt(cursor) }.collect { okArmed = GuideOkStage.afterMove(okArmed, it) }
+    }
     fun onGridKey(e: androidx.compose.ui.input.key.KeyEvent): Boolean {
         // 4.6.0: browsing now; the background window preload waits (GuideInputGate).
         if (e.type == KeyEventType.KeyDown) vm.noteGuideInput()
@@ -546,7 +563,18 @@ fun EpgScreen(
             if (!isOk || !okDown) return false
             okDown = false
             if (okLongPressed) { okLongPressed = false; return true }
-            GuideNav.programmeAt(programmesOf(channel), c.timeMs)?.let { detail = channel to it }
+            val programme = GuideNav.programmeAt(programmesOf(channel), c.timeMs)
+            val focused = GuideOkStage.target(channel.id, programme)
+            when (GuideOkStage.onOk(okArmed, focused)) {
+                // First OK: the channel's live broadcast in the preview (a past or future programme too —
+                // catch-up and reminders are in its details, one OK away). Cursor and scroll stay put.
+                GuideOkStage.Action.PREVIEW -> {
+                    okArmed = focused
+                    if (onPreviewChannel(channel)) vm.noteChannelTuned(channel)
+                    else programme?.let { detail = channel to it }
+                }
+                GuideOkStage.Action.OPEN_PROGRAMME -> programme?.let { detail = channel to it }
+            }
             return true
         }
         if (e.type != KeyEventType.KeyDown) return false
@@ -837,9 +865,11 @@ fun EpgScreen(
             canCatchup = canCatchup,
             isFavorite = channel.id in favoriteIds,
             onToggleFavorite = { vm.toggleFavoriteChannel(channel) },
-            onWatch = { detail = null; vm.noteChannelTuned(channel); onPlayChannel(channel, state.channels) },
+            // Full screen from here: back in the Guide, OK starts over at the preview.
+            onWatch = { detail = null; okArmed = null; vm.noteChannelTuned(channel); onPlayChannel(channel, state.channels) },
             onPlayCatchup = {
                 detail = null
+                okArmed = null
                 vm.noteChannelTuned(channel)
                 onPlayCatchup(channel, p)
             },

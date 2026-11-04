@@ -971,6 +971,14 @@ class LiveViewModel(
         recordLiveHistory(channel, immediate = true)
     }
 
+    /** 4.6.0: the Guide's first OK — [channel] plays in the Guide's preview. The same tune as [watchFromGuide]
+     *  (zap list, engine ladder, pins, fallbacks), but History keeps its usual delay, so channels only glanced
+     *  at in the preview don't each land in Recently watched. */
+    fun previewFromGuide(channel: ChannelEntity) {
+        armZapList(channel)
+        ensurePlaying(channel)
+    }
+
     /** Zap to the neighbouring channel ([delta] = +1 down / -1 up). Two-axis resolution:
      *
      *  1. If the currently playing channel is in the live [zapList], apply the existing wrapped

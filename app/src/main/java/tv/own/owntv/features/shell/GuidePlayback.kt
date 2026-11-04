@@ -5,8 +5,9 @@ package tv.own.owntv.features.shell
  *
  * One player plays at a time (the shared ExoPlayer [tv.own.owntv.player.LivePreviewEngine], or mpv for a
  * channel pinned to it); the Guide never starts its own. Opening the Guide from the player keeps that
- * stream running and moves its picture into the Guide's preview; browsing the guide never changes it.
- * Only Watch (or an eligible reminder) tunes another channel.
+ * stream running and moves its picture into the Guide's preview; moving through the guide never changes
+ * it. OK on a programme plays its channel in the preview (4.6.0, [preview]); Watch (or an eligible reminder)
+ * tunes a channel full screen.
  *
  * Pure rules, so the shell's wiring can be tested without Compose.
  */
@@ -78,6 +79,24 @@ internal object GuidePlayback {
         playerShown || session.live -> if (liveOnExo) FocusOwner.EXO else FocusOwner.MPV
         else -> FocusOwner.NONE
     }
+
+    /**
+     * 4.6.0: the Guide's first OK on a channel ([tv.own.owntv.features.epg.GuideOkStage]). [Preview.TUNE]: play
+     * it in the Guide's preview. [Preview.ALREADY_PLAYING]: the preview shows it already, so nothing is
+     * re-tuned. [Preview.UNAVAILABLE]: there is no in-app preview to play it in — the external player is on,
+     * or the mini player or audio bar holds the stream — so OK opens the programme's details at once.
+     */
+    enum class Preview { TUNE, ALREADY_PLAYING, UNAVAILABLE }
+
+    fun preview(session: Session, playerShown: Boolean, externalPlayer: Boolean, playingChannelId: Long?, channelId: Long): Preview = when {
+        externalPlayer || playerShown -> Preview.UNAVAILABLE
+        session.live && playingChannelId == channelId -> Preview.ALREADY_PLAYING
+        else -> Preview.TUNE
+    }
+
+    /** The session once a channel is tuned into the preview: a Guide opened from the player keeps its way back
+     *  to it (Back then returns to the new channel full screen); otherwise the preview is now live. */
+    fun afterPreview(session: Session): Session = if (session.live) session else Session(live = true)
 
     /** Whether mpv may be stopped for being off Live TV with no player shown (the shell's section rule). The
      *  Guide's live preview may be mpv's picture, which must keep playing. */

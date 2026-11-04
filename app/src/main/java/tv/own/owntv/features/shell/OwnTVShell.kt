@@ -786,8 +786,22 @@ fun OwnTVShell(
                             onPlayChannel = { ch, _ -> restoreFocus = false; liveVm.watchFromGuide(ch); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI && !liveVm.externalPlayerOn.value) playerMode = PlayerMode.FULLSCREEN },
                             onPlayCatchup = { ch, prog -> restoreFocus = false; liveVm.playCatchupProgramme(ch, prog); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI) playerMode = PlayerMode.FULLSCREEN },
                             onAddEpg = { openEpgAdd = true; onSelectSection(MainSection.SETTINGS) }, restoreFocus = restoreFocus,
+                            // 4.6.0: first OK on a programme plays its channel here, the Guide staying open. The
+                            // one shared tune path, on the shell's one player: no second view, no fullscreen.
+                            onPreviewChannel = { ch ->
+                                when (GuidePlayback.preview(guideSession, playerMode != PlayerMode.NONE, liveVm.externalPlayerOn.value, previewChannel?.id, ch.id)) {
+                                    GuidePlayback.Preview.UNAVAILABLE -> false
+                                    GuidePlayback.Preview.ALREADY_PLAYING -> true
+                                    GuidePlayback.Preview.TUNE -> {
+                                        liveVm.previewFromGuide(ch); zapSource = MainSection.LIVE_TV; homeVm.stopPreview()
+                                        guideSession = GuidePlayback.afterPreview(guideSession)
+                                        true
+                                    }
+                                }
+                            },
+                            okStageKey = activeProfileId to activePlaylistId,
                             watchingChannelId = previewChannel?.id,
-                            // Phase 4: the channel the player was on keeps playing here; browsing never tunes.
+                            // Phase 4: the channel the player was on keeps playing here; moving never tunes.
                             previewChannel = previewChannel.takeIf { guideSession.live },
                             previewVideo = when (GuidePlayback.previewSurface(guideSession, playerMode != PlayerMode.NONE, liveOnExo)) {
                                 // 4.6.0: an empty box; the shell's own video view is drawn over it (GuideVideoDock).

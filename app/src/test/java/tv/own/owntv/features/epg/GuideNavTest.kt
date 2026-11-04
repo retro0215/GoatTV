@@ -256,7 +256,7 @@ class GuideNavTest {
         assertEquals(2, GuideNav.rowScrollTarget(row = 2, firstVisible = 3, visibleCount = 6))
     }
 
-    @Test fun `ok never tunes - it focuses the right action in the details`() {
+    @Test fun `the details open on the right action`() {
         val onAir = GuideNav.programmeAt(hourly, now)!!
         val upcoming = GuideNav.nextAfter(hourly, onAir)!!
         val aired = hourly.first { it.stopMs <= now }
