@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -656,131 +657,139 @@ fun EpgScreen(
             )
         }
         Spacer(Modifier.height(12.dp))
-        // ---- Phase 4: details beside the live preview, above the timeline ------------------------------
-        Row(Modifier.fillMaxWidth().height(GuidePreviewHeight), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Box(Modifier.weight(1f).fillMaxHeight()) {
-                if (!state.loading && rows.isNotEmpty()) {
-                    // The panel reads the cursor only in its own collector and updates once it settles.
-                    GuideDetailsPanel(
-                        cursor = { cursor },
-                        rows = rows,
-                        programmesOf = { programmesOf(it) },
-                        now = now,
-                        reminderSlots = reminderSlots,
-                        hiddenEmpty = hiddenEmpty,
-                        vm = vm,
-                        cacheRevision = cacheRevision,
-                        textDispatcher = textDispatcher,
-                    )
-                }
-            }
-            GuidePreview(channel = previewChannel, video = previewVideo)
-        }
-        Spacer(Modifier.height(12.dp))
-
-        when {
-            state.loading -> CenterBox { OwnTVSpinner(sizeDp = 56) }
-            // No EPG feed added yet → guide it can't fill. Point the user to EPG Sources.
-            !state.hasEpgSources && state.channels.isEmpty() -> CenterBox {
-                Text(stringResource(R.string.content_epg_empty), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    stringResource(R.string.content_epg_add_description),
-                    style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(20.dp))
-                OwnTVButton(stringResource(R.string.content_epg_add), onClick = onAddEpg, icon = OwnTVIcon.ADD)
-            }
-            state.channels.isEmpty() -> CenterBox {
-                Text(state.message?.let { epgMessageText(it) } ?: stringResource(R.string.content_epg_no_guide), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-            }
-            // Every channel in this view has an empty window: say so, and offer the hidden rows.
-            rows.isEmpty() -> CenterBox {
-                Text(stringResource(R.string.content_epg_no_guide_rows), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-                Spacer(Modifier.height(16.dp))
-                OwnTVButton(stringResource(R.string.content_epg_show_all_channels), onClick = { vm.setShowAllChannels(true) }, style = OwnTVButtonStyle.SECONDARY)
-            }
-            else -> {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    // Its own layer: redrawn when the timeline scrolls or the clock ticks, never by a cursor move.
-                    Box(Modifier.graphicsLayer()) {
-                        GuideTimeAxis(windowStart = state.windowStart, windowEnd = state.windowEnd, now = now, hScroll = hScroll)
+        // ---- Details beside the live preview, above the timeline ----------------------------------------
+        // The band and the grid share the height left under the header. The preview is as large as keeps
+        // three whole rows visible (GuidePreviewSize), measured here so the UI zoom and font size are
+        // respected. Only its size depends on this: the video view and its player stay the same.
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val previewWidth = remember(maxHeight) { GuidePreviewSize.width(maxHeight) }
+            Column(Modifier.fillMaxSize()) {
+                Row(Modifier.fillMaxWidth().height(GuidePreviewSize.bandHeight(previewWidth)), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        if (!state.loading && rows.isNotEmpty()) {
+                            // The panel reads the cursor only in its own collector and updates once it settles.
+                            GuideDetailsPanel(
+                                cursor = { cursor },
+                                rows = rows,
+                                programmesOf = { programmesOf(it) },
+                                now = now,
+                                reminderSlots = reminderSlots,
+                                hiddenEmpty = hiddenEmpty,
+                                vm = vm,
+                                cacheRevision = cacheRevision,
+                                textDispatcher = textDispatcher,
+                            )
+                        }
                     }
-                    Spacer(Modifier.height(6.dp))
-                    // The grid: ONE focus target; rows are drawn, not focused.
-                    Box(
-                        Modifier.weight(1f).fillMaxWidth()
-                            .focusRequester(gridFocus)
-                            .onFocusChanged { gridFocused = it.isFocused }
-                            .onKeyEvent { onGridKey(it) }
-                            .focusable(),
-                    ) {
-                        LazyColumn(modifier = Modifier.fillMaxSize(), state = rowListState, verticalArrangement = Arrangement.spacedBy(GuideGridDefaults.RowGap)) {
-                            itemsIndexed(rows, key = { _, ch -> ch.id }) { index, channel ->
-                                // Each row derives its own highlight: only the rows the cursor leaves and
-                                // enters see a change, so only those two recompose and redraw on a move.
-                                val highlight = remember(index) {
-                                    androidx.compose.runtime.derivedStateOf { GuideNav.highlightFor(cursor, gridFocused, index) }
-                                }
-                                val numberText = remember(channel.number, channelNumberFormat) { channel.number?.let { channelNumberFormat.format(it) } }
-                                val dot = channel.categoryId?.let { categoryDots[it] }
-                                val windowStart = state.windowStart
-                                val windowEnd = state.windowEnd
-                                // This row's OWN states: a write to another channel's data, logo or reminders
-                                // never invalidates this row (Phase 3D shared one map across all rows).
-                                val rowData = remember(channel.id) { rowStore.state(channel.id) }
-                                val logo = remember(channel.logoUrl) { channel.logoUrl?.let { logoCache.state(it) } }
-                                val reminderStarts = remember(channel.id) {
-                                    androidx.compose.runtime.derivedStateOf { GuideNav.reminderStarts(reminderSlotsState.value, channel.id) }
-                                }
-                                val texts = remember(channel.id) { textStore.state(channel.id) }
-                                // One layout node per row. The focus overlay (outer) is drawn over the row's
-                                // static content, which sits in its own cached layer (inner): a cursor move
-                                // re-records only the overlay of the two rows involved; data, logo, reminder,
-                                // scroll and clock changes re-record only this row's base.
-                                Spacer(
-                                    Modifier.fillMaxWidth().height(GuideGridDefaults.RowHeight)
-                                        .drawWithContent {
-                                            drawContent()
-                                            val hl = highlight.value ?: return@drawWithContent
-                                            with(rowRenderer) {
-                                                drawRowFocus(
-                                                    channel = channel,
-                                                    numberText = numberText,
-                                                    categoryDot = dot,
-                                                    logo = logo?.value,
-                                                    data = rowData.value,
-                                                    highlight = hl,
-                                                    now = nowState.longValue,
-                                                    scrollPx = hScroll.value.toFloat(),
-                                                    windowStart = windowStart,
-                                                    windowEnd = windowEnd,
-                                                    reminderStarts = reminderStarts.value,
-                                                    texts = texts.value,
-                                                )
-                                            }
+                    GuidePreview(channel = previewChannel, video = previewVideo, width = previewWidth)
+                }
+                Spacer(Modifier.height(GuidePreviewSize.GapBelow))
+
+                when {
+                    state.loading -> CenterBox { OwnTVSpinner(sizeDp = 56) }
+                    // No EPG feed added yet → guide it can't fill. Point the user to EPG Sources.
+                    !state.hasEpgSources && state.channels.isEmpty() -> CenterBox {
+                        Text(stringResource(R.string.content_epg_empty), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.content_epg_add_description),
+                            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        OwnTVButton(stringResource(R.string.content_epg_add), onClick = onAddEpg, icon = OwnTVIcon.ADD)
+                    }
+                    state.channels.isEmpty() -> CenterBox {
+                        Text(state.message?.let { epgMessageText(it) } ?: stringResource(R.string.content_epg_no_guide), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                    }
+                    // Every channel in this view has an empty window: say so, and offer the hidden rows.
+                    rows.isEmpty() -> CenterBox {
+                        Text(stringResource(R.string.content_epg_no_guide_rows), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                        Spacer(Modifier.height(16.dp))
+                        OwnTVButton(stringResource(R.string.content_epg_show_all_channels), onClick = { vm.setShowAllChannels(true) }, style = OwnTVButtonStyle.SECONDARY)
+                    }
+                    else -> {
+                        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                            // Its own layer: redrawn when the timeline scrolls or the clock ticks, never by a cursor move.
+                            Box(Modifier.graphicsLayer()) {
+                                GuideTimeAxis(windowStart = state.windowStart, windowEnd = state.windowEnd, now = now, hScroll = hScroll)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            // The grid: ONE focus target; rows are drawn, not focused.
+                            Box(
+                                Modifier.weight(1f).fillMaxWidth()
+                                    .focusRequester(gridFocus)
+                                    .onFocusChanged { gridFocused = it.isFocused }
+                                    .onKeyEvent { onGridKey(it) }
+                                    .focusable(),
+                            ) {
+                                LazyColumn(modifier = Modifier.fillMaxSize(), state = rowListState, verticalArrangement = Arrangement.spacedBy(GuideGridDefaults.RowGap)) {
+                                    itemsIndexed(rows, key = { _, ch -> ch.id }) { index, channel ->
+                                        // Each row derives its own highlight: only the rows the cursor leaves and
+                                        // enters see a change, so only those two recompose and redraw on a move.
+                                        val highlight = remember(index) {
+                                            androidx.compose.runtime.derivedStateOf { GuideNav.highlightFor(cursor, gridFocused, index) }
                                         }
-                                        // The row's static content in its own layer: cached (offscreen) so a cursor
-                                        // move or a vertical scroll composites it instead of re-issuing its cells.
-                                        .graphicsLayer { if (cachedLayers) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
-                                        .drawBehind {
-                                            with(rowRenderer) {
-                                                drawRowBase(
-                                                    channel = channel,
-                                                    numberText = numberText,
-                                                    categoryDot = dot,
-                                                    logo = logo?.value,
-                                                    data = rowData.value,
-                                                    now = nowState.longValue,
-                                                    scrollPx = hScroll.value.toFloat(),
-                                                    windowStart = windowStart,
-                                                    windowEnd = windowEnd,
-                                                    reminderStarts = reminderStarts.value,
-                                                    texts = texts.value,
-                                                )
-                                            }
-                                        },
-                                )
+                                        val numberText = remember(channel.number, channelNumberFormat) { channel.number?.let { channelNumberFormat.format(it) } }
+                                        val dot = channel.categoryId?.let { categoryDots[it] }
+                                        val windowStart = state.windowStart
+                                        val windowEnd = state.windowEnd
+                                        // This row's OWN states: a write to another channel's data, logo or reminders
+                                        // never invalidates this row (Phase 3D shared one map across all rows).
+                                        val rowData = remember(channel.id) { rowStore.state(channel.id) }
+                                        val logo = remember(channel.logoUrl) { channel.logoUrl?.let { logoCache.state(it) } }
+                                        val reminderStarts = remember(channel.id) {
+                                            androidx.compose.runtime.derivedStateOf { GuideNav.reminderStarts(reminderSlotsState.value, channel.id) }
+                                        }
+                                        val texts = remember(channel.id) { textStore.state(channel.id) }
+                                        // One layout node per row. The focus overlay (outer) is drawn over the row's
+                                        // static content, which sits in its own cached layer (inner): a cursor move
+                                        // re-records only the overlay of the two rows involved; data, logo, reminder,
+                                        // scroll and clock changes re-record only this row's base.
+                                        Spacer(
+                                            Modifier.fillMaxWidth().height(GuideGridDefaults.RowHeight)
+                                                .drawWithContent {
+                                                    drawContent()
+                                                    val hl = highlight.value ?: return@drawWithContent
+                                                    with(rowRenderer) {
+                                                        drawRowFocus(
+                                                            channel = channel,
+                                                            numberText = numberText,
+                                                            categoryDot = dot,
+                                                            logo = logo?.value,
+                                                            data = rowData.value,
+                                                            highlight = hl,
+                                                            now = nowState.longValue,
+                                                            scrollPx = hScroll.value.toFloat(),
+                                                            windowStart = windowStart,
+                                                            windowEnd = windowEnd,
+                                                            reminderStarts = reminderStarts.value,
+                                                            texts = texts.value,
+                                                        )
+                                                    }
+                                                }
+                                                // The row's static content in its own layer: cached (offscreen) so a cursor
+                                                // move or a vertical scroll composites it instead of re-issuing its cells.
+                                                .graphicsLayer { if (cachedLayers) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                                                .drawBehind {
+                                                    with(rowRenderer) {
+                                                        drawRowBase(
+                                                            channel = channel,
+                                                            numberText = numberText,
+                                                            categoryDot = dot,
+                                                            logo = logo?.value,
+                                                            data = rowData.value,
+                                                            now = nowState.longValue,
+                                                            scrollPx = hScroll.value.toFloat(),
+                                                            windowStart = windowStart,
+                                                            windowEnd = windowEnd,
+                                                            reminderStarts = reminderStarts.value,
+                                                            texts = texts.value,
+                                                        )
+                                                    }
+                                                },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1277,9 +1286,6 @@ private fun layoutPanel(
     )
 }
 
-/** Height of the band holding the details panel and the video preview (16:9 video plus its caption). */
-private val GuidePreviewHeight = 170.dp
-private val GuidePreviewWidth = 268.dp
 
 /**
  * Phase 4: the TV Guide's video preview. Shows the channel still playing from Live TV, hosted by the
@@ -1288,9 +1294,9 @@ private val GuidePreviewWidth = 268.dp
  * clipped, so it stays on the hardware video path.
  */
 @Composable
-private fun GuidePreview(channel: ChannelEntity?, video: (@Composable (Modifier) -> Unit)?) {
+private fun GuidePreview(channel: ChannelEntity?, video: (@Composable (Modifier) -> Unit)?, width: androidx.compose.ui.unit.Dp) {
     val colors = OwnTVTheme.colors
-    Column(Modifier.width(GuidePreviewWidth).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(Modifier.width(width).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black), contentAlignment = Alignment.Center) {
             if (video != null) {
                 video(Modifier.fillMaxSize())
