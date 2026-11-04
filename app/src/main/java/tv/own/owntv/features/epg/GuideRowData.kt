@@ -146,4 +146,23 @@ internal class GuideScreenCache {
     fun texts(style: Any, maxRows: Int): KeyedStates<Long, GuideRowTexts> = texts.get(style) { KeyedStates(maxRows) }
 
     fun logos(sizePx: Int, create: () -> GuideLogoCache): GuideLogoCache = logos.get(sizePx, create)
+
+    private var rowsFrom: List<*>? = null
+    private var rowsShowAll = false
+    private var rowsRevision = -1
+    private var rowsKept: List<tv.own.owntv.core.database.entity.ChannelEntity>? = null
+
+    /**
+     * 4.6.0: the rows on screen for [channels] (the list itself, not an equal copy), [showAll] and the cache
+     * [revision], worked out by [compute] only when one of them changed. Each Guide open filtered all ~19k
+     * channels again in its first composition (~7 % of the open's main-thread time on the onn).
+     */
+    fun visibleRows(
+        channels: List<tv.own.owntv.core.database.entity.ChannelEntity>, showAll: Boolean, revision: Int,
+        compute: () -> List<tv.own.owntv.core.database.entity.ChannelEntity>,
+    ): List<tv.own.owntv.core.database.entity.ChannelEntity> {
+        val kept = rowsKept
+        if (kept != null && rowsFrom === channels && rowsShowAll == showAll && rowsRevision == revision) return kept
+        return compute().also { rowsKept = it; rowsFrom = channels; rowsShowAll = showAll; rowsRevision = revision }
+    }
 }

@@ -29,11 +29,18 @@ object AdultCategoryClassifier {
         Regex("\\brated\\s+r\\b"),
     )
 
+    // 4.6.0: compiled once. They were compiled on every call (five compilations per category name); the
+    // TV Guide classifies every live category on each open — ~2,000 compilations, about half of the
+    // Guide's 2.9 s first frame on the onn (simpleperf).
+    private val combiningMarks = Regex("\\p{M}+")
+    private val nonWordChars = Regex("[^\\p{L}\\p{N}+]")
+    private val whitespaceRuns = Regex("\\s+")
+
     fun isAdult(categoryName: String?): Boolean {
         if (categoryName.isNullOrBlank()) return false
         val raw = compact(categoryName.lowercase(Locale.ROOT))
         val withoutMarks = Normalizer.normalize(categoryName, Normalizer.Form.NFKD)
-            .replace(Regex("\\p{M}+"), "")
+            .replace(combiningMarks, "")
         val normalized = compact(withoutMarks.lowercase(Locale.ROOT))
         return listOf(raw, normalized).distinct().any { candidate ->
             val withoutSafePhrases = safeExceptions.fold(candidate) { value, exception ->
@@ -70,7 +77,7 @@ object AdultCategoryClassifier {
     }
 
     private fun compact(value: String): String = value
-            .replace(Regex("[^\\p{L}\\p{N}+]"), " ")
-            .replace(Regex("\\s+"), " ")
+            .replace(nonWordChars, " ")
+            .replace(whitespaceRuns, " ")
             .trim()
 }

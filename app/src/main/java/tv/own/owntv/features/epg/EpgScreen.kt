@@ -89,7 +89,6 @@ import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import tv.own.owntv.features.settings.data.SettingsRepository
 import tv.own.owntv.ui.components.longPressMenuGuard
-import tv.own.owntv.ui.components.ChannelGenre
 import tv.own.owntv.ui.components.ErrorState
 import tv.own.owntv.ui.components.FocusableSurface
 import tv.own.owntv.ui.components.OwnTVButton
@@ -291,7 +290,9 @@ fun EpgScreen(
 
     // Rows on screen: channels whose loaded window is empty are hidden unless "Show all channels".
     val rows = remember(state.channels, showAllChannels, cacheRevision) {
-        GuideNav.visibleChannels(state.channels, showAllChannels) { vm.hasGuideInWindow(it) }
+        screenCache.visibleRows(state.channels, showAllChannels, cacheRevision) {
+            GuideNav.visibleChannels(state.channels, showAllChannels) { vm.hasGuideInWindow(it) }
+        }
     }
     val hiddenEmpty = !showAllChannels && rows.size < state.channels.size
 
@@ -311,10 +312,8 @@ fun EpgScreen(
     val logoSizePx = with(density) { 48.dp.roundToPx() }
     val logoCache = screenCache.logos(logoSizePx) { GuideLogoCache(context.applicationContext, logoSizePx) }
     val rowRenderer = rememberGuideRowRenderer(stripMeasurer)
-    // Category dot colours by category id, once per category list (was a keyword match per row build).
-    val categoryDots = remember(guideCategories) {
-        guideCategories.mapNotNull { c -> c.categoryId?.let { id -> ChannelGenre.dotFor(c.name)?.let { id to it } } }.toMap()
-    }
+    // Category dot colours by category id, worked out by the ViewModel off the main thread (4.6.0).
+    val categoryDots by vm.guideCategoryDots.collectAsStateWithLifecycle()
 
     // ---- Cursor --------------------------------------------------------------------------------------
     var cursor by remember { mutableStateOf<GuideNav.Cursor?>(null) }

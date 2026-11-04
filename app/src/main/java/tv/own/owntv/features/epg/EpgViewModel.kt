@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -235,6 +236,16 @@ class EpgViewModel(
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * 4.6.0: the grid's category dot colours by category id, worked out off the main thread once per category
+     * list. The Guide built this map in its first composition, classifying every live category (adult-content
+     * check, genre keywords): on the onn that was the largest single cost of the 2.9 s Guide open.
+     */
+    val guideCategoryDots: StateFlow<Map<Long, androidx.compose.ui.graphics.Color>> = guideCategories
+        .map { GuideCategoryDots.of(it) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun setCategoryFilter(categoryKey: String?) { _categoryFilter.value = categoryKey }
 

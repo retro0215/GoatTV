@@ -259,3 +259,11 @@ internal class GuideWindowProgress<P> {
 
     fun clear() { current = null }
 }
+
+/** 4.6.0: the grid's category dots: the genre colour of each live category that has one, by category id. */
+internal object GuideCategoryDots {
+    fun of(categories: List<GuideCategory>): Map<Long, androidx.compose.ui.graphics.Color> =
+        categories.mapNotNull { c ->
+            c.categoryId?.let { id -> tv.own.owntv.ui.components.ChannelGenre.dotFor(c.name)?.let { id to it } }
+        }.toMap()
+}
