@@ -404,6 +404,23 @@ android {
             buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"${tutorialsStagingKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
             // The Pushwoosh device API token must not be embedded in the test APK.
             manifestPlaceholders["pushwooshDeviceApiToken"] = ""
+            // 4.6.0: `-Powntv.isolatedTestOptimized=true` builds this same isolated APK the way release is
+            // built (not debuggable, R8 code and resource shrinking, release keep rules), so performance can
+            // be measured without a customer build. Same build type, so every isolation measure above
+            // (application id, debug signature, staging/unreachable Supabase, no push, test manifest) still
+            // applies. Profileable, so the onn can still be profiled. Off by default.
+            if (providers.gradleProperty("owntv.isolatedTestOptimized").orNull == "true") {
+                versionNameSuffix = "-tutorialtest-optimized"
+                isDebuggable = false
+                isProfileable = true
+                isMinifyEnabled = true
+                isShrinkResources = true
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro",
+                    "proguard-isolated-test.pro",
+                )
+            }
         }
         release {
             // Customer builds never carry the staging catalog settings.
