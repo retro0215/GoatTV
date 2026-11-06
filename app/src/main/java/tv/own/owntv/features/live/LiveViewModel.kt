@@ -648,7 +648,7 @@ class LiveViewModel(
         val source = sourceById[channel.sourceId] ?: sourceDao.getById(channel.sourceId)
         if (!streamUrlResolver.needsResolve(source)) return@ReconnectUrlProvider null
         runCatching { streamUrlResolver.resolve(source!!, cmd) }
-            .onFailure { Log.w(ENGINE_TAG, "stalker reconnect re-resolve failed '${channel.name}'", it) }
+            .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker reconnect re-resolve failed '${channel.name}'", it) }
             .getOrNull()
     }
 
@@ -714,7 +714,7 @@ class LiveViewModel(
         stalkerPreviewJob?.cancel()
         stalkerPreviewJob = viewModelScope.launch {
             val url = runCatching { streamUrlResolver.resolve(source, channel.streamUrl) }
-                .onFailure { Log.w(ENGINE_TAG, "stalker preview resolve failed '${channel.name}'", it) }
+                .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker preview resolve failed '${channel.name}'", it) }
                 .getOrNull() ?: return@launch
             if (_liveOnExo.value) return@launch // promoted to fullscreen while resolving
             if (player.hasActiveStream && LiveStreamQuirks.isSingleSession(url)) { // see playPreview
@@ -1219,7 +1219,7 @@ class LiveViewModel(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "tuneByNumber($number) failed", e)
+            tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "tuneByNumber($number) failed", e)
             return tv.own.owntv.player.DirectTuneResult.Failed(number)
         }
     }
@@ -1292,7 +1292,7 @@ class LiveViewModel(
             val url = if (streamUrlResolver.needsResolve(source)) {
                 withContext(Dispatchers.IO) {
                     runCatching { streamUrlResolver.resolve(source!!, channel.streamUrl) }
-                        .onFailure { Log.w(TAG, "stalker resolve failed channelId=${channel.id}", it) }
+                        .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "stalker resolve failed channelId=${channel.id}", it) }
                         .getOrNull()
                 } ?: return@launch
             } else {
@@ -1403,7 +1403,7 @@ class LiveViewModel(
      *  channel starts on mpv but plays fine on ExoPlayer" then carries the reason it was routed there.
      *  Channel names only — never a stream URL. */
     private fun engineLog(message: String) {
-        android.util.Log.i(ENGINE_TAG, message)
+        tv.own.owntv.core.diagnostics.SafeLog.i(ENGINE_TAG, message)
         tv.own.owntv.player.LiveDiagnosticsLog.event("engine: $message")
     }
 
@@ -1517,7 +1517,7 @@ class LiveViewModel(
         stalkerPreviewJob = viewModelScope.launch {
             previewEngine.releaseDecoderForUhd()
             val url = runCatching { streamUrlResolver.resolve(source, channel.streamUrl) }
-                .onFailure { Log.w(ENGINE_TAG, "stalker fullscreen resolve failed '${channel.name}'", it) }
+                .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker fullscreen resolve failed '${channel.name}'", it) }
                 .getOrNull() ?: return@launch // portal/auth failure — nothing playable to hand the engine
             if (_previewChannel.value?.streamUrl != channel.streamUrl) return@launch // zapped away while resolving
             stalkerPreviewCmd = channel.streamUrl
@@ -1862,7 +1862,7 @@ class LiveViewModel(
             val isStalker = streamUrlResolver.needsResolve(source)
             val rawUrl = if (isStalker) {
                 runCatching { streamUrlResolver.resolve(source!!, channel.streamUrl) }
-                    .onFailure { Log.w(ENGINE_TAG, "stalker mpv resolve failed '${channel.name}'", it) }
+                    .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker mpv resolve failed '${channel.name}'", it) }
                     .getOrNull() ?: return
             } else {
                 channel.streamUrl

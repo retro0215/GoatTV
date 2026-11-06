@@ -2568,7 +2568,7 @@ class OwnTVPlayer(
             val url = try {
                 kotlinx.coroutines.withContext(Dispatchers.IO) { resolve() }
             } catch (e: Exception) {
-                android.util.Log.w(TAG, "queue item resolve failed: ${e.message}")
+                tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "queue item resolve failed", e)
                 if (gen == loadGeneration) {
                     _buffering.value = false
                     _error.value = PlaybackFailure.StreamLink

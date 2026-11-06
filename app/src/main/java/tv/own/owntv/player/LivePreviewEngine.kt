@@ -1116,7 +1116,7 @@ class LivePreviewEngine(
         override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) { _cues.value = cueGroup.cues }
 
         override fun onPlayerError(error: PlaybackException) {
-            android.util.Log.w(LiveDiagnosticsLog.TAG, "ExoPlayer error: ${error.errorCodeName}", error)
+            tv.own.owntv.core.diagnostics.SafeLog.w(LiveDiagnosticsLog.TAG, "ExoPlayer error: ${error.errorCodeName}", error)
             LiveDiagnosticsLog.event("player_error code=${error.errorCodeName} hasPlayed=$hasPlayed")
             logAudioDiag("player_error_${error.errorCodeName}")
             // mid-stream drop → reconnect, unless a reconnect from the SAME failed prepare is already
@@ -1426,7 +1426,7 @@ class LivePreviewEngine(
             // [openWatchdog]. Armed for every tune, pre-roll or not: branch (1) doesn't need one.
             reprepare(p, url)
         }.onFailure {
-            android.util.Log.w(LiveDiagnosticsLog.TAG, "preview play() failed for ${HttpClient.redactUrl(url)}", it)
+            tv.own.owntv.core.diagnostics.SafeLog.w(LiveDiagnosticsLog.TAG, "preview play() failed for ${HttpClient.redactUrl(url)}", it)
             LiveDiagnosticsLog.event("play() failed: ${it.message}")
             _state.value = State.ERROR
             val raw = lastCodecError ?: diagnostics.recentError() ?: it.message

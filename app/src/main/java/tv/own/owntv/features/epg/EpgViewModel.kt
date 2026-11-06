@@ -422,6 +422,10 @@ class EpgViewModel(
             .distinctUntilChanged()
             .onEach { release -> if (release) releaseGridCache() }
             .launchIn(viewModelScope)
+        // 4.6.0: and under real memory pressure while the guide is off screen (GuideMemoryPressure).
+        GuideMemoryPressure.events
+            .onEach { if (!screenVisible.value) releaseGridCache() }
+            .launchIn(viewModelScope)
     }
 
     /** The Guide's current sort, for the header button. */

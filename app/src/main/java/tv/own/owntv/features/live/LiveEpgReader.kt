@@ -345,7 +345,7 @@ internal class LiveArchiveUrls(
             if (source.type == SourceType.STALKER) {
                 ch.remoteId?.let { rid ->
                     runCatching { streamUrlResolver.resolveCatchup(source, rid, programme.startMs, programme.stopMs) }
-                        .onFailure { Log.w(LOG_TAG, "Stalker catch-up resolve failed channelId=${ch.id}", it) }
+                        .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(LOG_TAG, "Stalker catch-up resolve failed channelId=${ch.id}", it) }
                         .getOrNull()
                 }
             } else {
@@ -381,7 +381,7 @@ internal class LiveArchiveUrls(
             // Stalker rewind = the same per-play archive create_link as catch-up (Phase E §5.6).
             SourceType.STALKER -> ch.remoteId?.let { rid ->
                 runCatching { streamUrlResolver.resolveCatchup(source, rid, startMs, startMs + durationMin * 60_000L) }
-                    .onFailure { Log.w(LOG_TAG, "Stalker rewind resolve failed channelId=${ch.id}", it) }
+                    .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(LOG_TAG, "Stalker rewind resolve failed channelId=${ch.id}", it) }
                     .getOrNull()
             }
             else -> null

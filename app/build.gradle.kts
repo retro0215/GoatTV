@@ -488,6 +488,11 @@ android {
             // the "Unable to strip the following libraries, packaging them as they are" line on every
             // release task came from. Skipping it packages byte-identical libraries without the noise.
             keepDebugSymbols += "**/*.so"
+            // 4.6.0: libmpv's JNI bridge is rebuilt from source (third_party/mpv-bridge) so it no longer
+            // prints every mpv log message, stream URLs and credentials included, to logcat. The rebuilt
+            // copy in src/main/jniLibs and the AAR's copy share a path; the project's own copy is merged
+            // first, and verifyMpvBridge (below) fails the build if the packaged one is not ours.
+            pickFirsts += "lib/*/libplayer.so"
         }
     }
 
@@ -674,6 +679,27 @@ val verifyI18nLiterals = tasks.register<VerifyI18nLiterals>("verifyI18nLiterals"
 // preBuild fronts every variant, so debug compile checks and release assembles are both covered.
 // Inputs are declared above, so an unchanged source tree makes this UP-TO-DATE and free.
 tasks.named("preBuild") { dependsOn(verifyI18nLiterals) }
+
+// verifyMpvBridge: every packaged lib/<abi>/libplayer.so must be the rebuilt bridge from src/main/jniLibs
+// (third_party/mpv-bridge/README.md), never the AAR's copy that prints mpv's log, credentials included.
+tasks.matching {
+    it.name.startsWith("merge") && it.name.endsWith("NativeLibs") && !it.name.contains("AndroidTest")
+}.configureEach {
+    // A local File (not a script property), so the configuration cache can store the action.
+    val bridgeDir: File = project.layout.projectDirectory.dir("src/main/jniLibs").asFile
+    doLast {
+        val merged = outputs.files.asFileTree.matching { include("**/libplayer.so") }.files
+        for (f in merged) {
+            val ours = File(bridgeDir, "${f.parentFile.name}/libplayer.so")
+            if (!ours.isFile || !ours.readBytes().contentEquals(f.readBytes())) {
+                throw GradleException(
+                    "verifyMpvBridge: ${f.parentFile.name}/libplayer.so is not the rebuilt mpv bridge " +
+                        "(see third_party/mpv-bridge/README.md)",
+                )
+            }
+        }
+    }
+}
 
 apply(plugin = "com.google.gms.google-services")
 

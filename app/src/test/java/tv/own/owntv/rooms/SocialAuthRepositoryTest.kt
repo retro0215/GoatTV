@@ -8,11 +8,21 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
+import tv.own.owntv.core.isolation.IsolatedTestBuild
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * Runs in every variant. Customer builds sign in anonymously at most once; the isolated test APK
+ * ([IsolatedTestBuild]) must refuse every call and never sign in, whatever the current user state.
+ */
 class SocialAuthRepositoryTest {
 
     private val dummyUser: UserInfo = mockk(relaxed = true)
+
+    private fun assertRefused(result: Result<UserInfo>) {
+        assertTrue(result.isFailure)
+        assertEquals(IsolatedTestBuild.REFUSED, result.exceptionOrNull()?.message)
+    }
 
     @Test
     fun `existing user results in zero sign-in calls`() = runBlocking {
@@ -26,7 +36,7 @@ class SocialAuthRepositoryTest {
         )
 
         val result = repo.ensureTvAuthenticated()
-        assertTrue(result.isSuccess)
+        if (IsolatedTestBuild.active) assertRefused(result) else assertTrue(result.isSuccess)
         assertEquals(0, signIns.get())
     }
 
@@ -45,8 +55,15 @@ class SocialAuthRepositoryTest {
         )
 
         val result = repo.ensureTvAuthenticated()
-        assertTrue(result.isSuccess)
-        assertEquals(1, signIns.get())
+        if (IsolatedTestBuild.active) {
+            // No backend user is ever created from the isolated build.
+            assertRefused(result)
+            assertEquals(0, signIns.get())
+            assertNull(currentUserState)
+        } else {
+            assertTrue(result.isSuccess)
+            assertEquals(1, signIns.get())
+        }
     }
 
     @Test
@@ -71,9 +88,14 @@ class SocialAuthRepositoryTest {
         }
         val results = deferreds.awaitAll()
 
-        for (res in results) {
-            assertTrue(res.isSuccess)
+        if (IsolatedTestBuild.active) {
+            results.forEach(::assertRefused)
+            assertEquals(0, signIns.get())
+        } else {
+            for (res in results) {
+                assertTrue(res.isSuccess)
+            }
+            assertEquals(1, signIns.get())
         }
-        assertEquals(1, signIns.get())
     }
 }

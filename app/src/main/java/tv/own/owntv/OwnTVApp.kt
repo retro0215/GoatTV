@@ -75,6 +75,8 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
     override fun onCreate() {
         Perf.begin() // zero-point for the OwnTVPerf startup timeline (adb logcat -s OwnTVPerf)
         super.onCreate()
+        // Media3 logs playback errors with their cause chain; route it through the credential redactor.
+        tv.own.owntv.core.diagnostics.RedactingMedia3Logger.install()
 
         // Pushwoosh initialization (flavor-isolated via source sets). Never in the isolated test APK,
         // which does not even carry the Pushwoosh/Firebase libraries.
@@ -186,5 +188,7 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
             runCatching { SingletonImageLoader.get(this).memoryCache?.clear() }
             runCatching { GlobalContext.getOrNull()?.getOrNull<tv.own.owntv.player.OwnTVPlayer>()?.onTrimMemory() }
         }
+        // The off-screen Guide window, only at critical / background levels (see GuideMemoryPressure).
+        tv.own.owntv.features.epg.GuideMemoryPressure.onTrimMemory(level)
     }
 }

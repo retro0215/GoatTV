@@ -1710,13 +1710,6 @@
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	https://dns.google/dns-query
 1	app/src/main/java/tv/own/owntv/core/network/DnsConfig.kt	https://dns.quad9.net/dns-query
 1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	\0
-1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	$1***@
-2	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	$1=***
-1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	$1•••/•••/
-1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	(?i)(://)([^/@:]+)(:[^/@]*)?@
-1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	(?i)(://[^/]+/(?:live|movie|series|vod|timeshift)/)([^/]+)/([^/]+)/
-1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	(?i)(username|password|user|pass|token)=[^&]*
-1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	(?i)(username|password|user|pass|token|data|auth|signature|sig|key)=[^&]*
 1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	Content-Encoding
 1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	GET body done url=$safeUrl totalMs=${SystemClock.elapsedRealtime() - startedAt}
 1	app/src/main/java/tv/own/owntv/core/network/HttpClient.kt	GET body progress url=$label bytes=$bytesRead total=${totalBytes ?: -1}
@@ -2063,7 +2056,6 @@
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerAuthManager.kt	watchdog=${profile["watchdog_timeout"] ?: "?"} ms=${SystemClock.elapsedRealtime() - startedAt}
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerAuthManager.kt	watchdog_timeout
 5	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	\0
-1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	$1=***
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	$apiBase?type=${enc(type)}&action=create_link&cmd=${enc(cmd)}$seriesParam&forced_storage=0&disable_ad=0&JsHttpRequest=1-xml
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	$apiBase?type=account_info&action=get_main_info&JsHttpRequest=1-xml
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	$apiBase?type=itv&action=get_all_channels&JsHttpRequest=1-xml
@@ -2087,7 +2079,6 @@
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	&series=$it
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	&signature=${URLEncoder.encode(it, "UTF-8")}
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	&sn=${URLEncoder.encode(it, "UTF-8")}
-1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	(?i)(token|password|pass)=[^&]*
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	(\\d+)\\s*$
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	(\\d{4})-(\\d{2})-(\\d{2})(?:[ T](\\d{2}):(\\d{2})(?::(\\d{2}))?)?
 1	app/src/main/java/tv/own/owntv/core/stalker/StalkerClient.kt	*
@@ -4456,7 +4447,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	playback stats: container-fps=${getPropertyString("container-fps")}
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	pq
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	profile
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	queue item resolve failed: ${e.message}
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ranchu
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	reconnect=1,reconnect_streamed=1,reconnect_delay_max=8,reconnect_on_http_error=5xx
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	relative

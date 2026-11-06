@@ -823,7 +823,7 @@ class SeriesViewModel(
         return try {
             streamUrlResolver.resolve(source!!, episode.streamUrl, vod = true, episode = episode.episodeNumber)
         } catch (e: Exception) {
-            Log.w(TAG, "stalker resolve failed episodeId=${episode.id}", e)
+            tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "stalker resolve failed episodeId=${episode.id}", e)
             null
         }
     }
