@@ -77,6 +77,10 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
         super.onCreate()
         // Media3 logs playback errors with their cause chain; route it through the credential redactor.
         tv.own.owntv.core.diagnostics.RedactingMedia3Logger.install()
+        // If a redaction rule can't compile on this device's regex engine, diagnostics are withheld (never raw).
+        tv.own.owntv.core.diagnostics.SensitiveText.unavailableRule?.let {
+            android.util.Log.e("SensitiveText", "redaction rule $it does not compile here; diagnostic text is withheld")
+        }
 
         // Pushwoosh initialization (flavor-isolated via source sets). Never in the isolated test APK,
         // which does not even carry the Pushwoosh/Firebase libraries.
