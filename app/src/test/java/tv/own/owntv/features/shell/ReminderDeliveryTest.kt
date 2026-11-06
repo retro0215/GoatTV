@@ -131,4 +131,24 @@ class ReminderDeliveryTest {
         val tune = shell.substringAfter("suspend fun tuneReminderChannel(channelId: Long): Boolean {").substringBefore("LaunchedEffect(Unit)")
         assertTrue(tune.indexOf("onSelectSection(MainSection.LIVE_TV)") < tune.indexOf("ensurePlayingByIdAsync"))
     }
+
+    // ---- 4.6.0: held OK when the warning opens -----------------------------------------------------------
+
+    @Test fun `Multiscreen - a canceled OK release cannot commit a tile move or open a tile`() {
+        // The warning's window takes focus over Multiscreen; Multiscreen is inside the shell's root box, which
+        // drops canceled releases, so a held OK on a tile ends without acting. Starting still needs Watch.
+        val root = shell.substringAfter("CompositionLocalProvider(LocalContentScrolled provides contentScrolled) {")
+            .substringBefore("MultiscreenScreen(")
+        assertTrue(".ignoreCanceledKeyReleases()" in root)
+        assertEquals(Start.Confirm(42), ReminderDelivery.onStart(Place.MULTISCREEN, channelId = 42, alreadyHandled = false))
+    }
+
+    @Test fun `Dismiss and Back keep their focus rules with the canceled-release filter`() {
+        // Back on the warning still acts on its own release (press consumed first); Dismiss still leaves focus on
+        // the control under the warning.
+        assertTrue("bannerBackKeys.onRelease(reminderDialogOpen = true)" in bannerContent)
+        assertFalse(ReminderDelivery.restoreFocusOnDismiss(playerShown = false, shellHasFocus = true))
+        assertTrue(ReminderDelivery.restoreFocusOnDismiss(playerShown = false, shellHasFocus = false))
+    }
 }
+

@@ -532,6 +532,10 @@ fun EpgScreen(
     // OK is acted on at release, so a long press (channel options) never also previews or opens the programme.
     var okDown by remember { mutableStateOf(false) }
     var okLongPressed by remember { mutableStateOf(false) }
+    // 4.6.0: another window taking focus mid-press (the reminder warning) ends the press: its canceled release
+    // never reaches the grid (CanceledKeyRelease), so the press state is cleared here instead.
+    val gridWindowFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(gridWindowFocused) { if (!gridWindowFocused) { okDown = false; okLongPressed = false; backDown = false } }
     // 4.6.0: the programme the last OK previewed (GuideOkStage); OK on it again opens its details. Kept only for
     // this visit (a reopened Guide starts over) and for the same profile and playlist.
     var okArmed by remember(okStageKey) { mutableStateOf<GuideOkStage.Target?>(null) }

@@ -115,7 +115,9 @@ fun OwnTVPopup(
             fontScale = baseDensity.fontScale / popupScale,
         )
 
-        Box(Modifier.fillMaxSize()) {
+        // 4.6.0: a release Android sends only because another window (the reminder warning) took focus
+        // mid-press never presses a button here (CanceledKeyRelease).
+        Box(Modifier.fillMaxSize().ignoreCanceledKeyReleases()) {
             // Centre inside the unobstructed physical band. ADJUST_NOTHING ensures this is the only
             // movement, eliminating double pan/translation across different TV implementations.
             Box(

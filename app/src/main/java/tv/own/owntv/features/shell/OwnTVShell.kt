@@ -39,6 +39,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import tv.own.owntv.ui.components.longPressMenuGuard
+import tv.own.owntv.ui.components.ignoreCanceledKeyReleases
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -593,7 +594,10 @@ fun OwnTVShell(
     Box(
         modifier = modifier.fillMaxSize().background(if (isMultiscreen) Color.Black else shellBase)
             // 4.6.0: the docked video view is placed relative to this box (GuideVideoDock).
-            .onGloballyPositioned { shellOrigin = it.positionInRoot() },
+            .onGloballyPositioned { shellOrigin = it.positionInRoot() }
+            // 4.6.0: when the reminder warning's window takes focus mid-press, the release Android sends here
+            // is canceled: no button, Guide OK or Multiscreen move acts on it (CanceledKeyRelease).
+            .ignoreCanceledKeyReleases(),
     ) {
       
       if (isMultiscreen) {
@@ -1146,6 +1150,8 @@ private fun ReminderBannerContent(
             .background(Color.Black.copy(alpha = 0.7f))
             // An OK still held from the screen below (its press went there) must not press Watch here.
             .longPressMenuGuard()
+            // Nor may a release canceled by a window opening above the banner press Watch or dismiss it.
+            .ignoreCanceledKeyReleases()
             .focusable()
             .onPreviewKeyEvent { e ->
                 if (e.key == Key.Back || e.key == Key.Escape) {
