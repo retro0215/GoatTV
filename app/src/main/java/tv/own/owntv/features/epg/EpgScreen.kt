@@ -201,9 +201,9 @@ fun EpgScreen(
      *  archive is tracked as catch-up playback (which decides what engine toggle the player HUD offers). */
     onPlayCatchup: (channel: ChannelEntity, programme: EpgProgrammeEntity) -> Unit,
     /** 4.6.0: first OK on a programme — play its channel's live broadcast in the preview, the Guide staying
-     *  open (a no-op when it is already playing there). False: no in-app preview to play it in (external
-     *  player, mini player), so OK opens the programme's details at once instead. */
-    onPreviewChannel: (channel: ChannelEntity) -> Boolean = { false },
+     *  open. [GuideOkStage.Preview.ALREADY_PLAYING] (never re-tuned) and [GuideOkStage.Preview.UNAVAILABLE]
+     *  (external player, mini player) open the programme's details at once instead. */
+    onPreviewChannel: (channel: ChannelEntity) -> GuideOkStage.Preview = { GuideOkStage.Preview.UNAVAILABLE },
     /** The selected profile and playlist: a change starts OK's two stages over. */
     okStageKey: Any? = null,
     /** The channel Live TV is on, if any: the guide opens on its row. */
@@ -565,13 +565,15 @@ fun EpgScreen(
             if (okLongPressed) { okLongPressed = false; return true }
             val programme = GuideNav.programmeAt(programmesOf(channel), c.timeMs)
             val focused = GuideOkStage.target(channel.id, programme)
-            when (GuideOkStage.onOk(okArmed, focused)) {
+            // The channel already in the preview skips the first stage: its programme opens on this OK.
+            when (GuideOkStage.onOk(okArmed, focused, previewChannel?.id)) {
                 // First OK: the channel's live broadcast in the preview (a past or future programme too —
                 // catch-up and reminders are in its details, one OK away). Cursor and scroll stay put.
                 GuideOkStage.Action.PREVIEW -> {
                     okArmed = focused
-                    if (onPreviewChannel(channel)) vm.noteChannelTuned(channel)
-                    else programme?.let { detail = channel to it }
+                    val result = onPreviewChannel(channel)
+                    if (result == GuideOkStage.Preview.TUNED) vm.noteChannelTuned(channel)
+                    if (GuideOkStage.afterPreview(result) == GuideOkStage.Action.OPEN_PROGRAMME) programme?.let { detail = channel to it }
                 }
                 GuideOkStage.Action.OPEN_PROGRAMME -> programme?.let { detail = channel to it }
             }
@@ -653,19 +655,19 @@ fun EpgScreen(
             Column {
                 Text(stringResource(R.string.content_epg_title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // The day being browsed follows the cursor into the archive or the next days. Derived,
-                    // so this text recomposes when the DATE changes, not on every move.
+                    // Browsing: the highlighted programme's start date and time; otherwise today and the clock.
+                    // One instant for both (GuideNav.headerInstant), so the time never mixes with another
+                    // day's date. Derived, so the texts recompose when the instant changes, not on every move.
                     val nowState by androidx.compose.runtime.rememberUpdatedState(now)
-                    val headerDate by remember(formatHeaderDate) {
+                    val headerInstant by remember {
                         androidx.compose.runtime.derivedStateOf {
-                            val c = cursor?.takeIf { gridFocused }
-                            val day = c?.let { cur -> GuideNav.selectionDay(rowsState.value, cur) { programmesOf(it) } } ?: nowState
-                            formatHeaderDate(day)
+                            GuideNav.headerInstant(rowsState.value, cursor?.takeIf { gridFocused }, nowState) { programmesOf(it) }
                         }
                     }
-                    Text(headerDate, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
+                    // Locale-aware date; the time follows the system's 12/24-hour setting (rememberSystemTimeFormatter).
+                    Text(formatHeaderDate(headerInstant), style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant)
                     Box(Modifier.size(4.dp).clip(RoundedCornerShape(2.dp)).background(colors.onSurfaceVariant))
-                    Text(formatTime(now), style = MaterialTheme.typography.titleSmall, color = colors.primary, fontWeight = FontWeight.SemiBold)
+                    Text(formatTime(headerInstant), style = MaterialTheme.typography.titleSmall, color = colors.primary, fontWeight = FontWeight.SemiBold)
                 }
             }
             Spacer(Modifier.weight(1f))

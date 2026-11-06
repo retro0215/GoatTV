@@ -90,4 +90,45 @@ class ReminderDeliveryTest {
         assertTrue(handled.contains(2, start))
         assertTrue(handled.contains(4, start))
     }
+
+    // ---- 4.6.0: the banner over a programme dialog -------------------------------------------------------
+
+    private val shell by lazy { java.io.File("src/main/java/tv/own/owntv/features/shell/OwnTVShell.kt").readText().replace("\r\n", "\n") }
+    private val banner by lazy { shell.substringAfter("private fun ReminderBanner(").substringBefore("private fun ReminderBannerContent(") }
+    private val bannerContent by lazy { shell.substringAfter("private fun ReminderBannerContent(").substringBefore("private fun ReminderWarningButton(") }
+
+    @Test fun `the banner is its own window, so it takes the remote over a programme dialog`() {
+        // A programme dialog is a window of its own; a banner drawn in the app's window sat under it.
+        assertTrue("androidx.compose.ui.window.Dialog(" in banner)
+        assertTrue("dismissOnBackPress = false" in banner)
+        assertTrue("dismissOnClickOutside = false" in banner)
+        // It still asks for focus on Watch when it opens, and keeps its own Back handling (release dismisses).
+        assertTrue("runCatching { watchFocus.requestFocus() }" in bannerContent)
+        assertTrue("bannerBackKeys.onRelease(reminderDialogOpen = true)" in bannerContent)
+    }
+
+    @Test fun `an OK held from the screen below cannot press Watch`() {
+        assertTrue(".longPressMenuGuard()" in bannerContent)
+        assertTrue(bannerContent.indexOf(".longPressMenuGuard()") < bannerContent.indexOf(".onPreviewKeyEvent"))
+    }
+
+    @Test fun `Dismiss leaves focus where it was, under the banner`() {
+        // A programme dialog, the grid or the player kept focus under the banner's window.
+        assertFalse(ReminderDelivery.restoreFocusOnDismiss(playerShown = false, shellHasFocus = true))
+        assertFalse(ReminderDelivery.restoreFocusOnDismiss(playerShown = true, shellHasFocus = false))
+        assertFalse(ReminderDelivery.restoreFocusOnDismiss(playerShown = true, shellHasFocus = true))
+        // Browsing with focus lost meanwhile: the saved control comes back (else the sidebar).
+        assertTrue(ReminderDelivery.restoreFocusOnDismiss(playerShown = false, shellHasFocus = false))
+        assertTrue("ReminderDelivery.restoreFocusOnDismiss(playerShownNow, shellHasFocus)" in shell)
+    }
+
+    @Test fun `Watch and Multiscreen keep their rules`() {
+        // Watch still goes through the claimed, profile-checked tune; Multiscreen still leaves its layout first.
+        val watch = shell.substringAfter("val watchReminder:").substringBefore("val sidebarLabel")
+        assertTrue("programReminders.tuneChannelId(reminder)" in watch)
+        assertTrue("handledReminders.claim(reminder.channelId, reminder.programStartMs)" in watch)
+        assertEquals(Start.Confirm(42), ReminderDelivery.onStart(Place.MULTISCREEN, channelId = 42, alreadyHandled = false))
+        val tune = shell.substringAfter("suspend fun tuneReminderChannel(channelId: Long): Boolean {").substringBefore("LaunchedEffect(Unit)")
+        assertTrue(tune.indexOf("onSelectSection(MainSection.LIVE_TV)") < tune.indexOf("ensurePlayingByIdAsync"))
+    }
 }

@@ -77,9 +77,10 @@ class GuideOkStageTest {
     @Test fun `past, current and future programmes all preview the channel's live broadcast`() {
         // The preview takes the channel only — never the programme — so a past programme does not start
         // catch-up and a future one is not "played"; both are in the details, one OK away.
-        assertTrue("onPreviewChannel: (channel: ChannelEntity) -> Boolean = { false }," in screen)
-        val preview = okRelease.substringAfter("GuideOkStage.Action.PREVIEW -> {").substringBefore("GuideOkStage.Action.OPEN_PROGRAMME")
-        assertTrue("if (onPreviewChannel(channel)) vm.noteChannelTuned(channel)" in preview)
+        assertTrue("onPreviewChannel: (channel: ChannelEntity) -> GuideOkStage.Preview = { GuideOkStage.Preview.UNAVAILABLE }," in screen)
+        val preview = okRelease.substringAfter("GuideOkStage.Action.PREVIEW -> {").substringBefore("GuideOkStage.Action.OPEN_PROGRAMME ->")
+        assertTrue("val result = onPreviewChannel(channel)" in preview)
+        assertTrue("if (result == GuideOkStage.Preview.TUNED) vm.noteChannelTuned(channel)" in preview)
         assertFalse(preview.contains("onPlayChannel") || preview.contains("onPlayCatchup"))
         val wiring = shell.substringAfter("onPreviewChannel = { ch ->").substringBefore("okStageKey =")
         assertTrue("liveVm.previewFromGuide(ch)" in wiring)
@@ -101,15 +102,19 @@ class GuideOkStageTest {
         // Not in the preview yet (the Guide opened from the menu): tune, which promotes a stream already loaded.
         assertEquals(Preview.TUNE, GuidePlayback.preview(GuidePlayback.NONE, playerShown = false, externalPlayer = false, playingChannelId = 10, channelId = 10))
         val wiring = shell.substringAfter("onPreviewChannel = { ch ->").substringBefore("okStageKey =")
-        assertTrue("GuidePlayback.Preview.ALREADY_PLAYING -> true" in wiring)
+        assertTrue("GuidePlayback.Preview.ALREADY_PLAYING -> tv.own.owntv.features.epg.GuideOkStage.Preview.ALREADY_PLAYING" in wiring)
+        // Only the TUNE branch reaches the live path.
+        assertEquals(1, Regex("previewFromGuide").findAll(wiring).count())
+        assertTrue(wiring.indexOf("previewFromGuide") > wiring.indexOf("GuidePlayback.Preview.TUNE ->"))
     }
 
     @Test fun `no in-app preview - external player, mini player or audio bar - opens the details at once`() {
         val live = GuidePlayback.openFromPlayer(MainSection.LIVE_TV)
         assertEquals(Preview.UNAVAILABLE, GuidePlayback.preview(live, playerShown = false, externalPlayer = true, playingChannelId = 1, channelId = 2))
         assertEquals(Preview.UNAVAILABLE, GuidePlayback.preview(GuidePlayback.NONE, playerShown = true, externalPlayer = false, playingChannelId = 1, channelId = 2))
-        val preview = okRelease.substringAfter("GuideOkStage.Action.PREVIEW -> {").substringBefore("GuideOkStage.Action.OPEN_PROGRAMME")
-        assertTrue("else programme?.let { detail = channel to it }" in preview)
+        assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.afterPreview(GuideOkStage.Preview.UNAVAILABLE))
+        val preview = okRelease.substringAfter("GuideOkStage.Action.PREVIEW -> {").substringBefore("GuideOkStage.Action.OPEN_PROGRAMME ->")
+        assertTrue("if (GuideOkStage.afterPreview(result) == GuideOkStage.Action.OPEN_PROGRAMME) programme?.let { detail = channel to it }" in preview)
     }
 
     @Test fun `a preview tune uses the one shared live path, with History's usual delay`() {
@@ -117,6 +122,45 @@ class GuideOkStageTest {
         val tune = vm.substringAfter("fun previewFromGuide(channel: ChannelEntity) {").substringBefore("\n    }\n")
         assertTrue("armZapList(channel)" in tune && "ensurePlaying(channel)" in tune)
         assertFalse("not every channel glanced at goes to History at once", "immediate = true" in tune)
+    }
+
+    // ---- The channel already in the preview ------------------------------------------------------------
+
+    @Test fun `OK on the channel already in the preview opens the programme on the first press`() {
+        // Past, current and future programmes on it alike: there is nothing for a first OK to preview.
+        for (p in listOf(earlier, onAir, later)) {
+            assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.onOk(null, GuideOkStage.target(10, p), previewingChannelId = 10))
+        }
+        // The Guide hands it the channel in its preview.
+        assertTrue("GuideOkStage.onOk(okArmed, focused, previewChannel?.id)" in okRelease)
+    }
+
+    @Test fun `another channel still previews first, then opens on the second OK`() {
+        val t = GuideOkStage.target(11, onAir)
+        assertEquals(GuideOkStage.Action.PREVIEW, GuideOkStage.onOk(null, t, previewingChannelId = 10))
+        assertEquals(GuideOkStage.Action.PREVIEW, GuideOkStage.onOk(null, t, previewingChannelId = null))
+        // After the first OK tuned it, the second OK opens it.
+        assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.onOk(t, t, previewingChannelId = 11))
+        assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.onOk(t, t, previewingChannelId = 10))
+    }
+
+    @Test fun `after previewing a channel, its other programmes open on the first OK`() {
+        // OK on channel 10's current programme tunes it; moving to its next programme resets the stage, but the
+        // channel is now in the preview, so OK opens that programme at once rather than doing nothing visible.
+        val first = GuideOkStage.target(10, onAir)
+        assertEquals(GuideOkStage.Action.PREVIEW, GuideOkStage.onOk(null, first, previewingChannelId = null))
+        val moved = GuideOkStage.afterMove(first, GuideOkStage.target(10, later))
+        assertNull(moved)
+        assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.onOk(moved, GuideOkStage.target(10, later), previewingChannelId = 10))
+    }
+
+    @Test fun `what the shell did with the first OK decides whether the programme opens now`() {
+        assertNull("tuned: wait for the second OK", GuideOkStage.afterPreview(GuideOkStage.Preview.TUNED))
+        assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.afterPreview(GuideOkStage.Preview.ALREADY_PLAYING))
+        assertEquals(GuideOkStage.Action.OPEN_PROGRAMME, GuideOkStage.afterPreview(GuideOkStage.Preview.UNAVAILABLE))
+        // History's tune note only for a channel that was tuned.
+        val preview = okRelease.substringAfter("GuideOkStage.Action.PREVIEW -> {").substringBefore("GuideOkStage.Action.OPEN_PROGRAMME ->")
+        assertEquals(1, Regex("noteChannelTuned").findAll(preview).count())
     }
 
     // ---- Long press ------------------------------------------------------------------------------------

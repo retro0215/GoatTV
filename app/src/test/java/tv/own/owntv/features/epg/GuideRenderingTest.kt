@@ -141,6 +141,37 @@ class GuideRenderingTest {
         assertEquals(cursor.timeMs, GuideNav.selectionDay(emptyList(), cursor) { emptyList() })
     }
 
+    // ---- 4.6.0: header date and time ------------------------------------------------------------------
+
+    @Test fun `browsing, the header's date and time are both the highlighted programme's start`() {
+        val cw = channel(8690)
+        val game = prog(t0 + 22 * hour, t0 + day + hour + 30 * min)
+        val cursor = Cursor(row = 0, timeMs = t0 + day + 15 * min) // after midnight, still on the 10 PM game
+        val wallClock = t0 + 2 * day + 9 * hour
+        // One instant for both texts: never the wall clock beside the programme's date.
+        assertEquals(game.startMs, GuideNav.headerInstant(listOf(cw), cursor, wallClock) { listOf(game) })
+    }
+
+    @Test fun `not browsing, the header shows the current date and clock`() {
+        val now = t0 + 9 * hour + 41 * min
+        assertEquals(now, GuideNav.headerInstant(listOf(channel(1)), null, now) { emptyList() })
+    }
+
+    @Test fun `browsing a row without guide data, the header shows the cursor's own time`() {
+        val cursor = Cursor(row = 0, timeMs = t0 + 20 * hour)
+        assertEquals(cursor.timeMs, GuideNav.headerInstant(listOf(channel(1)), cursor, t0) { emptyList() })
+    }
+
+    @Test fun `the header formats one instant, with the system 12-24 hour time and a locale date`() {
+        val screen = java.io.File("src/main/java/tv/own/owntv/features/epg/EpgScreen.kt").readText().replace("\r\n", "\n")
+        val header = screen.substringAfter("// ---- Header:").substringBefore("Spacer(Modifier.weight(1f))")
+        assertTrue("formatHeaderDate(headerInstant)" in header)
+        assertTrue("formatTime(headerInstant)" in header)
+        assertFalse("the clock beside a programme's date", "formatTime(now)" in header)
+        assertTrue("val formatTime = rememberSystemTimeFormatter()" in header)
+        assertTrue("rememberBestDateFormatter(\"EEEdMMM\")" in header)
+    }
+
     // ---- Paging and rapid movement --------------------------------------------------------------------
 
     @Test fun `channel down flips a full page and keeps the row's place on screen`() {

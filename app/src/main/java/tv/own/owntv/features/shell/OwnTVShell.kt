@@ -38,6 +38,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import tv.own.owntv.ui.components.longPressMenuGuard
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -504,6 +505,8 @@ fun OwnTVShell(
     val reminderUnavailable = stringResource(R.string.content_channel_unavailable)
     // Where focus was when a banner opened outside the player, so Dismiss can put it back.
     val shellContentFocus = remember { FocusRequester() }
+    // Whether focus is inside the shell's content (browse UI or Multiscreen), for the banner's Dismiss.
+    var shellHasFocus by remember { mutableStateOf(false) }
     val isMultiscreenNow by androidx.compose.runtime.rememberUpdatedState(isMultiscreen)
     val playerShownNow by androidx.compose.runtime.rememberUpdatedState(playerMode != PlayerMode.NONE)
     // Tunes a reminder's channel full screen. From Multiscreen only after Watch: the layout is left first.
@@ -558,9 +561,11 @@ fun OwnTVShell(
         }
     }
     val dismissReminderBanner = {
-        val wasBrowsing = !playerShownNow
+        // The banner is its own window: the control under it (a programme dialog's button, the grid, the
+        // player) keeps its focus and gets the remote back as the banner closes (ReminderDelivery).
+        val restore = ReminderDelivery.restoreFocusOnDismiss(playerShownNow, shellHasFocus)
         reminderBanner = null
-        if (wasBrowsing) scope.launch {
+        if (restore) scope.launch {
             kotlinx.coroutines.android.awaitFrame()
             if (!restoreShellFocus(shellContentFocus)) runCatching { sidebarFocus.requestFocus() }
         }
@@ -596,12 +601,12 @@ fun OwnTVShell(
           MultiscreenScreen(
               onBack = exitMultiscreen,
               onChildFocused = { focusedLayer = ShellLayer.CONTENT },
-              modifier = Modifier.fillMaxSize().focusRequester(shellContentFocus).focusGroup(),
+              modifier = Modifier.fillMaxSize().onFocusChanged { shellHasFocus = it.hasFocus }.focusRequester(shellContentFocus).focusGroup(),
           )
       } else {
         // Browse UI — hidden while the player is fullscreen.
         if (playerMode != PlayerMode.FULLSCREEN) {
-          Column(modifier = Modifier.fillMaxSize().focusRequester(shellContentFocus).focusGroup()) {
+          Column(modifier = Modifier.fillMaxSize().onFocusChanged { shellHasFocus = it.hasFocus }.focusRequester(shellContentFocus).focusGroup()) {
             if (isOffline) OfflineBanner()
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
               Sidebar(
@@ -790,12 +795,13 @@ fun OwnTVShell(
                             // one shared tune path, on the shell's one player: no second view, no fullscreen.
                             onPreviewChannel = { ch ->
                                 when (GuidePlayback.preview(guideSession, playerMode != PlayerMode.NONE, liveVm.externalPlayerOn.value, previewChannel?.id, ch.id)) {
-                                    GuidePlayback.Preview.UNAVAILABLE -> false
-                                    GuidePlayback.Preview.ALREADY_PLAYING -> true
+                                    GuidePlayback.Preview.UNAVAILABLE -> tv.own.owntv.features.epg.GuideOkStage.Preview.UNAVAILABLE
+                                    // Never re-tuned: the Guide opens the programme instead.
+                                    GuidePlayback.Preview.ALREADY_PLAYING -> tv.own.owntv.features.epg.GuideOkStage.Preview.ALREADY_PLAYING
                                     GuidePlayback.Preview.TUNE -> {
                                         liveVm.previewFromGuide(ch); zapSource = MainSection.LIVE_TV; homeVm.stopPreview()
                                         guideSession = GuidePlayback.afterPreview(guideSession)
-                                        true
+                                        tv.own.owntv.features.epg.GuideOkStage.Preview.TUNED
                                     }
                                 }
                             },
@@ -965,7 +971,7 @@ fun OwnTVShell(
         }
       }
 
-      // Over everything: the player, any section, Multiscreen (Phase 4).
+      // Over everything: the player, any section, Multiscreen (Phase 4), and any open dialog (4.6.0: its own window).
       reminderBanner?.let { banner ->
           ReminderBanner(
               reminder = banner.reminder,
@@ -1091,9 +1097,37 @@ private fun restoreShellFocus(group: FocusRequester): Boolean =
  * The reminder banner: the programme, its channel, Watch and Dismiss. Takes focus while shown; Back (on
  * release) dismisses. Dismiss never deletes the reminder or cancels its start. Multiscreen shows it
  * again at the start ([starting]) instead of tuning, so leaving the layout always needs Watch.
+ *
+ * 4.6.0: its own window, above every other one. A programme dialog (or any popup) is a window of its own
+ * too, and a banner drawn in the app's window sat under it, out of the remote's reach. Closing the banner's
+ * window hands the remote straight back to the window below, on the control that had it.
  */
 @Composable
 private fun ReminderBanner(
+    reminder: tv.own.owntv.core.database.entity.ReminderEntity,
+    starting: Boolean,
+    onWatch: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = {}, // Back is the banner's own (press consumed, release dismisses), below.
+        properties = androidx.compose.ui.window.DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        // The banner draws its own scrim; no second dim from the window.
+        val view = androidx.compose.ui.platform.LocalView.current
+        val window = remember(view) { generateSequence(view.parent) { it.parent }.filterIsInstance<androidx.compose.ui.window.DialogWindowProvider>().firstOrNull()?.window }
+        androidx.compose.runtime.SideEffect { window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND) }
+        ReminderBannerContent(reminder, starting, onWatch, onDismiss)
+    }
+}
+
+@Composable
+private fun ReminderBannerContent(
     reminder: tv.own.owntv.core.database.entity.ReminderEntity,
     starting: Boolean,
     onWatch: () -> Unit,
@@ -1110,6 +1144,8 @@ private fun ReminderBanner(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.7f))
+            // An OK still held from the screen below (its press went there) must not press Watch here.
+            .longPressMenuGuard()
             .focusable()
             .onPreviewKeyEvent { e ->
                 if (e.key == Key.Back || e.key == Key.Escape) {

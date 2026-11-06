@@ -27,6 +27,14 @@ internal object ReminderDelivery {
     /** The 60-second warning: a banner with Watch / Dismiss, for the active profile's reminders only. */
     fun showWarning(belongsToActiveProfile: Boolean): Boolean = belongsToActiveProfile
 
+    /**
+     * 4.6.0: Dismiss on the banner — whether the shell must put focus back on the control saved when the banner
+     * opened. The banner is its own window over everything (a programme dialog, the player, Multiscreen), so
+     * the control under it keeps its focus and gets the remote back as the banner closes: nothing is moved.
+     * Only when browsing and the shell's content has lost focus meanwhile is the saved control restored.
+     */
+    fun restoreFocusOnDismiss(playerShown: Boolean, shellHasFocus: Boolean): Boolean = !playerShown && !shellHasFocus
+
     sealed interface Start {
         /** Tune [channelId] full screen now. */
         data class Tune(val channelId: Long) : Start

@@ -153,6 +153,16 @@ internal object GuideNav {
     }
 
     /**
+     * 4.6.0: the one instant the header's date AND time show. Browsing the grid ([cursor] non-null): the
+     * highlighted programme's start ([selectionDay]), so the date and time always belong to the same
+     * programme — until 4.6.0 the time was the wall clock beside the programme's date, which read as a
+     * programme start that did not exist ("Tue 12 Nov · 9:41" for a 21:00 programme). Otherwise (header
+     * focused, nothing highlighted): [now], the current date and clock.
+     */
+    fun headerInstant(rows: List<ChannelEntity>, cursor: Cursor?, now: Long, programmesOf: (ChannelEntity) -> List<EpgProgrammeEntity>): Long =
+        cursor?.let { selectionDay(rows, it, programmesOf) } ?: now
+
+    /**
      * The order rows are prepared in: the visible rows top to bottom first, then [margin] rows below and
      * above, alternating outward (the direction of travel is the likelier next view). Indices only.
      */
