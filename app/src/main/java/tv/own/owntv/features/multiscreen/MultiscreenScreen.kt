@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.RectangleShape
@@ -37,6 +36,7 @@ import tv.own.owntv.R
 import tv.own.owntv.core.epg.displayLogoUrl
 import tv.own.owntv.ui.components.FocusableSurface
 import tv.own.owntv.ui.components.longPressMenuGuard
+import tv.own.owntv.ui.components.windowSafeCombinedClickable
 import tv.own.owntv.ui.theme.GlassSurface
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
@@ -936,9 +936,9 @@ private fun MultiscreenTile(
                 focused = it.isFocused
                 if (it.isFocused) onFocused()
             }
-            .combinedClickable(
+            // Not combinedClickable: its long-press timer survived the reminder warning taking focus.
+            .windowSafeCombinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
                 onLongClick = onLongClick,
                 onClick = onClick,
             )

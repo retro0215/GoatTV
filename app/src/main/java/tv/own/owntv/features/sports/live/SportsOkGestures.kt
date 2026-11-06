@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.KeyEventType
@@ -14,9 +15,10 @@ import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.LocalWindowInfo
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import tv.own.owntv.ui.components.waitWhileWindowFocused
 
 /** What one OK interaction on an event card meant. Exactly one per interaction, never two. */
 enum class SportsOkGesture { SINGLE, DOUBLE, LONG }
@@ -140,6 +142,7 @@ fun Modifier.sportsOkGestures(
     val double by rememberUpdatedState(onDouble)
     val long by rememberUpdatedState(onLong)
     val timer = remember { arrayOfNulls<Job>(1) }
+    val windowInfo = LocalWindowInfo.current
     fun dispatch(g: SportsOkGesture?) {
         when (g) {
             SportsOkGesture.SINGLE -> single()
@@ -152,7 +155,13 @@ fun Modifier.sportsOkGestures(
         timer[0]?.cancel()
         val deadline = recognizer.nextDeadline() ?: return
         timer[0] = scope.launch {
-            delay((deadline - android.os.SystemClock.uptimeMillis()).coerceAtLeast(0))
+            // 4.6.0: stop if another window (the reminder warning) takes focus while OK is held; its
+            // canceled release never reaches this card, so the press would otherwise end as a long press.
+            val wait = (deadline - android.os.SystemClock.uptimeMillis()).coerceAtLeast(0)
+            if (!waitWhileWindowFocused(wait, snapshotFlow { windowInfo.isWindowFocused })) {
+                recognizer.reset()
+                return@launch
+            }
             dispatch(recognizer.onTick(android.os.SystemClock.uptimeMillis()))
             schedule()
         }
