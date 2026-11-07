@@ -9,6 +9,82 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## allaccess-v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## 5star-v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## supreme-v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
 ## v4.5.0 — 2026-10-23
 
 ### ✨ What's new
