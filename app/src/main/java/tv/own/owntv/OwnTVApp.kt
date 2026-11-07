@@ -75,9 +75,16 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
     override fun onCreate() {
         Perf.begin() // zero-point for the OwnTVPerf startup timeline (adb logcat -s OwnTVPerf)
         super.onCreate()
+        // Media3 logs playback errors with their cause chain; route it through the credential redactor.
+        tv.own.owntv.core.diagnostics.RedactingMedia3Logger.install()
+        // If a redaction rule can't compile on this device's regex engine, diagnostics are withheld (never raw).
+        tv.own.owntv.core.diagnostics.SensitiveText.unavailableRule?.let {
+            android.util.Log.e("SensitiveText", "redaction rule $it does not compile here; diagnostic text is withheld")
+        }
 
-        // Pushwoosh initialization (flavor-isolated via source sets)
-        PushNotifications.init(this)
+        // Pushwoosh initialization (flavor-isolated via source sets). Never in the isolated test APK,
+        // which does not even carry the Pushwoosh/Firebase libraries.
+        if (!tv.own.owntv.core.isolation.IsolatedTestBuild.active) PushNotifications.init(this)
 
         startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.ERROR else Level.NONE)
@@ -95,6 +102,11 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
                 tv.own.owntv.player.LiveDiagnosticsLog.enabled =
                     on || BuildConfig.DEBUG || BuildConfig.DIAGNOSTIC_BUILD
             }
+        }
+        // Hourly background check that refreshes a due TV guide even when the app is never restarted. Unique
+        // work: re-registering on every launch never adds a second schedule.
+        appScope.launch {
+            runCatching { GlobalContext.get().get<tv.own.owntv.core.sync.work.EpgSyncScheduler>().schedulePeriodicCheck() }
         }
         // Seed the one persisted playback quirk (panels whose catch-up archive needs a software
         // decoder) off the main thread. One small DataStore read, fire-and-forget: nothing on the
@@ -180,5 +192,7 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
             runCatching { SingletonImageLoader.get(this).memoryCache?.clear() }
             runCatching { GlobalContext.getOrNull()?.getOrNull<tv.own.owntv.player.OwnTVPlayer>()?.onTrimMemory() }
         }
+        // The off-screen Guide window, only at critical / background levels (see GuideMemoryPressure).
+        tv.own.owntv.features.epg.GuideMemoryPressure.onTrimMemory(level)
     }
 }

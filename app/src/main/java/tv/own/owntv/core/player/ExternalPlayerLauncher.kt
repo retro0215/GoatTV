@@ -53,22 +53,15 @@ class ExternalPlayerLauncher(private val context: Context) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             if (mime != null) intent.setDataAndType(uri, mime) else intent.data = uri
             applyHeaders(intent, url, userAgent, httpHeaders)
+            // VLC and MX Player show this as the name of what is playing, instead of the URL.
+            (if (title != null && subtitle != null) "$title · $subtitle" else title)?.let { intent.putExtra("title", it) }
 
-            val targets = context.packageManager.queryIntentActivities(intent, 0)
-            if (targets.isEmpty()) continue
-            return if (targets.size == 1) {
-                startActivity(intent)
-            } else {
-                val chooserTitle = if (title != null && subtitle != null) {
-                    localized.getString(tv.own.owntv.R.string.player_external_play_with_item, title, subtitle)
-                } else {
-                    title ?: localized.getString(tv.own.owntv.R.string.player_external_play_with)
-                }
-                startActivity(
-                    Intent.createChooser(intent, chooserTitle)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
-            }
+            if (context.packageManager.queryIntentActivities(intent, 0).isEmpty()) continue
+            // The intent itself, never Intent.createChooser (upstream OwnTV_Core 99d09664): with several
+            // players installed Android still shows its own "Open with" picker, and only that picker
+            // offers Just once / Always, so a user can make one player the default. With the manifest
+            // <queries> (Android 11+ package visibility) every installed player is now seen here.
+            return startActivity(intent)
         }
         toast(localized.getString(tv.own.owntv.R.string.player_external_not_found))
         return false
@@ -124,20 +117,6 @@ class ExternalPlayerLauncher(private val context: Context) {
         }.getOrNull()
     }
 
-    // MIME types to offer for a URL, most specific first, ending with an untyped attempt. Duplicates
-    // are dropped so a plain video/* URL doesn't query the same intent twice.
-    private fun mimeCandidates(url: String): List<String?> {
-        val path = url.substringBefore('?').substringAfterLast('/', "")
-        val ext = path.substringAfterLast('.', "").lowercase()
-        val specific = when (ext) {
-            "m3u8", "m3u" -> "application/x-mpegURL"
-            "ts", "m2t", "mts" -> "video/mp2t"
-            "mp4", "m4v", "mov", "3gp" -> "video/mp4"
-            else -> "video/*"
-        }
-        return listOf(specific, "video/*", null).distinct()
-    }
-
     private fun localizedContext(): Context =
         AppLocale.wrap(context, LocaleStore.from(context).readBlocking())
 
@@ -145,8 +124,25 @@ class ExternalPlayerLauncher(private val context: Context) {
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
     }
 
-    private companion object {
-        /** URL schemes handed to the external player as-is (everything else is a local file path). */
+    internal companion object {
+        /**
+         * URL schemes handed to the external player as-is (everything else is a local file path). Each
+         * needs a matching manifest `<queries>` entry — ExternalPlayerQueriesTest checks that.
+         */
         val NETWORK_SCHEMES = setOf("http", "https", "rtsp", "rtmp", "udp", "mms")
+
+        // MIME types to offer for a URL, most specific first, ending with an untyped attempt. Duplicates
+        // are dropped so a plain video/* URL doesn't query the same intent twice.
+        fun mimeCandidates(url: String): List<String?> {
+            val path = url.substringBefore('?').substringAfterLast('/', "")
+            val ext = path.substringAfterLast('.', "").lowercase()
+            val specific = when (ext) {
+                "m3u8", "m3u" -> "application/x-mpegURL"
+                "ts", "m2t", "mts" -> "video/mp2t"
+                "mp4", "m4v", "mov", "3gp" -> "video/mp4"
+                else -> "video/*"
+            }
+            return listOf(specific, "video/*", null).distinct()
+        }
     }
 }

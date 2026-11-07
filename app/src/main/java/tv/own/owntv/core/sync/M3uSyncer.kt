@@ -594,7 +594,7 @@ internal class M3uSyncer(
         private val SERIES_EPISODE_FLUSH_ROWS = BulkInsertHelper.CHUNK
 
         /** Separates name from group in synthesized keys; unlikely in real channel names. */
-        private const val KEY_SEPARATOR = "\u0001"
+        internal const val KEY_SEPARATOR = "\u0001"
 
         /**
          * Synthesized stable id for an M3U item: `name␁group`, with an `␁#n` suffix for the 2nd+

@@ -1,0 +1,187 @@
+package tv.own.owntv.features.sports.live
+
+import androidx.compose.runtime.Immutable
+
+/**
+ * GoatTV Sports Live — client models for the public DigitalOcean Sports API
+ * (`/sports/home`, `/sports/events`, `/sports/leagues`). Sanitized metadata only: ids are GoatTV ids
+ * (`nba`, `nba.phi`, `evt_…`), never provider ids, and nothing here can build a stream.
+ */
+
+@Immutable
+data class SportsLeague(
+    val id: String,
+    val name: String,
+    val shortName: String,
+    val order: Int,
+    val sport: String?,
+    /** "team" for team sports; other kinds (athlete cards) may have null home/away. */
+    val participantKind: String?,
+    /** Soccer competition metadata (null for US leagues): league / cup / continental / international. */
+    val competitionType: String? = null,
+    val region: String? = null,
+    val gender: String? = null,
+)
+
+@Immutable
+data class SportsTeam(
+    val id: String?,
+    val name: String,
+    val shortName: String?,
+    val abbreviation: String?,
+    val logoUrl: String?,
+    /** Score as sent by the API (a string); null while scheduled. Use [SportsEvent.showsScores]. */
+    val score: String?,
+)
+
+@Immutable
+data class SportsBroadcast(
+    val name: String,
+    /** TV / STREAMING / RADIO */
+    val type: String,
+    /** NATIONAL / HOME / AWAY / REGIONAL */
+    val market: String,
+    val networkKey: String?,
+)
+
+enum class SportsEventStatus {
+    SCHEDULED, LIVE, FINAL, DELAYED, POSTPONED, CANCELED,
+
+    /** A status this app version doesn't know yet — rendered neutrally, never as live. */
+    UNKNOWN;
+
+    companion object {
+        fun parse(raw: String?): SportsEventStatus =
+            entries.firstOrNull { it != UNKNOWN && it.name.equals(raw?.trim(), ignoreCase = true) } ?: UNKNOWN
+    }
+}
+
+/**
+ * One matched channel for an event (Phase B contract). Present when the backend exposure gate
+ * (`SPORTS_API_CHANNELS`) is on AND the app requests `?brand=` ([SportsChannelFeature]). [remoteId]
+ * is the provider stream id resolved against the LOCAL source; the server never sends a URL.
+ * [confidence] / [reason] are backend matching metadata: never shown to customers.
+ */
+@Immutable
+data class SportsChannelRef(
+    val channelId: String,
+    val remoteId: String,
+    val epgChannelId: String?,
+    val name: String,
+    val category: String?,
+    val logoUrl: String?,
+    val networkKey: String?,
+    val confidence: Int,
+    val reason: String,
+)
+
+@Immutable
+data class SportsEvent(
+    val id: String,
+    val leagueId: String,
+    val title: String?,
+    val away: SportsTeam?,
+    val home: SportsTeam?,
+    val startTimeMs: Long,
+    val status: SportsEventStatus,
+    val statusDetail: String?,
+    val venueName: String?,
+    val priority: Int,
+    val broadcasts: List<SportsBroadcast>,
+    val updatedAtMs: Long,
+    /** Backend-ranked channels; always empty while the channel feature is off. */
+    val channels: List<SportsChannelRef> = emptyList(),
+    /** Fight cards (MMA / boxing) only: the card's bouts. Null for every other event. */
+    val fight: SportsFight? = null,
+) {
+    val isLive: Boolean get() = status == SportsEventStatus.LIVE
+
+    /** Scores are only meaningful once play has started — never show a scheduled placeholder "0". */
+    val showsScores: Boolean
+        get() = (status == SportsEventStatus.LIVE || status == SportsEventStatus.FINAL || status == SportsEventStatus.DELAYED) &&
+            (home?.score != null || away?.score != null)
+
+    val isTeamEvent: Boolean get() = home != null && away != null
+
+    /** First TV broadcast (national first), else the first broadcast of any non-radio type. */
+    val primaryBroadcast: SportsBroadcast?
+        get() {
+            val visual = broadcasts.filter { !it.type.equals("RADIO", ignoreCase = true) }
+            return visual.firstOrNull { it.type.equals("TV", ignoreCase = true) && it.market.equals("NATIONAL", ignoreCase = true) }
+                ?: visual.firstOrNull { it.type.equals("TV", ignoreCase = true) }
+                ?: visual.firstOrNull()
+        }
+}
+
+/** A fighter as the API sends it (GoatTV id; provider ids never reach the app). */
+@Immutable
+data class SportsFighter(
+    val id: String?,
+    val name: String,
+    val shortName: String?,
+    /** Overall record as stated by the provider ("23-14-0"). */
+    val record: String?,
+    val country: String?,
+    /** Country flag image (optional presentation; initials fallback when null). */
+    val flagUrl: String?,
+)
+
+@Immutable
+data class SportsBout(
+    /** Provider order, 1-based: ascending start, main event last. */
+    val order: Int,
+    val weightClass: String?,
+    val scheduledRounds: Int?,
+    val startTimeMs: Long?,
+    val status: SportsEventStatus,
+    /** Current (live) or ending (final) round; null before the bout. */
+    val round: Int?,
+    val clock: String?,
+    val mainEvent: Boolean,
+    val fighters: List<SportsFighter>,
+    /** Index into [fighters] of the winner, when the provider states one. */
+    val winner: Int?,
+    /** "KO/TKO", "Submission" or "Decision" when the provider states it; null otherwise. */
+    val method: String?,
+)
+
+@Immutable
+data class SportsFight(val bouts: List<SportsBout>) {
+    /** The main event: flagged by the backend (provider order puts it last). */
+    val mainEvent: SportsBout? get() = bouts.firstOrNull { it.mainEvent } ?: bouts.lastOrNull()
+}
+
+/** GET /sports/home */
+data class SportsHomePayload(
+    val generatedAtMs: Long,
+    val cursor: String,
+    val leagues: List<SportsLeague>,
+    val popular: List<String>,
+    val events: List<SportsEvent>,
+)
+
+/** GET /sports/events[?since=] */
+data class SportsEventsPayload(
+    val cursor: String,
+    val events: List<SportsEvent>,
+)
+
+/**
+ * Android-side feature boundary for Sports channels (Phase C2). The build's brand
+ * (`BuildConfig.SPORTS_CHANNEL_BRAND`: "goat" for GoatTV, empty for brands without a curated channel
+ * index) is the ONLY identifier sent to the Sports API (`?brand=`). Without one the app never asks
+ * for channel data and never offers Watch / Select Channel, even if a response carried channels.
+ * Every backend channel is still verified locally ([SportsChannelResolver]) before it can be shown.
+ */
+object SportsChannelFeature {
+    // Declared first: object properties initialize in order, and BRAND below uses it.
+    private val BRAND_ID = Regex("^[a-z0-9-]{1,32}$")
+
+    /** The `?brand=` value for this build, or null when this build has no event channels. */
+    val BRAND: String? = brandOrNull(tv.own.owntv.BuildConfig.SPORTS_CHANNEL_BRAND)
+
+    val ENABLED: Boolean get() = BRAND != null
+
+    /** A configured brand id, or null when empty / not a plain brand id. */
+    internal fun brandOrNull(raw: String?): String? = raw?.trim()?.lowercase()?.takeIf { BRAND_ID.matches(it) }
+}

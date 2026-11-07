@@ -1,4 +1,5 @@
 import java.io.ByteArrayOutputStream
+import java.util.Base64
 import java.util.Properties
 import javax.inject.Inject
 import org.gradle.process.ExecOperations
@@ -65,6 +66,7 @@ abstract class VerifyPushwooshToken : DefaultTask() {
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     // Kotlin is provided by AGP 9's built-in Kotlin support. KSP 2.3.6+ is compatible with it.
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
@@ -87,6 +89,12 @@ android {
         val f = File("E:/MEGA/CODE/OwnTV_Gradle/owntv-signing.properties")
         if (f.isFile) f.inputStream().use { load(it) }
     }
+
+    // Video Tutorials staging catalog (DEBUG builds only, see VideoTutorialsEndpoints). Resolved inside
+    // defaultConfig (next to the production Supabase values it is checked against) and applied only to
+    // the debug build type below; release variants always get empty strings.
+    var tutorialsStagingUrl = ""
+    var tutorialsStagingKey = ""
 
     defaultConfig {
         minSdk = 24
@@ -134,10 +142,80 @@ android {
             ?: ""
         buildConfigField("String", "TMDB_EDGE_KEY", "\"${edgeKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
 
+        val supabaseUrl = System.getenv("SUPABASE_URL")
+            ?: providers.gradleProperty("supabaseUrl").orNull
+            ?: localSigningProps.getProperty("supabaseUrl")
+            ?: localProperties.getProperty("SUPABASE_URL")
+            ?: localProperties.getProperty("supabaseUrl")
+            ?: ""
+        buildConfigField("String", "SUPABASE_URL", "\"${supabaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+
+        val supabaseAnonKey = System.getenv("SUPABASE_ANON_KEY")
+            ?: providers.gradleProperty("supabaseAnonKey").orNull
+            ?: localSigningProps.getProperty("supabaseAnonKey")
+            ?: localProperties.getProperty("SUPABASE_ANON_KEY")
+            ?: localProperties.getProperty("supabaseAnonKey")
+            ?: ""
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${supabaseAnonKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+
+        // Never in the repo: Gradle property > the out-of-repo properties file > local.properties. Blank =
+        // no staging; a debug build then reads production exactly like a release build.
+        tutorialsStagingUrl = (
+            providers.gradleProperty("owntv.tutorialsStagingUrl").orNull
+                ?: localSigningProps.getProperty("owntv.tutorialsStagingUrl")
+                ?: localProperties.getProperty("TUTORIALS_STAGING_URL")
+                ?: ""
+            ).trim().trimEnd('/')
+        tutorialsStagingKey = (
+            providers.gradleProperty("owntv.tutorialsStagingAnonKey").orNull
+                ?: localSigningProps.getProperty("owntv.tutorialsStagingAnonKey")
+                ?: localProperties.getProperty("TUTORIALS_STAGING_ANON_KEY")
+                ?: ""
+            ).trim()
+        if (tutorialsStagingUrl.isNotEmpty() || tutorialsStagingKey.isNotEmpty()) {
+            val refPattern = Regex("^https://([a-z0-9]{20})[.]supabase[.]co$")
+            val stagingRef = refPattern.matchEntire(tutorialsStagingUrl)?.groupValues?.get(1)
+                ?: throw GradleException("Video Tutorials staging URL must be https://<project-ref>.supabase.co")
+            if (stagingRef == refPattern.matchEntire(supabaseUrl.trim().trimEnd('/'))?.groupValues?.get(1)) {
+                throw GradleException("Video Tutorials staging URL is the PRODUCTION Supabase project; refusing.")
+            }
+            if (tutorialsStagingKey.isEmpty() || tutorialsStagingKey.startsWith("sb_secret_")) {
+                throw GradleException("Video Tutorials staging key must be the staging anon/publishable key, never a secret key.")
+            }
+            if (tutorialsStagingKey.startsWith("eyJ")) {
+                val payload: String = runCatching {
+                    String(Base64.getUrlDecoder().decode(tutorialsStagingKey.split(".")[1]))
+                }.getOrDefault("")
+                if (!Regex("\"role\"[ ]*:[ ]*\"anon\"").containsMatchIn(payload)) {
+                    throw GradleException("Video Tutorials staging key is not an anon key (service_role keys are refused).")
+                }
+            }
+        }
+        buildConfigField("String", "TUTORIALS_STAGING_URL", "\"\"")
+        buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"\"")
+        // True only in the `tutorialTest` build type below (isolated side-by-side test APK).
+        buildConfigField("boolean", "ISOLATED_TEST_BUILD", "false")
+
+        if (supabaseUrl.isBlank() || supabaseAnonKey.isBlank()) {
+            throw GradleException(
+                "\n\n  ERROR: SUPABASE_URL or SUPABASE_ANON_KEY is missing or blank.\n" +
+                "  Add them to local.properties in the project root:\n" +
+                "  SUPABASE_URL=<real project URL>\n" +
+                "  SUPABASE_ANON_KEY=<real anon/publishable key>\n"
+            )
+        }
+
         buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
         buildConfigField("String", "PUSHWOOSH_APP_ID", "\"\"")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
         buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
+        // Sports event channels (Phase C2): the brand sent as ?brand= to the Sports API. Empty = this
+        // build never requests channel data (only flavors with a curated channel index set it).
+        buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"\"")
+        // Diagnostic Center speed test: the ONE place the public test-file host is set (no credentials —
+        // the objects are public). Production Cloudflare R2 custom domain; ping.bin and speedtest.bin are
+        // derived from it (SpeedTestEndpoint). Never shown to customers or included in reports.
+        buildConfigField("String", "SPEED_TEST_BASE_URL", "\"https://goattv-speed.net\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -210,6 +288,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"GoatTV\"")
+            buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"goat\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"GoatTV\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")
@@ -224,6 +303,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"5star-v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"5Star Ultra\"")
+            buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"fivestar\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"5Star-Ultra\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"60105-2EE07\"")
@@ -238,6 +318,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"supreme-v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"Supreme TV\"")
+            buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"supreme\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"Supreme-TV\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"C0AC0-30F51\"")
@@ -253,6 +334,7 @@ android {
             buildConfigField("String", "RELEASE_TAG_PREFIX", "\"allaccess-v\"")
             buildConfigField("String", "REPO_PATH", "\"retro0215/GoatTV\"")
             buildConfigField("String", "BRAND_UA", "\"AllAccess\"")
+            buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"allaccess\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"AllAccess\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"2E521-83F80\"")
@@ -291,8 +373,59 @@ android {
             // block at the bottom of this file (see docs/internationalization.md 0b, "Pseudolocales must
             // survive the filter").
             isPseudoLocalesEnabled = true
+            // Video Tutorials staging catalog: debug only, and only used after the adb switch in the
+            // debug source set turns it on (VideoTutorialsStagingActivity).
+            buildConfigField("String", "TUTORIALS_STAGING_URL", "\"${tutorialsStagingUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"${tutorialsStagingKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+        }
+        // Isolated test APK (`assembleStandard<Brand>TutorialTest`): installs NEXT TO the customer app
+        // (own application id, debug signature, own data) and cannot reach production Supabase at all —
+        // its SUPABASE_URL / SUPABASE_ANON_KEY are the staging values, or a host that never resolves
+        // when no staging values were supplied, so the production project settings are not in the APK.
+        // Pushwoosh/Firebase are left out of its runtime classpath (configurations block below), its
+        // google-services task is disabled, and src/tutorialTest/AndroidManifest.xml drops the owntv://
+        // deep links, push metadata, TV-provider and package-install permissions. Code paths that write
+        // (catalog upload, pairing, Rooms, anonymous sign-in, launcher rows, updater) check
+        // BuildConfig.ISOLATED_TEST_BUILD as well (core/isolation/IsolatedTestBuild.kt).
+        create("tutorialTest") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".tutorialtest"
+            versionNameSuffix = "-tutorialtest"
+            matchingFallbacks += listOf("debug")
+            signingConfig = signingConfigs.getByName("debug")
+            isPseudoLocalesEnabled = false
+            val isolatedUrl = tutorialsStagingUrl.ifEmpty { "https://isolated-test-build.invalid" }
+            val isolatedKey = tutorialsStagingKey.ifEmpty { "isolated-test-build" }
+            buildConfigField("boolean", "ISOLATED_TEST_BUILD", "true")
+            buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
+            buildConfigField("String", "SUPABASE_URL", "\"${isolatedUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY", "\"${isolatedKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "TUTORIALS_STAGING_URL", "\"${tutorialsStagingUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"${tutorialsStagingKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+            // The Pushwoosh device API token must not be embedded in the test APK.
+            manifestPlaceholders["pushwooshDeviceApiToken"] = ""
+            // 4.6.0: `-Powntv.isolatedTestOptimized=true` builds this same isolated APK the way release is
+            // built (not debuggable, R8 code and resource shrinking, release keep rules), so performance can
+            // be measured without a customer build. Same build type, so every isolation measure above
+            // (application id, debug signature, staging/unreachable Supabase, no push, test manifest) still
+            // applies. Profileable, so the onn can still be profiled. Off by default.
+            if (providers.gradleProperty("owntv.isolatedTestOptimized").orNull == "true") {
+                versionNameSuffix = "-tutorialtest-optimized"
+                isDebuggable = false
+                isProfileable = true
+                isMinifyEnabled = true
+                isShrinkResources = true
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro",
+                    "proguard-isolated-test.pro",
+                )
+            }
         }
         release {
+            // Customer builds never carry the staging catalog settings.
+            buildConfigField("String", "TUTORIALS_STAGING_URL", "\"\"")
+            buildConfigField("String", "TUTORIALS_STAGING_ANON_KEY", "\"\"")
 
             // Stable AGP release optimization API. Keep both code and resource shrinking enabled;
             // the optimized default rules are extended by OwnTV's project-specific keep rules.
@@ -309,6 +442,8 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        // Only the isolated test APK defines a resValue (its "<Brand> Test" launcher label).
+        resValues = true
     }
 
     androidResources {
@@ -353,6 +488,11 @@ android {
             // the "Unable to strip the following libraries, packaging them as they are" line on every
             // release task came from. Skipping it packages byte-identical libraries without the noise.
             keepDebugSymbols += "**/*.so"
+            // 4.6.0: libmpv's JNI bridge is rebuilt from source (third_party/mpv-bridge) so it no longer
+            // prints every mpv log message, stream URLs and credentials included, to logcat. The rebuilt
+            // copy in src/main/jniLibs and the AAR's copy share a path; the project's own copy is merged
+            // first, and verifyMpvBridge (below) fails the build if the packaged one is not ours.
+            pickFirsts += "lib/*/libplayer.so"
         }
     }
 
@@ -361,6 +501,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 }
 
@@ -375,10 +516,33 @@ androidComponents {
         variant.androidResources.localeFilters.addAll("en-rXA", "ar-rXB")
     }
 
+    // Unit tests also run against the isolated test APK's build config (core/isolation tests assert it).
+    beforeVariants(selector().withBuildType("tutorialTest")) { variantBuilder ->
+        variantBuilder.hostTests[com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
+    }
+
+    // Isolated test APK: a launcher label that cannot be mistaken for the customer app ("GoatTV Test").
+    onVariants(selector().withBuildType("tutorialTest")) { variant ->
+        val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
+        val label = when (brand) {
+            "goat" -> "GoatTV"
+            "allaccess" -> "AllAccess"
+            "fivestar" -> "5Star Ultra"
+            "supreme" -> "Supreme TV"
+            else -> "OwnTV"
+        }
+        variant.resValues.put(
+            variant.makeResValueKey("string", "isolated_test_app_name"),
+            com.android.build.api.variant.ResValue("$label Test", "Launcher label of the isolated test APK"),
+        )
+    }
+
     // Disable google-services tasks for variants without Pushwoosh to prevent "missing JSON" errors.
+    // The isolated test build type never has push (no Firebase config, no Pushwoosh token check).
     onVariants { variant ->
         val brand = variant.productFlavors.find { it.first == "brand" }?.second ?: ""
-        val isPushEnabled = brand == "allaccess" || brand == "goat" || brand == "fivestar" || brand == "supreme"
+        val isPushEnabled = variant.buildType != "tutorialTest" &&
+            (brand == "allaccess" || brand == "goat" || brand == "fivestar" || brand == "supreme")
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
 
         if (!isPushEnabled) {
@@ -402,6 +566,18 @@ androidComponents {
                 it.name.contains(variantName) && it.name.startsWith("process") && it.name.endsWith("Manifest")
             }.configureEach { dependsOn(verifyTask) }
         }
+    }
+}
+
+// Isolated test APK: Pushwoosh and Firebase stay on the COMPILE classpath (the brand source sets'
+// PushNotifications compile against them) but are left out of the runtime classpath, so the APK holds
+// none of their code, init providers, boot receivers or messaging services. PushNotifications.init is
+// never called in that build (OwnTVApp + PUSHWOOSH_ENABLED=false), so nothing references them at runtime.
+configurations.configureEach {
+    if (name.endsWith("TutorialTestRuntimeClasspath")) {
+        exclude(group = "com.pushwoosh")
+        exclude(group = "com.google.firebase")
+        exclude(group = "com.google.android.datatransport")
     }
 }
 
@@ -504,13 +680,43 @@ val verifyI18nLiterals = tasks.register<VerifyI18nLiterals>("verifyI18nLiterals"
 // Inputs are declared above, so an unchanged source tree makes this UP-TO-DATE and free.
 tasks.named("preBuild") { dependsOn(verifyI18nLiterals) }
 
+// verifyMpvBridge: every packaged lib/<abi>/libplayer.so must be the rebuilt bridge from src/main/jniLibs
+// (third_party/mpv-bridge/README.md), never the AAR's copy that prints mpv's log, credentials included.
+tasks.matching {
+    it.name.startsWith("merge") && it.name.endsWith("NativeLibs") && !it.name.contains("AndroidTest")
+}.configureEach {
+    // A local File (not a script property), so the configuration cache can store the action.
+    val bridgeDir: File = project.layout.projectDirectory.dir("src/main/jniLibs").asFile
+    doLast {
+        val merged = outputs.files.asFileTree.matching { include("**/libplayer.so") }.files
+        for (f in merged) {
+            val ours = File(bridgeDir, "${f.parentFile.name}/libplayer.so")
+            if (!ours.isFile || !ours.readBytes().contentEquals(f.readBytes())) {
+                throw GradleException(
+                    "verifyMpvBridge: ${f.parentFile.name}/libplayer.so is not the rebuilt mpv bridge " +
+                        "(see third_party/mpv-bridge/README.md)",
+                )
+            }
+        }
+    }
+}
+
 apply(plugin = "com.google.gms.google-services")
 
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
+
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.kotlinx.serialization.json)
 
     // Compose (BOM-managed)
     implementation(platform(libs.androidx.compose.bom))
@@ -558,6 +764,7 @@ dependencies {
 
     // Networking
     implementation(libs.okhttp)
+    implementation(libs.okhttpSse)
     implementation(libs.zxing.core) // QR generation for the Remote (companion) add-source flow
     implementation(libs.juniversalchardet) // local subtitle charset detection (subtitle plan ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§7.2)
 
@@ -618,6 +825,16 @@ dependencies {
     // every JSONObject call into a silent null/0. Backup/restore is all JSON, so the unit tests need
     // the real implementation to mean anything.
     testImplementation(libs.org.json)
+    // Test-only, never packaged: backs the src/test android.util.JsonReader/JsonToken shims (Gson's
+    // streaming reader is the code android.util.JsonReader was taken from), so the Xtream parsers run
+    // on the JVM instead of android.jar's no-op stubs.
+    testImplementation(libs.gson)
+    testImplementation("io.mockk:mockk:1.13.13")
+    // Test-only, never packaged: virtual time for the guide details panel's update timing tests.
+    testImplementation(libs.kotlinx.coroutines.test)
+    // Test-only, never packaged: a real SQLite on the JVM (the build already uses it, for Room's query
+    // checks), so the TV Guide's channel-matching SQL is tested as written (GuideChannelQuerySqlTest).
+    testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.room.testing)

@@ -132,8 +132,8 @@
     <string name="update_failed_download_http">Stahování aktualizace vrátilo kód HTTP <xliff:g id="code">%1$s</xliff:g>.</string>
     <string name="update_empty_download">Aktualizační server vrátil prázdný soubor APK.</string>
     <string name="update_install_failed">Systémovému instalačnímu programu se nepodařilo staženou aktualizaci otevřít.</string>
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> je připravena (máte v<xliff:g id="current">%2$s</xliff:g>).</string>
-    <string name="recovery_title">OwnTV nemohla otevřít svou databázi</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> je připravena (máte v<xliff:g id="current">%2$s</xliff:g>).</string>
+    <string name="recovery_title"><xliff:g id="app_name">%1$s</xliff:g> nemohla otevřít svou databázi</string>
     <string name="recovery_data_safe_full">Vaše profily, playlisty, oblíbené položky ani historie NEBYLY odstraněny — jde o selhání upgradu databáze a data jsou stále v tomto zařízení.\n\nNahlaste prosím tuto chybu, aby ji bylo možné opravit, a přiložte níže uvedenou zprávu.</string>
     <string name="recovery_retry">Zkusit znovu</string>
     <string name="recovery_backup_hint">Pokud máte soubor zálohy, můžete vymazat data aplikace a poté zálohu obnovit. Vymazáním dat se odstraní vše uložené v tomto zařízení.</string>

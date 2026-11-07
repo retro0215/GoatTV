@@ -103,9 +103,23 @@ internal fun TopBar(
                         if (!isLive && durMin > 0) add(stringResource(R.string.player_duration_minutes, durMin))
                         addAll(chips) // aspect · resolution · fps · audio
                     }
-                    parts.forEachIndexed { i, label ->
-                        if (i > 0) Box(Modifier.size(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
-                        Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.5f))
+                    // 4.6.0: the chips share what the LIVE badge leaves (a weighted child is measured last), one
+                    // line each, ending in "…" when short of room. Measured first, mpv's longer chip list (with
+                    // the bitrate) used to take the whole width and left the badge a few pixels, so "LIVE"
+                    // wrapped letter by letter into a thin red bar.
+                    if (parts.isNotEmpty()) {
+                        Row(
+                            Modifier.weight(1f, fill = false),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            parts.forEachIndexed { i, label ->
+                                if (i > 0) Box(Modifier.size(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
+                                Text(
+                                    label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.5f),
+                                    maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                     if (isLive) {
                         if (parts.isNotEmpty()) Box(Modifier.size(3.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f)))
@@ -175,7 +189,7 @@ private fun LiveBadge() {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(Modifier.size(6.dp).clip(CircleShape).background(Color.White))
-        Text(stringResource(R.string.player_live), style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.player_live), style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -321,7 +335,8 @@ internal fun BottomBar(
     vodOnExo: Boolean?, onToggleVodEngine: (() -> Unit)?,
     onInfo: (() -> Unit)? = null, infoOn: Boolean = false, onReport: (() -> Unit)? = null,
     favorite: Boolean = false, onToggleFavorite: (() -> Unit)? = null,
-    onOpenDialog: (HudDialog) -> Unit, onPip: (() -> Unit)?, onAudioMode: (() -> Unit)?, onOpenGuide: (() -> Unit)? = null, onBack: () -> Unit, modifier: Modifier = Modifier,
+    onOpenDialog: (HudDialog) -> Unit, onPip: (() -> Unit)?, onAudioMode: (() -> Unit)?, onOpenGuide: (() -> Unit)? = null, guideFocus: FocusRequester? = null, onBack: () -> Unit, modifier: Modifier = Modifier,
+    onOpenFullGuide: (() -> Unit)? = null,
 ) {
     val seekStep by player.seekStepMs.collectAsStateWithLifecycle() // Settings -> Seek step
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 20.dp)) {
@@ -370,7 +385,10 @@ internal fun BottomBar(
                 // (see MpvVideoSurface), GL mode scales internally.
                 CtrlButton(OwnTVIcon.ASPECT, active = zoomMode != ZoomMode.FIT) { onOpenDialog(HudDialog.ZOOM) }
                 if (onPip != null) CtrlButton(OwnTVIcon.PIP) { onPip() }
-                if (onOpenGuide != null) CtrlButton(OwnTVIcon.EPG) { onOpenGuide() }
+                if (onOpenFullGuide != null) GuideButton(label = stringResource(R.string.content_epg_title)) { onOpenFullGuide() }
+                if (onOpenGuide != null) {
+                    CtrlButton(OwnTVIcon.EPG, modifier = guideFocus?.let { Modifier.focusRequester(it) } ?: Modifier) { onOpenGuide() }
+                }
                 if (onAudioMode != null) CtrlButton(OwnTVIcon.HEADPHONES) { onAudioMode() }
                 // Stream technical info (codec/res/HDR/bitrate/decoder/audio/buffer) — toggles the overlay.
                 // Parked at the far right, where the redundant exit-fullscreen button used to sit (Back

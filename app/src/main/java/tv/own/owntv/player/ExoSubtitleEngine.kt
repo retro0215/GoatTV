@@ -111,6 +111,9 @@ class ExoSubtitleEngine(
     // renderer can't), fall back rather than leaving the user on audio with a blank screen.
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var firstFrameSeen = false
+    // Whether this start ever reached READY, i.e. the stream was actually received. A no-frame timeout
+    // before that is a connection failure, not "audio without video" — see VodFailureWording.noFrame.
+    private var reachedReady = false
     // X1: whether this file declares a video track at all. Radio stations filed under Movies, music
     // VOD and audio-only catch-up recordings have none — nothing is broken there and the watchdog
     // below must stay quiet. Assumed true until onTracksChanged says otherwise, so a file whose
@@ -137,7 +140,7 @@ class ExoSubtitleEngine(
                 onSoftwareRescue?.invoke(url, isArchiveItem)
                 return@Runnable
             }
-            callbacks.onError(PlaybackFailure.AudioNoVideo)
+            callbacks.onError(VodFailureWording.noFrame(streamOpened = reachedReady))
         }
     }
 
@@ -223,7 +226,7 @@ class ExoSubtitleEngine(
         override fun onPlaybackStateChanged(playbackState: Int) {
             callbacks.onBuffering(playbackState == Player.STATE_BUFFERING)
             logAudioDiag("state_changed")
-            if (playbackState == Player.STATE_READY) emitPositionDuration()
+            if (playbackState == Player.STATE_READY) { reachedReady = true; emitPositionDuration() }
             if (playbackState == Player.STATE_ENDED) callbacks.onEnded()
         }
 
@@ -254,7 +257,7 @@ class ExoSubtitleEngine(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            android.util.Log.w(TAG, "ExoPlayer error: ${error.errorCodeName}", error)
+            tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "ExoPlayer error: ${error.errorCodeName}", error)
             logAudioDiag("player_error_${error.errorCodeName}")
             // A decode-class failure gets this engine's software rung before playback leaves it. The
             // old behaviour handed EVERY Exo error straight to mpv, so a file the software decoder
@@ -300,6 +303,7 @@ class ExoSubtitleEngine(
         pendingSubTypeIndex = subTypeIndex
         subtitleApplied = false
         firstFrameSeen = false
+        reachedReady = false
         hasVideoTrack = true
         throughputTracker.reset(); fpsSample.resetAll(); dropsBaseline = currentDroppedFrames(player)
         audioWatchdog.reset()

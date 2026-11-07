@@ -23,6 +23,7 @@ class KoinWorkerFactory : WorkerFactory() {
                 koin.get(),
                 koin.get(),
             )
+            EpgAutoRefreshWorker::class.java.name -> EpgAutoRefreshWorker(appContext, workerParameters, koin.get())
             TrendingRefreshWorker::class.java.name -> TrendingRefreshWorker(
                 appContext,
                 workerParameters,

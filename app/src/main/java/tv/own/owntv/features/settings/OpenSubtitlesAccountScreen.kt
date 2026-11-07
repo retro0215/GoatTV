@@ -610,7 +610,7 @@ private fun OpenSubtitlesApiPopup(
             Spacer(Modifier.height(8.dp))
             OwnTVTextField(value = url, onValueChange = onUrlChange, label = stringResource(R.string.settings_worker_server_url), placeholder = stringResource(R.string.settings_metadata_optional), modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.settings_open_subtitles_access_priority), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Text(stringResource(R.string.settings_open_subtitles_access_priority, stringResource(R.string.app_name)), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OwnTVButton(stringResource(R.string.settings_remove_custom_access), onRemove, style = OwnTVButtonStyle.SECONDARY)
@@ -711,7 +711,7 @@ private fun OpenSubtitlesSignInDialog(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    stringResource(R.string.settings_open_subtitles_access_priority),
+                    stringResource(R.string.settings_open_subtitles_access_priority, stringResource(R.string.app_name)),
                     style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(14.dp))

@@ -124,8 +124,8 @@
     <string name="update_failed_download_http">Downloaden af opdateringen returnerede HTTP <xliff:g id="code">%1$s</xliff:g>.</string>
     <string name="update_empty_download">Opdateringsserveren returnerede en tom APK.</string>
     <string name="update_install_failed">Den downloadede opdatering kunne ikke åbnes af systemets installationsprogram.</string>
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> er klar (du har v<xliff:g id="current">%2$s</xliff:g>).</string>
-    <string name="recovery_title">OwnTV kunne ikke åbne sin database</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> er klar (du har v<xliff:g id="current">%2$s</xliff:g>).</string>
+    <string name="recovery_title"><xliff:g id="app_name">%1$s</xliff:g> kunne ikke åbne sin database</string>
     <string name="recovery_data_safe_full">Dine profiler, afspilningslister, favoritter og din afspilningshistorik er IKKE blevet slettet — dette er en fejl under opgradering af databasen, og dataene findes stadig på denne enhed.\n\nRapportér dette, så det kan blive rettet, og medtag meddelelsen nedenfor.</string>
     <string name="recovery_retry">Prøv igen</string>
     <string name="recovery_backup_hint">Hvis du har en sikkerhedskopifil, kan du nulstille appen og gendanne den bagefter. Nulstilling sletter alt, der er gemt på denne enhed.</string>

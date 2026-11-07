@@ -43,7 +43,7 @@ class SportsViewModel(
                             for (cat in categories) {
                                 val section = matchSportsSection(cat.name)
                                 if (section != null) {
-                                    val channels = channelDao.getChannelsByCategory(cat.id, 20)
+                                    val channels = channelDao.getChannelsByCategory(cat.id, Int.MAX_VALUE)
                                     if (channels.isNotEmpty()) {
                                         val list = sectionMap.getOrPut(section) { mutableListOf() }
                                         for (ch in channels) {

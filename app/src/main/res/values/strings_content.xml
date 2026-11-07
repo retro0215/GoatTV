@@ -116,7 +116,7 @@
     <!-- Translators: Genre label for Sports content. -->
     <string name="content_genre_sport">Sport</string>
     <!-- Translators: Dialog title for the exit-confirmation dialog. -->
-    <string name="content_exit_owntv">Exit OwnTV?</string>
+    <string name="content_exit_owntv">Exit <xliff:g id="app_name">%1$s</xliff:g>?</string>
     <!-- Translators: Body text in the exit-confirmation dialog. -->
     <string name="content_exit_confirmation">Are you sure you want to close the app?</string>
     <!-- Translators: Dialog title shown when a previous restore was interrupted. -->
@@ -568,6 +568,10 @@
     </plurals>
     <!-- Translators: Screen title for the TV Guide / EPG screen. -->
     <string name="content_epg_title">TV Guide</string>
+    <!-- TV Guide video preview: caption under the channel still playing from Live TV. -->
+    <string name="content_epg_preview_playing">Playing: <xliff:g id="channel">%1$s</xliff:g></string>
+    <!-- TV Guide video preview, nothing playing: browsing never starts a channel. -->
+    <string name="content_epg_preview_idle">Choose a program and Watch to start a channel</string>
     <!-- Translators: Loading status shown while EPG matching is in progress. -->
     <string name="content_epg_matching">Matching\u2026</string>
     <!-- Translators: Empty-state message when no EPG source has been added. -->
@@ -593,6 +597,19 @@
     <!-- Translators: Context-menu option to remove a channel from favorites from the EPG screen. -->
     <string name="content_epg_remove_favourite">Remove from favorites</string>
     <!-- Translators: Button in the EPG screen to jump to the current time. -->
+    <string name="content_epg_more">More</string>
+    <string name="content_epg_updating">Updating guide…</string>
+    <!-- Joins the programme facts in the guide details panel; the spaces are part of it. -->
+    <!-- Joins the programme facts in the guide details panel. Quoted: Android drops unquoted leading and
+         trailing spaces, which ran the facts together ("NOW·12:00 PM"). -->
+    <string name="content_epg_details_separator">" · "</string>
+    <string name="content_epg_options_title">Guide options</string>
+    <string name="content_epg_show_all_channels">Show all channels</string>
+    <string name="content_epg_hide_empty_channels">Hide channels without guide data</string>
+    <string name="content_epg_search_channels">Search channels</string>
+    <string name="content_epg_empty_hidden">Channels without guide data are hidden</string>
+    <string name="content_epg_no_guide_rows">None of these channels has guide data right now.</string>
+    <string name="content_epg_controls_hint">Back for guide menu · Hold OK for channel options</string>
     <string name="content_epg_jump_now">Jump to Now</string>
     <!-- Translators: Programme runtime display. "minutes" is the duration in minutes. "m" is an abbreviation for minutes. -->
     <string name="content_epg_runtime"><xliff:g id="minutes">%1$d</xliff:g>m</string>
@@ -653,7 +670,7 @@
     <!-- Translators: Description in the catch-up player-choice dialog. Directs to Settings path. -->
     <string name="content_epg_player_choice_description">Set a permanent choice in Settings \u203a Catch-up.</string>
     <!-- Translators: Player choice option for catch-up playback using the built-in OwnTV player. "OwnTV" is a brand name. -->
-    <string name="content_epg_own_player">OwnTV player</string>
+    <string name="content_epg_own_player"><xliff:g id="app_name">%1$s</xliff:g> player</string>
     <!-- Translators: Player choice option for catch-up playback using an external player app. -->
     <string name="content_epg_external_player">External player</string>
     <!-- Translators: Opens the per-channel adjustment that shifts guide programme times. -->
@@ -670,6 +687,9 @@
     <string name="content_reminder_active">Reminder set</string>
     <string name="content_reminder_title">PROGRAM STARTING SOON</string>
     <string name="content_reminder_message">Starts in 1 minute on <xliff:g id="channel">%1$s</xliff:g></string>
+    <!-- Multiscreen: the reminded programme has started; Watch leaves the layout to tune it. -->
+    <string name="content_reminder_started_title">PROGRAM STARTING NOW</string>
+    <string name="content_reminder_started_message">Now on <xliff:g id="channel">%1$s</xliff:g></string>
     <string name="content_reminder_watch">Watch channel</string>
     <string name="content_reminder_dismiss">Dismiss</string>
     <string name="content_channel_unavailable">Channel no longer available</string>
@@ -677,6 +697,15 @@
     <string name="content_reminder_set_confirmation">Reminder Set\n\"<xliff:g id="title">%1$s</xliff:g>\"\nThis program will automatically play when it starts.</string>
     <string name="content_reminder_indicator">REMINDER SET</string>
     <string name="content_reminder_already_set">REMINDER ALREADY SET</string>
+    <string name="content_reminder_remove">Remove reminder</string>
+    <string name="content_reminder_other_profile">Another profile already has a reminder for this program</string>
+    <string name="content_reminder_ended">This program has already ended</string>
+    <string name="content_reminder_upcoming">Upcoming reminders</string>
+    <string name="content_reminder_upcoming_description">Review and cancel your program reminders</string>
+    <string name="content_reminder_upcoming_empty">No upcoming reminders. Set one from the TV Guide.</string>
+    <string name="content_reminder_upcoming_item"><xliff:g id="channel">%1$s</xliff:g> · <xliff:g id="time">%2$s</xliff:g></string>
+    <string name="content_reminder_cancel_message">Remove the reminder for “<xliff:g id="title">%1$s</xliff:g>”?</string>
+    <string name="content_reminder_keep">Keep reminder</string>
     <string name="content_epg_offset_use_global">Use global</string>
     <string name="content_preview_single_stream">Preview off — your provider allows one stream at a time</string>
 </resources>

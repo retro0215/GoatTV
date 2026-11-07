@@ -120,8 +120,8 @@
     <string name="update_failed_download_http">下载更新时返回了 HTTP <xliff:g id="code">%1$s</xliff:g>。</string>
     <string name="update_empty_download">更新服务器返回了空的 APK 文件。</string>
     <string name="update_install_failed">系统安装程序无法打开已下载的更新。</string>
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> 已准备就绪（当前版本为 v<xliff:g id="current">%2$s</xliff:g>）。</string>
-    <string name="recovery_title">OwnTV 无法打开其数据库</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> 已准备就绪（当前版本为 v<xliff:g id="current">%2$s</xliff:g>）。</string>
+    <string name="recovery_title"><xliff:g id="app_name">%1$s</xliff:g> 无法打开其数据库</string>
     <string name="recovery_data_safe_full">您的用户档案、播放列表、收藏夹和观看记录并未被删除——这是数据库升级失败，数据仍保存在此设备上。\n\n请报告此问题，以便修复，并附上下方的消息。</string>
     <string name="recovery_retry">重试</string>
     <string name="recovery_backup_hint">如果您有备份文件，可以重置应用，然后再从备份恢复。重置会删除存储在此设备上的所有内容。</string>

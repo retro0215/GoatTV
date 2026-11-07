@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "17825531376",
+    "project_id": "goattv-8d497",
+    "storage_bucket": "goattv-8d497.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:17825531376:android:97d7b7e84b9a2f2cd78935",
+        "android_client_info": {
+          "package_name": "tv.own.owntv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgKHQGLOJmFFNWsMjWfoG2aM_5x0zXGgw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

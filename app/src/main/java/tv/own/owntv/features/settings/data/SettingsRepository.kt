@@ -1253,7 +1253,10 @@ class SettingsRepository(private val context: Context, private val localeStore: 
     val playlistAutoRefresh: Flow<Map<Long, PlaylistAutoRefresh>> =
         prefsFlow { prefs -> parseRefreshMap(prefs[Keys.PLAYLIST_AUTO_REFRESH]) { PlaylistAutoRefresh.valueOf(it) } }
 
-    /** Per-source EPG auto-refresh selection. Missing ids default to [EpgAutoRefresh.OFF]. */
+    /**
+     * Per-source EPG auto-refresh selections that someone actually made. A missing id means "never chosen"
+     * and resolves to [tv.own.owntv.core.epg.EpgAutoRefreshPolicy.DEFAULT] (24 h); a stored OFF is kept.
+     */
     val epgAutoRefresh: Flow<Map<Long, EpgAutoRefresh>> =
         prefsFlow { prefs -> parseRefreshMap(prefs[Keys.EPG_AUTO_REFRESH]) { EpgAutoRefresh.valueOf(it) } }
 

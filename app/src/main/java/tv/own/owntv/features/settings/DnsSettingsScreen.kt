@@ -136,7 +136,7 @@ fun DnsSettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
         Row2(
             icon = OwnTVIcon.SEARCH,
             title = stringResource(R.string.settings_dns_use_custom),
-            desc = stringResource(R.string.settings_dns_toggle_description),
+            desc = stringResource(R.string.settings_dns_toggle_description, stringResource(R.string.app_name)),
             chip = stringResource(if (effectiveEnabled) R.string.common_on else R.string.common_off),
             primaryChip = effectiveEnabled,
             modifier = Modifier

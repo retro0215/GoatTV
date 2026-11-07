@@ -144,6 +144,7 @@ fun HomeScreen(
     onOpenGuide: () -> Unit,
     onActivateTrending: (TrendingHomeItem, onUnavailable: () -> Unit) -> Unit,
     onOpenTrendingSearch: (String) -> Unit,
+    onOpenRoom: (String) -> Unit = {},
     onChildFocused: () -> Unit,
     restoreFocus: Boolean = false,
     restoreTrendingSearchFocus: Boolean = false,
@@ -154,6 +155,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val promotions by vm.promotions.collectAsStateWithLifecycle()
     val trendingUnavailableMessage = stringResource(R.string.home_trending_unavailable)
     val heroPreviewEngine = koinInject<HeroPreviewEngine>()
     val engineState by heroPreviewEngine.state.collectAsStateWithLifecycle()
@@ -360,6 +362,15 @@ fun HomeScreen(
         contentPadding = PaddingValues(vertical = Dimens.ScreenPaddingV),
         verticalArrangement = Arrangement.spacedBy(Dimens.GapLarge),
     ) {
+        if (promotions.isNotEmpty()) {
+            item(key = "home_promotions") {
+                HomePromotionsSection(
+                    promotions = promotions,
+                    onOpenRoom = onOpenRoom,
+                    modifier = Modifier.padding(horizontal = Dimens.ScreenPaddingH)
+                )
+            }
+        }
         if (state.subscriptionWarning != null) {
             val warning = state.subscriptionWarning!!
             item(key = "subscription_warning") {
@@ -2607,6 +2618,107 @@ private fun SubscriptionWarning(
                 color = colors.onSurface,
                 fontWeight = FontWeight.SemiBold,
             )
+        }
+    }
+}
+
+@Composable
+fun HomePromotionsSection(
+    promotions: List<tv.own.owntv.core.promotions.HomePromotion>,
+    onOpenRoom: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = OwnTVTheme.colors
+    val promo = promotions.firstOrNull() ?: return
+
+    FocusableSurface(
+        onClick = {
+            when (promo.ctaAction.lowercase()) {
+                "join_room", "watch_and_join" -> {
+                    if (!promo.roomId.isNullOrBlank()) {
+                        onOpenRoom(promo.roomId)
+                    } else {
+                        Log.w("HomeScreen", "Promotion ${promo.id} action is ${promo.ctaAction} but roomId is missing")
+                    }
+                }
+                else -> {
+                    // "none" -> no-op
+                }
+            }
+        },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(280.dp),
+        shape = RoundedCornerShape(12.dp),
+        focusedScale = 1.02f,
+        glowElevation = 10,
+        focusedContainerColor = colors.surfaceContainerHigh,
+        unfocusedContainerColor = colors.surfaceContainerHigh,
+        selectedContainerColor = colors.surfaceContainerHigh,
+        contentAlignment = Alignment.Center,
+        surface = GlassSurface.CARDS,
+    ) { focused ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (!promo.bannerUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = promo.bannerUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1E293B)))
+            }
+
+            // Dark gradient scrim overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                            startY = 100f
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(32.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = promo.title,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                if (!promo.subtitle.isNullOrBlank()) {
+                    Text(
+                        text = promo.subtitle,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (!promo.ctaText.isNullOrBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(colors.primary, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = promo.ctaText,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = colors.onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }

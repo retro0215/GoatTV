@@ -45,7 +45,7 @@
     <string name="settings_dynamic">Dinamico</string>
     <string name="settings_http_proxy">Proxy HTTP</string>
     <string name="settings_use_proxy">Usa proxy</string>
-    <string name="settings_proxy_description">Instrada tutto il traffico e la riproduzione di OwnTV attraverso un proxy HTTP.</string>
+    <string name="settings_proxy_description">Instrada tutto il traffico e la riproduzione di <xliff:g id="app_name">%1$s</xliff:g> attraverso un proxy HTTP.</string>
     <string name="settings_host">Host</string>
     <string name="settings_proxy_host_hint">proxy.example.com</string>
     <string name="settings_port">Porta</string>
@@ -109,7 +109,7 @@
         <item quantity="other"><xliff:g id="remaining">%1$d</xliff:g> / <xliff:g id="limit">%2$d</xliff:g> rimanenti</item>
     </plurals>
     <string name="settings_metadata_active_source">Sorgente attiva</string>
-    <string name="settings_metadata_shared_worker_description">OwnTV Worker · nessuna configurazione</string>
+    <string name="settings_metadata_shared_worker_description"><xliff:g id="app_name">%1$s</xliff:g> Worker · nessuna configurazione</string>
     <string name="settings_metadata_connection">Connessione</string>
     <string name="settings_metadata_remote_advanced">Ottieni informazioni TMDB avanzate</string>
     <string name="settings_metadata_remote_advanced_description">Usa la tua chiave API TMDB o un Worker self-hosted invece del servizio condiviso predefinito.</string>
@@ -120,8 +120,8 @@
     <string name="settings_metadata_server_label">Server</string>
     <string name="settings_metadata_refills_label">Si rinnova alle</string>
     <string name="settings_metadata_clear_advanced_title">Smettere di usare la tua chiave?</string>
-    <string name="settings_metadata_clear_advanced_message">La tua chiave API TMDB e l’indirizzo del tuo server verranno eliminati da questo dispositivo e OwnTV tornerà al servizio condiviso integrato con la sua quota giornaliera.</string>
-    <string name="settings_metadata_fair_share">Il servizio di metadati integrato è condiviso da tutti gli utenti di OwnTV, quindi ogni dispositivo riceve ogni giorno la propria quota. Se esaurisci la tua quota, locandine e descrizioni si interrompono finché non viene rinnovata: le informazioni della tua playlist continuano a funzionare normalmente. Aggiungere una tua chiave API TMDB o un tuo server elimina il limite: è gratuito e una chiave personale non ha praticamente alcun limite.</string>
+    <string name="settings_metadata_clear_advanced_message">La tua chiave API TMDB e l’indirizzo del tuo server verranno eliminati da questo dispositivo e <xliff:g id="app_name">%1$s</xliff:g> tornerà al servizio condiviso integrato con la sua quota giornaliera.</string>
+    <string name="settings_metadata_fair_share">Il servizio di metadati integrato è condiviso da tutti gli utenti di <xliff:g id="app_name">%1$s</xliff:g>, quindi ogni dispositivo riceve ogni giorno la propria quota. Se esaurisci la tua quota, locandine e descrizioni si interrompono finché non viene rinnovata: le informazioni della tua playlist continuano a funzionare normalmente. Aggiungere una tua chiave API TMDB o un tuo server elimina il limite: è gratuito e una chiave personale non ha praticamente alcun limite.</string>
     <string name="settings_metadata_limit_reached">Quota giornaliera di metadati esaurita: aggiungi la tua chiave TMDB in Impostazioni → Metadati per eliminare questo limite.</string>
     <string name="settings_metadata_language">Lingua dei metadati</string>
     <string name="settings_metadata_language_description">Lingua di trame, generi e titoli da TMDB. I campi che TMDB non ha tradotto restano in inglese. I dettagli vengono memorizzati nella cache per lingua, quindi tornare indietro è immediato.</string>
@@ -241,7 +241,7 @@
     <string name="settings_network_group">Rete</string>
     <string name="settings_app_group">App</string>
     <string name="settings_app_startup">Avvio dell\'app</string>
-    <string name="settings_app_startup_description">Cosa apre OwnTV all\'avvio</string>
+    <string name="settings_app_startup_description">Cosa apre <xliff:g id="app_name">%1$s</xliff:g> all\'avvio</string>
     <string name="settings_check_updates">Controlla aggiornamenti</string>
     <string name="settings_check_updates_description">Scarica la versione più recente da GitHub Releases</string>
     <string name="settings_update_startup">Controlla aggiornamenti all\'avvio</string>
@@ -460,7 +460,7 @@
     <string name="settings_open_subtitles_api_key">Chiave API dell’applicazione OpenSubtitles</string>
     <string name="settings_worker_server_url">URL del Worker / server</string>
     <string name="settings_shared">Condiviso</string>
-    <string name="settings_open_subtitles_access_priority">Lascia entrambi i campi vuoti per usare il Worker condiviso di OwnTV. Un URL Worker personalizzato ha priorità su una chiave API diretta. Le sessioni dell’account restano specifiche per profilo.</string>
+    <string name="settings_open_subtitles_access_priority">Lascia entrambi i campi vuoti per usare il Worker condiviso di <xliff:g id="app_name">%1$s</xliff:g>. Un URL Worker personalizzato ha priorità su una chiave API diretta. Le sessioni dell’account restano specifiche per profilo.</string>
     <string name="settings_remove_custom_access">Rimuovi accesso personalizzato</string>
     <string name="settings_audio">Audio</string>
     <string name="settings_preferred_audio_language">Lingua audio preferita</string>
@@ -529,7 +529,7 @@
     <string name="settings_guide_synced">Guida ai programmi sincronizzata</string>
     <string name="settings_guide_sync_failed">Sincronizzazione della guida ai programmi non riuscita</string>
     <string name="settings_restore_remote_title">Ripristina da un altro dispositivo</string>
-    <string name="settings_restore_remote_description">Da un telefono, un tablet o un computer connesso alla stessa rete Wi-Fi, scansiona il codice QR (oppure apri l\'URL), inserisci questo PIN, scegli il file di backup di OwnTV e tocca Invia alla TV. Qui potrai quindi scegliere cosa ripristinare.</string>
+    <string name="settings_restore_remote_description">Da un telefono, un tablet o un computer connesso alla stessa rete Wi-Fi, scansiona il codice QR (oppure apri l\'URL), inserisci questo PIN, scegli il file di backup di <xliff:g id="app_name">%1$s</xliff:g> e tocca Invia alla TV. Qui potrai quindi scegliere cosa ripristinare.</string>
     <string name="settings_opening_server">Apertura del server…</string>
     <string name="settings_enter_pin_browser">Inserisci questo PIN nel browser</string>
     <string name="settings_companion_qr">Codice QR dell\'URL della pagina complementare</string>
@@ -556,7 +556,7 @@
     </plurals>
     <string name="settings_catchup_timezone_device">Dispositivo</string>
     <string name="settings_catchup_player_ask">Chiedi sempre</string>
-    <string name="settings_catchup_player_internal">Player di OwnTV</string>
+    <string name="settings_catchup_player_internal">Player di <xliff:g id="app_name">%1$s</xliff:g></string>
     <string name="settings_catchup_player_external">Player esterno</string>
     <string name="settings_soon">PROSSIMAMENTE</string>
     <string name="settings_download_folder_title">Scegli la cartella dei download</string>
@@ -905,7 +905,7 @@
     <string name="settings_move_category_action">Sposta</string>
     <string name="settings_dns_description">Usa un server DNS personalizzato per le ricerche dei domini</string>
     <string name="settings_dns_custom">DNS personalizzato</string>
-    <string name="settings_dns_toggle_description">Risolvi tutte le ricerche dei domini di OwnTV tramite un server DNS personalizzato.</string>
+    <string name="settings_dns_toggle_description">Risolvi tutte le ricerche dei domini di <xliff:g id="app_name">%1$s</xliff:g> tramite un server DNS personalizzato.</string>
     <string name="settings_dns_use_custom">Usa DNS personalizzato</string>
     <string name="settings_dns_server_missing">Il DNS personalizzato è attivo, ma non è configurato alcun server. Inserisci l\'indirizzo di un server e seleziona Salva oppure disattiva questa opzione.</string>
     <string name="settings_dns_server">Server DNS</string>
@@ -961,7 +961,7 @@
     <string name="settings_surround_stereo">Solo stereo</string>
     <string name="settings_surround_auto_description">Auto — prova il surround Dolby/DTS e torna automaticamente allo stereo se la TV o la soundbar non lo riproducono. Consigliato.</string>
     <string name="settings_surround_stereo_description">Solo stereo — decodifica sempre nell\'app e invia un normale audio stereo 2.0. Usa questa opzione con gli altoparlanti della TV o una soundbar stereo, oppure se l\'audio è in ritardo rispetto all\'immagine.</string>
-    <string name="settings_surround_forced_description">Surround — invia Dolby/DTS a un vero ricevitore 5.1/7.1. Se l\'audio va in muto o ha degli intoppi, OwnTV torna comunque allo stereo e te lo segnala.</string>
+    <string name="settings_surround_forced_description">Surround — invia Dolby/DTS a un vero ricevitore 5.1/7.1. Se l\'audio va in muto o ha degli intoppi, <xliff:g id="app_name">%1$s</xliff:g> torna comunque allo stereo e te lo segnala.</string>
     <string name="settings_panel_width">Regolazione larghezza pannelli</string>
     <string name="settings_panel_width_description">Ridimensiona i pannelli di categoria, elenco e anteprima in TV in diretta, Film e Serie TV.</string>
     <string name="settings_search_keywords_epg_offset">EPG guida tempo offset sposta spostamento fuso orario est ovest ore</string>
@@ -1002,7 +1002,7 @@
     <string name="settings_language_contribution_copy_failed">Impossibile copiare il link. Leggi o digita l\'URL mostrato qui sopra.</string>
     <string name="settings_auto_frame_rate_warning_suffix">Sconsigliato su questo TV: sotto Android 12 la frequenza non può essere modificata in modo fluido.</string>
     <string name="settings_auto_frame_rate_warning_title">Sconsigliato su questo TV</string>
-    <string name="settings_auto_frame_rate_warning_description">Questo dispositivo esegue Android <xliff:g id="android_version">%1$s</xliff:g>. Sotto Android 12 il TV non può comunicare a OwnTV a quali frequenze di aggiornamento può passare senza problemi, quindi cambiare la frequenza potrebbe far andare in nero lo schermo per un secondo o due — a volte più di una volta durante un programma.\n\nTi consigliamo di lasciare disattivata qui la frequenza di aggiornamento automatica. Se il tuo TV cambia frequenza senza intoppi, attivala e prova: puoi disattivarla di nuovo in qualsiasi momento.</string>
+    <string name="settings_auto_frame_rate_warning_description">Questo dispositivo esegue Android <xliff:g id="android_version">%1$s</xliff:g>. Sotto Android 12 il TV non può comunicare a <xliff:g id="app_name">%2$s</xliff:g> a quali frequenze di aggiornamento può passare senza problemi, quindi cambiare la frequenza potrebbe far andare in nero lo schermo per un secondo o due — a volte più di una volta durante un programma.\n\nTi consigliamo di lasciare disattivata qui la frequenza di aggiornamento automatica. Se il tuo TV cambia frequenza senza intoppi, attivala e prova: puoi disattivarla di nuovo in qualsiasi momento.</string>
     <string name="settings_auto_frame_rate_keep_off">Lascia disattivato</string>
     <string name="settings_auto_frame_rate_turn_on_anyway">Attiva comunque</string>
     <string name="settings_language_request_workflow">Vuoi aggiungere una lingua che non è elencata? Apri prima una richiesta di lingua. Un maintainer la registrerà e preparerà i file di traduzione di base; una volta che appare su Hosted Weblate, puoi iniziare a contribuire.</string>

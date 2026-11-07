@@ -1,0 +1,2240 @@
+{
+ "event": {
+  "id": "evt_6815384f8033409a8f2b",
+  "away": {
+   "id": "ncaaf.pittsburgh",
+   "name": "Pittsburgh Panthers",
+   "score": "28",
+   "logoUrl": null,
+   "shortName": "Pitt",
+   "abbreviation": "PITT"
+  },
+  "home": {
+   "id": "ncaaf.virginia-tech",
+   "name": "Virginia Tech Hokies",
+   "score": "24",
+   "logoUrl": null,
+   "shortName": "Virginia Tech",
+   "abbreviation": "VT"
+  },
+  "title": null,
+  "status": "LIVE",
+  "leagueId": "ncaaf",
+  "priority": 70,
+  "startTime": "2026-10-02T23:00:00Z",
+  "updatedAt": "2026-10-03T01:41:57.036Z",
+  "venueName": "Lane Stadium",
+  "broadcasts": [
+   {
+    "name": "ESPN",
+    "type": "TV",
+    "market": "NATIONAL",
+    "networkKey": "espn"
+   }
+  ],
+  "statusDetail": "4:26 - 3rd"
+ },
+ "gameCenter": {
+  "availability": "AVAILABLE",
+  "phase": "LIVE",
+  "updatedAt": "2026-10-03T01:40:55.780Z",
+  "stale": false,
+  "status": {
+   "clock": "4:32",
+   "phase": "LIVE",
+   "detail": "4:32 - 3rd",
+   "period": 3
+  },
+  "leaders": {
+   "scope": "GAME",
+   "categories": [
+    {
+     "key": "passingYards",
+     "away": {
+      "value": "113",
+      "player": {
+       "id": "ply_df5de93269114565b25b",
+       "name": "Mason Heintschel",
+       "jersey": "6",
+       "position": "QB",
+       "shortName": "M. Heintschel",
+       "headshotUrl": null
+      },
+      "summary": "10/18, 1 TD"
+     },
+     "home": {
+      "value": "291",
+      "player": {
+       "id": "ply_149b41b6cd224f418bfd",
+       "name": "Ethan Grunkemeyer",
+       "jersey": "17",
+       "position": "QB",
+       "shortName": "E. Grunkemeyer",
+       "headshotUrl": null
+      },
+      "summary": "20/27, 2 TD, 1 INT"
+     },
+     "label": "Passing"
+    },
+    {
+     "key": "rushingYards",
+     "away": {
+      "value": "55",
+      "player": {
+       "id": "ply_aeac76a734ad42bfa234",
+       "name": "Ja'Kyrian Turner",
+       "jersey": "9",
+       "position": "RB",
+       "shortName": "J. Turner",
+       "headshotUrl": null
+      },
+      "summary": "10 CAR, 1 TD"
+     },
+     "home": {
+      "value": "46",
+      "player": {
+       "id": "ply_9b46d024201c40d2b1f3",
+       "name": "Jeffrey Overton Jr.",
+       "jersey": "16",
+       "position": "RB",
+       "shortName": "J. Overton Jr.",
+       "headshotUrl": null
+      },
+      "summary": "12 CAR"
+     },
+     "label": "Rushing"
+    },
+    {
+     "key": "receivingYards",
+     "away": {
+      "value": "47",
+      "player": {
+       "id": "ply_148409bf24a74111870d",
+       "name": "Bryce Yates",
+       "jersey": "4",
+       "position": "WR",
+       "shortName": "B. Yates",
+       "headshotUrl": null
+      },
+      "summary": "2 REC"
+     },
+     "home": {
+      "value": "142",
+      "player": {
+       "id": "ply_413039da54054b09af37",
+       "name": "Que'Sean Brown",
+       "jersey": "3",
+       "position": "WR",
+       "shortName": "Q. Brown",
+       "headshotUrl": null
+      },
+      "summary": "6 REC, 1 TD"
+     },
+     "label": "Receiving"
+    },
+    {
+     "key": "sacks",
+     "away": {
+      "value": "1",
+      "player": {
+       "id": "ply_33e7f39282414d819393",
+       "name": "Jaeden Moore",
+       "jersey": "8",
+       "position": "DL",
+       "shortName": "J. Moore",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "home": {
+      "value": "1",
+      "player": {
+       "id": "ply_1f49e6e3c01240afb94c",
+       "name": "Aycen Stevens",
+       "jersey": "42",
+       "position": "DL",
+       "shortName": "A. Stevens",
+       "headshotUrl": null
+      },
+      "summary": null
+     },
+     "label": "Sacks"
+    },
+    {
+     "key": "totalTackles",
+     "away": {
+      "value": "6",
+      "player": {
+       "id": "ply_b8139fb59526427ea152",
+       "name": "Sean FitzSimmons",
+       "jersey": "55",
+       "position": "DL",
+       "shortName": "S. FitzSimmons",
+       "headshotUrl": null
+      },
+      "summary": "3 SOLO"
+     },
+     "home": {
+      "value": "6",
+      "player": {
+       "id": "ply_edcfe4db15734f449786",
+       "name": "Kemari Copeland",
+       "jersey": "13",
+       "position": "DL",
+       "shortName": "K. Copeland",
+       "headshotUrl": null
+      },
+      "summary": "3 SOLO"
+     },
+     "label": "Tackles"
+    }
+   ]
+  },
+  "scoring": [
+   {
+    "side": "home",
+    "text": "E. Grunkemeyer pass to Q. Brown for 38 yds, for a TD (J. Love KICK)",
+    "type": "TD",
+    "clock": "13:44",
+    "period": "Q1",
+    "awayScore": "0",
+    "homeScore": "7"
+   },
+   {
+    "side": "home",
+    "text": "E. Grunkemeyer run for 1 yd, for a TD (J. Love KICK)",
+    "type": "TD",
+    "clock": "10:08",
+    "period": "Q1",
+    "awayScore": "0",
+    "homeScore": "14"
+   },
+   {
+    "side": "away",
+    "text": "J. Turner run for 20 yds, for a TD (A. Chadha KICK)",
+    "type": "TD",
+    "clock": "0:10",
+    "period": "Q1",
+    "awayScore": "7",
+    "homeScore": "14"
+   },
+   {
+    "side": "home",
+    "text": "J. Love 26 yd FG GOOD",
+    "type": "FG",
+    "clock": "9:24",
+    "period": "Q2",
+    "awayScore": "7",
+    "homeScore": "17"
+   },
+   {
+    "side": "away",
+    "text": "L. Wright run for 1 yd, for a TD (A. Chadha KICK)",
+    "type": "TD",
+    "clock": "5:11",
+    "period": "Q2",
+    "awayScore": "14",
+    "homeScore": "17"
+   },
+   {
+    "side": "home",
+    "text": "E. Grunkemeyer pass to A. Greene for 22 yds, for a TD (J. Love KICK)",
+    "type": "TD",
+    "clock": "3:18",
+    "period": "Q2",
+    "awayScore": "14",
+    "homeScore": "24"
+   },
+   {
+    "side": "away",
+    "text": "M. Heintschel pass to C. Hicks for 22 yds, for a TD (A. Chadha KICK)",
+    "type": "TD",
+    "clock": "0:31",
+    "period": "Q2",
+    "awayScore": "21",
+    "homeScore": "24"
+   },
+   {
+    "side": "away",
+    "text": "D. Ferguson Jr. run for 15 yds, for a TD (A. Chadha KICK)",
+    "type": "TD",
+    "clock": "10:13",
+    "period": "Q3",
+    "awayScore": "28",
+    "homeScore": "24"
+   }
+  ],
+  "boxScore": {
+   "away": {
+    "groups": [
+     {
+      "key": "rushing",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_aeac76a734ad42bfa234",
+         "name": "Ja'Kyrian Turner",
+         "jersey": "9",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "10",
+         "55",
+         "5.5",
+         "1",
+         "20"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_2705bcd4ead5476f8ce7",
+         "name": "Damon Ferguson Jr.",
+         "jersey": "26",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "34",
+         "8.5",
+         "1",
+         "15"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_9610e09e5b744f41ac7b",
+         "name": "La'Vell Wright",
+         "jersey": "11",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "8",
+         "2.7",
+         "1",
+         "4"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_7a7233dbfd9d4cdd91b5",
+         "name": "Carson Kent",
+         "jersey": "86",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "2",
+         "2.0",
+         "0",
+         "2"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_df5de93269114565b25b",
+         "name": "Mason Heintschel",
+         "jersey": "6",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "2",
+         "0.5",
+         "0",
+         "7"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Rushing",
+      "totals": [
+       "22",
+       "101",
+       "4.6",
+       "3",
+       "20"
+      ],
+      "columns": [
+       {
+        "key": "rushingAttempts",
+        "label": "CAR"
+       },
+       {
+        "key": "rushingYards",
+        "label": "YDS"
+       },
+       {
+        "key": "yardsPerRushAttempt",
+        "label": "AVG"
+       },
+       {
+        "key": "rushingTouchdowns",
+        "label": "TD"
+       },
+       {
+        "key": "longRushing",
+        "label": "LONG"
+       }
+      ]
+     },
+     {
+      "key": "receiving",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_148409bf24a74111870d",
+         "name": "Bryce Yates",
+         "jersey": "4",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "47",
+         "23.5",
+         "0",
+         "30"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_52377d5241fb41368f76",
+         "name": "Cataurus Hicks",
+         "jersey": "3",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "34",
+         "17.0",
+         "1",
+         "22"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_d01e022f8d184166b43a",
+         "name": "Censere Lee",
+         "jersey": "10",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "22",
+         "11.0",
+         "0",
+         "12"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_aeac76a734ad42bfa234",
+         "name": "Ja'Kyrian Turner",
+         "jersey": "9",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "12",
+         "4.0",
+         "0",
+         "7"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_2705bcd4ead5476f8ce7",
+         "name": "Damon Ferguson Jr.",
+         "jersey": "26",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "5",
+         "5.0",
+         "0",
+         "5"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_7a7233dbfd9d4cdd91b5",
+         "name": "Carson Kent",
+         "jersey": "86",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "3",
+         "3.0",
+         "0",
+         "3"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Receiving",
+      "totals": [
+       "11",
+       "123",
+       "11.2",
+       "1",
+       "30"
+      ],
+      "columns": [
+       {
+        "key": "receptions",
+        "label": "REC"
+       },
+       {
+        "key": "receivingYards",
+        "label": "YDS"
+       },
+       {
+        "key": "yardsPerReception",
+        "label": "AVG"
+       },
+       {
+        "key": "receivingTouchdowns",
+        "label": "TD"
+       },
+       {
+        "key": "longReception",
+        "label": "LONG"
+       }
+      ]
+     },
+     {
+      "key": "fumbles",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_03783b16b67b40aa8d8b",
+         "name": "Nick James",
+         "jersey": "11",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "1"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Fumbles",
+      "totals": [
+       "0",
+       "0",
+       "1"
+      ],
+      "columns": [
+       {
+        "key": "fumbles",
+        "label": "FUM"
+       },
+       {
+        "key": "fumblesLost",
+        "label": "LOST"
+       },
+       {
+        "key": "fumblesRecovered",
+        "label": "REC"
+       }
+      ]
+     },
+     {
+      "key": "defensive",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_3721c7e536284ec2bfa0",
+         "name": "Raion Strader",
+         "jersey": "6",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "4",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_b8139fb59526427ea152",
+         "name": "Sean FitzSimmons",
+         "jersey": "55",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "3",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_c85fe88dfbdf46a2ac8b",
+         "name": "Cruce Brookins",
+         "jersey": "12",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_fd32874583a14daab754",
+         "name": "DeMarco Ward",
+         "jersey": "7",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_89f52fa6fb544542a021",
+         "name": "Cole Woodson",
+         "jersey": "17",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "3",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_07e07e68e60b4e02aad5",
+         "name": "Shawn Lee Jr.",
+         "jersey": "3",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "3",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_33e7f39282414d819393",
+         "name": "Jaeden Moore",
+         "jersey": "8",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "2",
+         "1",
+         "1",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_8c90973bf0d54662b1e5",
+         "name": "Alex Sanford Jr.",
+         "jersey": "10",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_06c43ab602224516a757",
+         "name": "Jeremiah Marcelin",
+         "jersey": "32",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_03783b16b67b40aa8d8b",
+         "name": "Nick James",
+         "jersey": "11",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_b6206b1894bc4dab8cfa",
+         "name": "Isaiah Neal",
+         "jersey": "2",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_ef123884f8bf46eca134",
+         "name": "Braylan Lovelace",
+         "jersey": "0",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_806665dc9b854029b09a",
+         "name": "Josh Guerrier",
+         "jersey": "14",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_e615de74478a47ed8c3f",
+         "name": "Shadarian Harrison",
+         "jersey": "21",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_5d7595e9746848bcad2f",
+         "name": "Abe Ibrahim",
+         "jersey": "52",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_37b60fb8d3b74ecab5f4",
+         "name": "Jimmy Scott",
+         "jersey": "44",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Defense",
+      "totals": [
+       "43",
+       "25",
+       "1",
+       "2",
+       "1",
+       "0",
+       "0"
+      ],
+      "columns": [
+       {
+        "key": "totalTackles",
+        "label": "TOT"
+       },
+       {
+        "key": "soloTackles",
+        "label": "SOLO"
+       },
+       {
+        "key": "sacks",
+        "label": "SACKS"
+       },
+       {
+        "key": "tacklesForLoss",
+        "label": "TFL"
+       },
+       {
+        "key": "passesDefended",
+        "label": "PD"
+       },
+       {
+        "key": "hurries",
+        "label": "QB HUR"
+       },
+       {
+        "key": "defensiveTouchdowns",
+        "label": "TD"
+       }
+      ]
+     },
+     {
+      "key": "interceptions",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_8f79005327e84fab9129",
+         "name": "Cameron Lindsey",
+         "jersey": "24",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Interceptions",
+      "totals": [
+       "1",
+       "0",
+       "0"
+      ],
+      "columns": [
+       {
+        "key": "interceptions",
+        "label": "INT"
+       },
+       {
+        "key": "interceptionYards",
+        "label": "YDS"
+       },
+       {
+        "key": "interceptionTouchdowns",
+        "label": "TD"
+       }
+      ]
+     },
+     {
+      "key": "puntReturns",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_52377d5241fb41368f76",
+         "name": "Cataurus Hicks",
+         "jersey": "3",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "11",
+         "5.5",
+         "11",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Punt Returns",
+      "totals": [
+       "2",
+       "11",
+       "5.5",
+       "11",
+       "0"
+      ],
+      "columns": [
+       {
+        "key": "puntReturns",
+        "label": "NO"
+       },
+       {
+        "key": "puntReturnYards",
+        "label": "YDS"
+       },
+       {
+        "key": "yardsPerPuntReturn",
+        "label": "AVG"
+       },
+       {
+        "key": "longPuntReturn",
+        "label": "LONG"
+       },
+       {
+        "key": "puntReturnTouchdowns",
+        "label": "TD"
+       }
+      ]
+     },
+     {
+      "key": "kicking",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_9eb632c18b4e401ba10b",
+         "name": "Antonio Chadha",
+         "jersey": "48",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "0/0",
+         "0.0",
+         "0",
+         "4/4",
+         "4"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Kicking",
+      "totals": [
+       "0/0",
+       "0.0",
+       "0",
+       "4/4",
+       "4"
+      ],
+      "columns": [
+       {
+        "key": "fieldGoalsMade/fieldGoalAttempts",
+        "label": "FG"
+       },
+       {
+        "key": "fieldGoalPct",
+        "label": "PCT"
+       },
+       {
+        "key": "longFieldGoalMade",
+        "label": "LONG"
+       },
+       {
+        "key": "extraPointsMade/extraPointAttempts",
+        "label": "XP"
+       },
+       {
+        "key": "totalKickingPoints",
+        "label": "PTS"
+       }
+      ]
+     },
+     {
+      "key": "punting",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_f96a4b5ffc5a46c28416",
+         "name": "Gabe Russo",
+         "jersey": "98",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "219",
+         "54.8",
+         "0",
+         "1",
+         "57"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Punting",
+      "totals": [
+       "4",
+       "219",
+       "54.8",
+       "0",
+       "1",
+       "57"
+      ],
+      "columns": [
+       {
+        "key": "punts",
+        "label": "NO"
+       },
+       {
+        "key": "puntYards",
+        "label": "YDS"
+       },
+       {
+        "key": "grossAvgPuntYards",
+        "label": "AVG"
+       },
+       {
+        "key": "touchbacks",
+        "label": "TB"
+       },
+       {
+        "key": "puntsInside20",
+        "label": "In 20"
+       },
+       {
+        "key": "longPunt",
+        "label": "LONG"
+       }
+      ]
+     }
+    ],
+    "formation": null
+   },
+   "home": {
+    "groups": [
+     {
+      "key": "rushing",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_9b46d024201c40d2b1f3",
+         "name": "Jeffrey Overton Jr.",
+         "jersey": "16",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "12",
+         "46",
+         "3.8",
+         "0",
+         "14"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_075512e4d18548c48067",
+         "name": "Marcellous Hawkins Jr.",
+         "jersey": "27",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "5",
+         "24",
+         "4.8",
+         "0",
+         "9"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_149b41b6cd224f418bfd",
+         "name": "Ethan Grunkemeyer",
+         "jersey": "17",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "-9",
+         "-4.5",
+         "1",
+         "1"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Rushing",
+      "totals": [
+       "19",
+       "61",
+       "3.2",
+       "1",
+       "14"
+      ],
+      "columns": [
+       {
+        "key": "rushingAttempts",
+        "label": "CAR"
+       },
+       {
+        "key": "rushingYards",
+        "label": "YDS"
+       },
+       {
+        "key": "yardsPerRushAttempt",
+        "label": "AVG"
+       },
+       {
+        "key": "rushingTouchdowns",
+        "label": "TD"
+       },
+       {
+        "key": "longRushing",
+        "label": "LONG"
+       }
+      ]
+     },
+     {
+      "key": "receiving",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_413039da54054b09af37",
+         "name": "Que'Sean Brown",
+         "jersey": "3",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "142",
+         "23.7",
+         "1",
+         "51"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_e48e8d2f033d481aacb8",
+         "name": "Luke Reynolds",
+         "jersey": "85",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "63",
+         "15.8",
+         "0",
+         "23"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_e92ad4f5c6084c92afd8",
+         "name": "Ayden Greene",
+         "jersey": "0",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "34",
+         "17.0",
+         "1",
+         "22"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_9b46d024201c40d2b1f3",
+         "name": "Jeffrey Overton Jr.",
+         "jersey": "16",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "27",
+         "6.8",
+         "0",
+         "13"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_5d0da0227c5d46a09f29",
+         "name": "Davion Brown",
+         "jersey": "11",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "14",
+         "14.0",
+         "0",
+         "14"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_075512e4d18548c48067",
+         "name": "Marcellous Hawkins Jr.",
+         "jersey": "27",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "11",
+         "5.5",
+         "0",
+         "9"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_9f3b18ba99b54cf392ab",
+         "name": "Tyseer Denmark",
+         "jersey": "4",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0.0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Receiving",
+      "totals": [
+       "20",
+       "291",
+       "14.6",
+       "2",
+       "51"
+      ],
+      "columns": [
+       {
+        "key": "receptions",
+        "label": "REC"
+       },
+       {
+        "key": "receivingYards",
+        "label": "YDS"
+       },
+       {
+        "key": "yardsPerReception",
+        "label": "AVG"
+       },
+       {
+        "key": "receivingTouchdowns",
+        "label": "TD"
+       },
+       {
+        "key": "longReception",
+        "label": "LONG"
+       }
+      ]
+     },
+     {
+      "key": "fumbles",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_149b41b6cd224f418bfd",
+         "name": "Ethan Grunkemeyer",
+         "jersey": "17",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Fumbles",
+      "totals": [
+       "1",
+       "1",
+       "0"
+      ],
+      "columns": [
+       {
+        "key": "fumbles",
+        "label": "FUM"
+       },
+       {
+        "key": "fumblesLost",
+        "label": "LOST"
+       },
+       {
+        "key": "fumblesRecovered",
+        "label": "REC"
+       }
+      ]
+     },
+     {
+      "key": "defensive",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_edcfe4db15734f449786",
+         "name": "Kemari Copeland",
+         "jersey": "13",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "3",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_053aae301f6e4f7981b3",
+         "name": "Cam Chadwick Jr.",
+         "jersey": "20",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "3",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_cf540c02c33f4fcbacad",
+         "name": "Kaleb Spencer",
+         "jersey": "3",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "3",
+         "3",
+         "0",
+         "1",
+         "1",
+         "1",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_ed1b593c32004af4a10d",
+         "name": "Kenny Woseley Jr.",
+         "jersey": "22",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_5322ac90dc0444cb8613",
+         "name": "Keon Wylie",
+         "jersey": "33",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_381bdd921ec847f0be1e",
+         "name": "Elhadj Fall",
+         "jersey": "94",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_1eff625bba8d46e494f0",
+         "name": "Cortez Harris",
+         "jersey": "34",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_b9f4e00410be4c288408",
+         "name": "Jaquez White",
+         "jersey": "2",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_e69d9c2e7e174caa99aa",
+         "name": "Tyson Flowers",
+         "jersey": "1",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_1f49e6e3c01240afb94c",
+         "name": "Aycen Stevens",
+         "jersey": "42",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "1",
+         "1",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_bca9867e8db34519bee5",
+         "name": "Isaiah Brown-Murray",
+         "jersey": "9",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_3551a86f117a49f8a314",
+         "name": "DQ Smith",
+         "jersey": "11",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_01e3ccd497a64886981b",
+         "name": "Gerard Johnson III",
+         "jersey": "55",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_e6c09a1107b9439b94cc",
+         "name": "Quentin Reddish",
+         "jersey": "0",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_d35e7b1a90e24b3e8a46",
+         "name": "Randy Adirika",
+         "jersey": "36",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_25fa2acc565240b8941c",
+         "name": "Samuel Okunlola",
+         "jersey": "51",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_eafcdbde4c53450983f8",
+         "name": "George Ballance",
+         "jersey": "25",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_6e28c6868a10454d9575",
+         "name": "Noah Chambers",
+         "jersey": "16",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_96bc52fd47c3472197e3",
+         "name": "Sheldon Robinson",
+         "jersey": "14",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0"
+        ],
+        "starter": null
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_28fa73f590604b7f80b1",
+         "name": "Curtis Jones Jr.",
+         "jersey": "30",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Defense",
+      "totals": [
+       "35",
+       "21",
+       "1",
+       "3",
+       "5",
+       "2",
+       "0"
+      ],
+      "columns": [
+       {
+        "key": "totalTackles",
+        "label": "TOT"
+       },
+       {
+        "key": "soloTackles",
+        "label": "SOLO"
+       },
+       {
+        "key": "sacks",
+        "label": "SACKS"
+       },
+       {
+        "key": "tacklesForLoss",
+        "label": "TFL"
+       },
+       {
+        "key": "passesDefended",
+        "label": "PD"
+       },
+       {
+        "key": "hurries",
+        "label": "QB HUR"
+       },
+       {
+        "key": "defensiveTouchdowns",
+        "label": "TD"
+       }
+      ]
+     },
+     {
+      "key": "kickReturns",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_9b46d024201c40d2b1f3",
+         "name": "Jeffrey Overton Jr.",
+         "jersey": "16",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1",
+         "27",
+         "27.0",
+         "27",
+         "0"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Kick Returns",
+      "totals": [
+       "1",
+       "27",
+       "27.0",
+       "27",
+       "0"
+      ],
+      "columns": [
+       {
+        "key": "kickReturns",
+        "label": "NO"
+       },
+       {
+        "key": "kickReturnYards",
+        "label": "YDS"
+       },
+       {
+        "key": "yardsPerKickReturn",
+        "label": "AVG"
+       },
+       {
+        "key": "longKickReturn",
+        "label": "LONG"
+       },
+       {
+        "key": "kickReturnTouchdowns",
+        "label": "TD"
+       }
+      ]
+     },
+     {
+      "key": "kicking",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_febd44ac8bda4473bd6a",
+         "name": "John Love",
+         "jersey": "17",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "1/1",
+         "100.0",
+         "26",
+         "3/3",
+         "6"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Kicking",
+      "totals": [
+       "1/1",
+       "100.0",
+       "26",
+       "3/3",
+       "6"
+      ],
+      "columns": [
+       {
+        "key": "fieldGoalsMade/fieldGoalAttempts",
+        "label": "FG"
+       },
+       {
+        "key": "fieldGoalPct",
+        "label": "PCT"
+       },
+       {
+        "key": "longFieldGoalMade",
+        "label": "LONG"
+       },
+       {
+        "key": "extraPointsMade/extraPointAttempts",
+        "label": "XP"
+       },
+       {
+        "key": "totalKickingPoints",
+        "label": "PTS"
+       }
+      ]
+     },
+     {
+      "key": "punting",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_b1a7729bf8e14eb1a481",
+         "name": "Nathan Totten",
+         "jersey": "95",
+         "position": null,
+         "shortName": null,
+         "headshotUrl": null
+        },
+        "values": [
+         "2",
+         "82",
+         "41.0",
+         "0",
+         "1",
+         "42"
+        ],
+        "starter": null
+       }
+      ],
+      "label": "Punting",
+      "totals": [
+       "2",
+       "82",
+       "41.0",
+       "0",
+       "1",
+       "42"
+      ],
+      "columns": [
+       {
+        "key": "punts",
+        "label": "NO"
+       },
+       {
+        "key": "puntYards",
+        "label": "YDS"
+       },
+       {
+        "key": "grossAvgPuntYards",
+        "label": "AVG"
+       },
+       {
+        "key": "touchbacks",
+        "label": "TB"
+       },
+       {
+        "key": "puntsInside20",
+        "label": "In 20"
+       },
+       {
+        "key": "longPunt",
+        "label": "LONG"
+       }
+      ]
+     }
+    ],
+    "formation": null
+   }
+  },
+  "gameInfo": {
+   "venue": "Lane Stadium",
+   "officials": [],
+   "attendance": null
+  },
+  "shootout": null,
+  "lineScore": {
+   "away": [
+    "7",
+    "14",
+    "7"
+   ],
+   "home": [
+    "14",
+    "10",
+    "0"
+   ],
+   "extras": [],
+   "labels": [
+    "1",
+    "2",
+    "3"
+   ]
+  },
+  "probables": [],
+  "situation": {
+   "kind": "football",
+   "outs": null,
+   "balls": null,
+   "onFirst": null,
+   "onThird": null,
+   "strikes": null,
+   "lastPlay": "(04:55) #27 M.Hawkins, Jr. rush middle for 9 yards gain to the Hokies40 (#7 D.Ward; #12 C.Brookins)",
+   "onSecond": null,
+   "isRedZone": null,
+   "inningHalf": null,
+   "possession": "home",
+   "downDistance": "2nd & 1 at VT 40"
+  },
+  "teamStats": [
+   {
+    "key": "totalYards",
+    "away": "224",
+    "home": "352",
+    "group": null,
+    "label": "Total Yards"
+   },
+   {
+    "key": "passingYards",
+    "away": "123",
+    "home": "291",
+    "group": null,
+    "label": "Passing Yards"
+   },
+   {
+    "key": "rushingYards",
+    "away": "101",
+    "home": "61",
+    "group": null,
+    "label": "Rushing Yards"
+   },
+   {
+    "key": "firstDowns",
+    "away": "15",
+    "home": "15",
+    "group": null,
+    "label": "First Downs"
+   },
+   {
+    "key": "thirdDowns",
+    "away": "3-9",
+    "home": "4-10",
+    "group": null,
+    "label": "3rd Down"
+   },
+   {
+    "key": "fourthDowns",
+    "away": "1-2",
+    "home": "0-0",
+    "group": null,
+    "label": "4th Down"
+   },
+   {
+    "key": "completions",
+    "away": "11/21",
+    "home": "20/27",
+    "group": null,
+    "label": "Comp/Att"
+   },
+   {
+    "key": "turnovers",
+    "away": "0",
+    "home": "2",
+    "group": null,
+    "label": "Turnovers"
+   },
+   {
+    "key": "penalties",
+    "away": "5-38",
+    "home": "7-67",
+    "group": null,
+    "label": "Penalties"
+   },
+   {
+    "key": "possession",
+    "away": "19:39",
+    "home": "20:49",
+    "group": null,
+    "label": "Possession"
+   }
+  ],
+  "matchEvents": []
+ },
+ "refreshAfterSeconds": 30
+}

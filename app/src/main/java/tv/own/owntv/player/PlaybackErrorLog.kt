@@ -311,7 +311,9 @@ object PlaybackErrorLog {
                 appendLine(live)
             }
         }
-        writeToDownloads(appContext, text)
+        // Downloads is shared storage: redact the whole report once more, which also covers entries
+        // written by builds from before the 4.6.0 redactor.
+        writeToDownloads(appContext, tv.own.owntv.core.diagnostics.SensitiveText.redact(text))
     }.getOrNull()
 
     private fun writeToDownloads(context: Context, text: String): String {

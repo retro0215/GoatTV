@@ -77,7 +77,7 @@ internal object CompanionHtml {
         private fun s(@StringRes id: Int): String = context.getString(id)
 
         val app = s(R.string.app_name)
-        val pinTitle = s(R.string.companion_pin_page_title)
+        val pinTitle = context.getString(R.string.companion_pin_page_title, app)
         val pinHeading = s(R.string.companion_pin_heading)
         val pinDescription = s(R.string.companion_pin_description)
         val pinPlaceholder = s(R.string.companion_pin_placeholder)
@@ -94,7 +94,7 @@ internal object CompanionHtml {
         val tmdbSentBody = s(R.string.companion_tmdb_sent_body)
         val tmdbSentLink = s(R.string.companion_tmdb_sent_link)
 
-        val addTitle = s(R.string.companion_add_page_title)
+        val addTitle = context.getString(R.string.companion_add_page_title, app)
         val addHeading = s(R.string.companion_add_heading)
         val addDescription = s(R.string.companion_add_description)
         val xtream = s(R.string.setup_xtream)
@@ -135,7 +135,7 @@ internal object CompanionHtml {
         val defaultPlaylistLabel = s(R.string.companion_default_playlist)
         val sendToTv = s(R.string.companion_send_to_tv)
 
-        val savedTitle = s(R.string.companion_saved_page_title)
+        val savedTitle = context.getString(R.string.companion_saved_page_title, app)
         val savedHeading = s(R.string.companion_saved_heading)
         val savedSendAnother = s(R.string.companion_saved_send_another)
         val savedBackupBody = s(R.string.companion_saved_backup_body)
@@ -143,9 +143,9 @@ internal object CompanionHtml {
         val savedImageBody = s(R.string.companion_saved_image_body)
         val savedImageLink = s(R.string.companion_saved_image_link)
 
-        val backupTitle = s(R.string.companion_backup_page_title)
+        val backupTitle = context.getString(R.string.companion_backup_page_title, app)
         val backupHeading = s(R.string.companion_backup_heading)
-        val backupDescription = s(R.string.companion_backup_description)
+        val backupDescription = context.getString(R.string.companion_backup_description, app)
         val backupFile = s(R.string.companion_backup_file)
         val chooseBackup = s(R.string.companion_choose_backup)
         val sending = s(R.string.companion_sending)
@@ -155,16 +155,16 @@ internal object CompanionHtml {
         // Android resource has supplied the localized sentence and punctuation.
         val uploadFailed = s(R.string.companion_upload_failed).replace("%1\$d", "__STATUS__")
 
-        val imageTitle = s(R.string.companion_image_page_title)
+        val imageTitle = context.getString(R.string.companion_image_page_title, app)
         val imageHeading = s(R.string.companion_image_heading)
         val imageDescription = s(R.string.companion_image_description)
         val imageFile = s(R.string.companion_image_file)
         val chooseImage = s(R.string.companion_choose_image)
         val imageTooLarge = s(R.string.companion_image_too_large)
 
-        val downloadTitle = s(R.string.companion_download_page_title)
+        val downloadTitle = context.getString(R.string.companion_download_page_title, app)
         val downloadHeading = s(R.string.companion_download_heading)
-        val downloadDescription = s(R.string.companion_download_description)
+        val downloadDescription = context.getString(R.string.companion_download_description, app)
         val downloadBackup = s(R.string.companion_download_backup)
     }
 

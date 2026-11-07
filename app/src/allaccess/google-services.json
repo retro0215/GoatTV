@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "224309092606",
+    "project_id": "allaccess-46e95",
+    "storage_bucket": "allaccess-46e95.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224309092606:android:79b5a48a113601034385af",
+        "android_client_info": {
+          "package_name": "tv.allaccess.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDw7lpslsobZoE8YUGahjVNevADbZHdjtU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

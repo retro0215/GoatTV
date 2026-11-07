@@ -83,8 +83,12 @@ interface EpgDao {
      * Caller loops with `afterId = lastId` until a short page, then groups by channel. description is
      * fetched lazily via [programmeDescription] when a programme's detail dialog opens.
      */
-    @Query("SELECT id, sourceId, epgChannelId, startMs, stopMs, title, NULL AS description, contentHash FROM epg_programmes WHERE sourceId IN (:sourceIds) AND stopMs > :from AND startMs < :to AND id > :afterId ORDER BY id ASC LIMIT :limit")
+    @Query(GuideSql.WINDOW_PAGE)
     suspend fun programmesInWindowPage(sourceIds: List<Long>, from: Long, to: Long, afterId: Long, limit: Int): List<EpgProgrammeEntity>
+
+    /** 4.6.0: the programmes of [epgKeys] that START in [from, to) — what a moved guide window gained. */
+    @Query(GuideSql.WINDOW_TOP_UP)
+    suspend fun programmesStartingIn(sourceIds: List<Long>, epgKeys: List<String>, from: Long, to: Long): List<EpgProgrammeEntity>
 
     /** One programme's synopsis, loaded on demand for the detail dialog (the grid load drops it). */
     @Query("SELECT description FROM epg_programmes WHERE id = :programmeId LIMIT 1")
@@ -117,6 +121,18 @@ interface EpgDao {
     /** How many programmes are stored for these sources (to tell "no guide yet" from "empty window"). */
     @Query("SELECT COUNT(*) FROM epg_programmes WHERE sourceId IN (:sourceIds)")
     suspend fun countForSources(sourceIds: List<Long>): Int
+
+    /**
+     * The guide keys that have programmes for these sources: the set [ChannelDao.channelsWithGuide]
+     * matches channels against. ~10k short strings on the onn, one CursorWindow, so it runs once; the
+     * Guide keeps the result until the stored guide changes (4.6.0).
+     */
+    @Query(GuideSql.GUIDE_KEYS)
+    suspend fun guideKeys(sourceIds: List<Long>): List<String>
+
+    /** The newest programme row id (a rowid lookup): rises whenever programmes are added. */
+    @Query("SELECT COALESCE(MAX(id), 0) FROM epg_programmes")
+    suspend fun maxProgrammeId(): Long
 
     /** Current/upcoming programmes for one (normalized) EPG channel id — 0 means the feed has nothing
      *  scheduled from now on, so a freshly-matched channel would show an empty guide row. */

@@ -528,9 +528,8 @@ open class StalkerClient(private val client: OkHttpClient) {
         return resolved
     }
 
-    /** Mask token-ish query params so the resolved URL can be logged for debugging without leaking creds. */
-    private fun redactForLog(s: String): String =
-        s.replace(Regex("(?i)(token|password|pass)=[^&]*"), "$1=***")
+    /** Mask tokens, credentials and the MAC (play_token, mac=...) so the resolved URL can be logged. */
+    private fun redactForLog(s: String): String = tv.own.owntv.core.diagnostics.SensitiveText.redact(s)
 
     private fun readChannelPage(reader: JsonReader): Page<Channel> {
         var total = 0

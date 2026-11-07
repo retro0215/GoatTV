@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.paging.filter
@@ -273,11 +274,24 @@ class LiveViewModel(
     val watchingWallMs: StateFlow<Long?> = _watchingWallMs.asStateFlow()
 
 
-    /** Now/next for the focused channel — fetched (debounced) from the Xtream `get_short_epg` API. */
+    /** Now/next for the focused channel — fetched (debounced) from the Xtream `get_short_epg` API.
+     *  Re-read once at each programme boundary (see [NowNextClock]) so Now / Next / Later move on when a
+     *  programme ends; between boundaries nothing runs. */
     val nowNext: StateFlow<EpgNowNext?> = combine(_previewChannel, epgRefresh) { ch, tick -> ch to tick }
         .debounce(350)
         .distinctUntilChanged { a, b -> a.first?.id == b.first?.id && a.second == b.second }
-        .mapLatest { (ch, _) -> ch?.let { epgReader.nowNext(it, custom.value, epgOffset.value) } }
+        .transformLatest { (ch, _) ->
+            if (ch == null) {
+                emit(null)
+                return@transformLatest
+            }
+            while (true) {
+                val data = epgReader.nowNext(ch, custom.value, epgOffset.value)
+                emit(data)
+                val changeAt = NowNextClock.nextChangeAt(data, System.currentTimeMillis()) ?: break
+                delay(NowNextClock.delayUntil(changeAt, System.currentTimeMillis()))
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
@@ -634,7 +648,7 @@ class LiveViewModel(
         val source = sourceById[channel.sourceId] ?: sourceDao.getById(channel.sourceId)
         if (!streamUrlResolver.needsResolve(source)) return@ReconnectUrlProvider null
         runCatching { streamUrlResolver.resolve(source!!, cmd) }
-            .onFailure { Log.w(ENGINE_TAG, "stalker reconnect re-resolve failed '${channel.name}'", it) }
+            .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker reconnect re-resolve failed '${channel.name}'", it) }
             .getOrNull()
     }
 
@@ -700,7 +714,7 @@ class LiveViewModel(
         stalkerPreviewJob?.cancel()
         stalkerPreviewJob = viewModelScope.launch {
             val url = runCatching { streamUrlResolver.resolve(source, channel.streamUrl) }
-                .onFailure { Log.w(ENGINE_TAG, "stalker preview resolve failed '${channel.name}'", it) }
+                .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker preview resolve failed '${channel.name}'", it) }
                 .getOrNull() ?: return@launch
             if (_liveOnExo.value) return@launch // promoted to fullscreen while resolving
             if (player.hasActiveStream && LiveStreamQuirks.isSingleSession(url)) { // see playPreview
@@ -957,6 +971,14 @@ class LiveViewModel(
         recordLiveHistory(channel, immediate = true)
     }
 
+    /** 4.6.0: the Guide's first OK — [channel] plays in the Guide's preview. The same tune as [watchFromGuide]
+     *  (zap list, engine ladder, pins, fallbacks), but History keeps its usual delay, so channels only glanced
+     *  at in the preview don't each land in Recently watched. */
+    fun previewFromGuide(channel: ChannelEntity) {
+        armZapList(channel)
+        ensurePlaying(channel)
+    }
+
     /** Zap to the neighbouring channel ([delta] = +1 down / -1 up). Two-axis resolution:
      *
      *  1. If the currently playing channel is in the live [zapList], apply the existing wrapped
@@ -1197,7 +1219,7 @@ class LiveViewModel(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "tuneByNumber($number) failed", e)
+            tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "tuneByNumber($number) failed", e)
             return tv.own.owntv.player.DirectTuneResult.Failed(number)
         }
     }
@@ -1270,7 +1292,7 @@ class LiveViewModel(
             val url = if (streamUrlResolver.needsResolve(source)) {
                 withContext(Dispatchers.IO) {
                     runCatching { streamUrlResolver.resolve(source!!, channel.streamUrl) }
-                        .onFailure { Log.w(TAG, "stalker resolve failed channelId=${channel.id}", it) }
+                        .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "stalker resolve failed channelId=${channel.id}", it) }
                         .getOrNull()
                 } ?: return@launch
             } else {
@@ -1381,7 +1403,7 @@ class LiveViewModel(
      *  channel starts on mpv but plays fine on ExoPlayer" then carries the reason it was routed there.
      *  Channel names only — never a stream URL. */
     private fun engineLog(message: String) {
-        android.util.Log.i(ENGINE_TAG, message)
+        tv.own.owntv.core.diagnostics.SafeLog.i(ENGINE_TAG, message)
         tv.own.owntv.player.LiveDiagnosticsLog.event("engine: $message")
     }
 
@@ -1495,7 +1517,7 @@ class LiveViewModel(
         stalkerPreviewJob = viewModelScope.launch {
             previewEngine.releaseDecoderForUhd()
             val url = runCatching { streamUrlResolver.resolve(source, channel.streamUrl) }
-                .onFailure { Log.w(ENGINE_TAG, "stalker fullscreen resolve failed '${channel.name}'", it) }
+                .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker fullscreen resolve failed '${channel.name}'", it) }
                 .getOrNull() ?: return@launch // portal/auth failure — nothing playable to hand the engine
             if (_previewChannel.value?.streamUrl != channel.streamUrl) return@launch // zapped away while resolving
             stalkerPreviewCmd = channel.streamUrl
@@ -1840,7 +1862,7 @@ class LiveViewModel(
             val isStalker = streamUrlResolver.needsResolve(source)
             val rawUrl = if (isStalker) {
                 runCatching { streamUrlResolver.resolve(source!!, channel.streamUrl) }
-                    .onFailure { Log.w(ENGINE_TAG, "stalker mpv resolve failed '${channel.name}'", it) }
+                    .onFailure { tv.own.owntv.core.diagnostics.SafeLog.w(ENGINE_TAG, "stalker mpv resolve failed '${channel.name}'", it) }
                     .getOrNull() ?: return
             } else {
                 channel.streamUrl
@@ -2202,6 +2224,18 @@ class LiveViewModel(
                 favoriteDao.add(FavoriteEntity(profileId = pid, mediaType = MediaType.LIVE, itemId = channel.id))
             }
         }
+    }
+
+    /**
+     * Stops ONLY the in-pane preview video (Sports Game Center took the pane), keeping [previewChannel]
+     * and leaving the full-screen player untouched. Refocusing the channel replays it. No-op while the
+     * preview engine is promoted to full-screen.
+     */
+    fun stopPanePreview() {
+        if (_liveOnExo.value) return
+        stalkerPreviewJob?.cancel()
+        stalkerPreviewCmd = null
+        if (previewEngine.currentUrl != null) previewEngine.stop()
     }
 
     fun stopPreview() {

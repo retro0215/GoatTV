@@ -19,14 +19,17 @@ import tv.own.owntv.features.profiles.ProfilesViewModel
 import tv.own.owntv.features.search.SearchViewModel
 import tv.own.owntv.features.series.SeriesViewModel
 import tv.own.owntv.features.sports.SportsViewModel
+import tv.own.owntv.features.sports.live.SportsEventsViewModel
 import tv.own.owntv.features.settings.BackupViewModel
 import tv.own.owntv.features.settings.DeleteSubtitlesViewModel
+import tv.own.owntv.features.settings.DiagnosticCenterViewModel
 import tv.own.owntv.features.settings.EpgSourcesViewModel
 import tv.own.owntv.features.settings.HomeSettingsViewModel
 import tv.own.owntv.features.settings.LanguageSettingsViewModel
 import tv.own.owntv.features.settings.OpenSubtitlesViewModel
 import tv.own.owntv.features.settings.SettingsViewModel
 import tv.own.owntv.features.settings.data.SettingsRepository
+import tv.own.owntv.features.tutorials.VideoTutorialsViewModel
 import tv.own.owntv.features.setup.SetupViewModel
 import tv.own.owntv.features.shell.ShellViewModel
 import tv.own.owntv.features.subtitles.SubtitleSearchViewModel
@@ -59,6 +62,7 @@ val appModule = module {
     viewModelOf(::MovieViewModel)
     viewModelOf(::SeriesViewModel)
     viewModelOf(::SportsViewModel)
+    viewModelOf(::SportsEventsViewModel)
     viewModelOf(::SearchViewModel)
     viewModelOf(::ProfilesViewModel)
     // Activity-scoped session state for the profile gate (configuration-only retention, no saved
@@ -104,6 +108,7 @@ val appModule = module {
     viewModelOf(::LanguageSettingsViewModel)
     viewModelOf(::OpenSubtitlesViewModel)
     viewModelOf(::DeleteSubtitlesViewModel)
+    viewModelOf(::VideoTutorialsViewModel)
     viewModelOf(::SubtitleSearchViewModel)
     viewModelOf(::DownloadsViewModel)
     viewModelOf(::EpgViewModel)
@@ -111,4 +116,5 @@ val appModule = module {
     viewModelOf(::CustomizeItemsViewModel)
     viewModelOf(::BackupViewModel)
     viewModelOf(::EpgSourcesViewModel)
+    viewModelOf(::DiagnosticCenterViewModel)
 }

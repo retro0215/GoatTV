@@ -583,7 +583,7 @@ def cmd_verify_ci(args) -> int:
 
     base_text = subprocess.run(
         ["git", "show", f"{base_sha}:tools/i18n/hardcoded_baseline.txt"],
-        cwd=ROOT, text=True, capture_output=True, check=True,
+        cwd=ROOT, text=True, encoding="utf-8", capture_output=True, check=True,
     ).stdout
     current_text = BASELINE.read_text(encoding="utf-8")
     base_version = _scanner_version(base_text) or 1
@@ -609,7 +609,7 @@ def cmd_verify_ci(args) -> int:
         return 1
     changed_app = subprocess.run(
         ["git", "diff", "--name-only", base_sha, "HEAD", "--", "app/src/main"],
-        cwd=ROOT, text=True, capture_output=True, check=True,
+        cwd=ROOT, text=True, encoding="utf-8", capture_output=True, check=True,
     ).stdout.strip()
     if changed_app:
         print("Scanner migrations may not change app/src/main; separate scanner and application changes.")

@@ -34,6 +34,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getById(id: Long): CategoryEntity?
 
+    @Query("SELECT * FROM categories WHERE sourceId = :sourceId")
+    suspend fun getAllForSourceOnce(sourceId: Long): List<CategoryEntity>
+
     @Query("SELECT COUNT(*) FROM categories WHERE sourceId IN (:sourceIds) AND mediaType = :type")
     fun count(sourceIds: List<Long>, type: MediaType): Flow<Int>
 

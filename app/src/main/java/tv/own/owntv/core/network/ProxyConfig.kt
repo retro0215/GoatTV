@@ -33,6 +33,23 @@ data class ProxyConfig(
 }
 
 /**
+ * The editable proxy form. It is only ever built from the PERSISTED config: seeding it from a
+ * placeholder made the screen show "Off" and empty fields while the saved proxy was still routing all
+ * traffic — and any toggle or Save then wrote that empty form over the user's real settings.
+ */
+data class ProxyForm(val enabled: Boolean, val host: String, val port: String, val username: String, val password: String) {
+    companion object {
+        fun from(config: ProxyConfig) = ProxyForm(
+            enabled = config.enabled,
+            host = config.host,
+            port = if (config.port > 0) config.port.toString() else "",
+            username = config.username,
+            password = config.password,
+        )
+    }
+}
+
+/**
  * Single source of truth for the live proxy config. Holds a volatile snapshot kept up to date from a
  * DataStore flow, and exposes an OkHttp [ProxySelector] + [Authenticator] that read that snapshot on
  * every request. This lets the proxy be toggled at runtime WITHOUT rebuilding the singleton

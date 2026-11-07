@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import android.content.Context
 import android.view.Surface
 import dev.jdtech.mpv.MPVLib
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -346,6 +347,26 @@ class OwnTVPlayer(
         const val DECODER_RELEASE_MS = 600L        // outgoing engine's MediaCodec release (engine swap / next episode)
         const val SURFACE_HANDOFF_MS = 500L        // shorter release wait on the surface-attach handoff paths
         const val CORE_RESET_SETTLE_MS = 500L      // fresh mpv core + recreated surface settle after a hard reset
+        // Longest an mpv → ExoPlayer fallback waits for a hard-reset core to finish dying (and so to drop
+        // its provider connection). Measured on a Shield, destroy() took 7–72 s while FFmpeg sat in a
+        // blocked read, so the wait is bounded: past it ExoPlayer is tried anyway.
+        const val STUCK_MPV_RELEASE_TIMEOUT_MS = 4_000L
+        // Total budget for a Movies/Series start across BOTH engines (open watchdog, silent reset, ExoPlayer
+        // fallback). The ladders normally finish well inside it; it exists so nothing can spin forever.
+        const val VOD_FIRST_FRAME_DEADLINE_MS = 45_000L
+        // An automatic engine handover guarantees the incoming engine this much of the budget, so the
+        // deadline cannot expire a few seconds into the fallback (ExoPlayer-first hands mpv the item at
+        // ~33 s; mpv's open ladder needs ~22 s). Exo's own ladder (8 s hardware + 25 s software) plus the
+        // bounded mpv release fits inside it on the mpv-first side.
+        const val VOD_HANDOVER_BUDGET_MS = 40_000L
+        // However many handovers happen, a start never spins longer than this.
+        const val VOD_START_HARD_CAP_MS = 90_000L
+        const val FIRST_FRAME_CHECK_MS = 1_000L
+        // mpv's `network-timeout` (FFmpeg's connect and read wait) while a film is opening, and the value
+        // restored once it has loaded. mpv fixes the timeout when it opens a connection, so the opening
+        // value bounds the connection the film opened with; connections opened later get the normal one.
+        const val VOD_OPEN_NETWORK_TIMEOUT_SECS = 20
+        const val MPV_NETWORK_TIMEOUT_SECS = 60
         const val EXO_POSITION_TICK_MS = 500L      // ExoPlayer position/duration emit interval while Exo is active
         const val EXO_FPS_RECHECK_MS = 1_500L      // retry the fps chip once a measurement window can have elapsed
         const val EXO_SUB_DELAY_DEBOUNCE_MS = 350L // settle time before a timing change re-prepares on Exo (§8)
@@ -803,7 +824,7 @@ class OwnTVPlayer(
             if (gen != loadGeneration) return@launch
             // Section 6: Settle delay for engine reloads on Shield
             delay(CORE_RESET_SETTLE_MS)
-            loadUrl(url, currentMetaSnapshot(), isLiveContent, if (isLiveContent) 0L else _position.value, resetRetries = false)
+            loadUrl(url, currentMetaSnapshot(), isLiveContent, if (isLiveContent) 0L else vodSession.resumePositionMs(_position.value), resetRetries = false)
         }
     }
 
@@ -902,6 +923,20 @@ class OwnTVPlayer(
     private fun mpvAsync(block: MPVLib.() -> Unit) {
         val m = mpv ?: return
         mpvExecutor.execute { runCatching { m.block() } }
+    }
+
+    /** [mpvAsync], plus a signal that completes once [block] has run on the mpv thread — or at once when
+     *  there is no mpv (or no executor) to run it, since then nothing is holding a stream either. */
+    private fun mpvAsyncSignal(block: MPVLib.() -> Unit): CompletableDeferred<Unit> {
+        val done = CompletableDeferred<Unit>()
+        val m = mpv ?: return done.also { it.complete(Unit) }
+        val queued = runCatching {
+            mpvExecutor.execute {
+                try { runCatching { m.block() } } finally { done.complete(Unit) }
+            }
+        }.isSuccess
+        if (!queued) done.complete(Unit)
+        return done
     }
 
     private fun markActiveFile(active: Boolean) {
@@ -1072,6 +1107,13 @@ class OwnTVPlayer(
     // resets to 0 once playback is healthy again (or on a genuinely new item).
     private var liveStallJob: Job? = null
     private var liveStallReconnects = 0
+    // Movies/Series: the mpv → ExoPlayer handover in flight (at most one), and the start deadline that
+    // bounds the whole start across both engines.
+    private val engineHandover = EngineHandover(scope) { loadGeneration }
+    private var firstFrameJob: Job? = null
+    private var firstFrameDeadline: FirstFrameDeadline? = null
+    private val vodSession = VodSession()
+    private var firstFrameStartedAt = 0L
     // Catch-up/VOD streams that start mid-GOP (no H.264 SPS/PPS yet) can play audio with a blank video.
     // We try a software-decode reload once before surfacing an error, tracked per item.
     @Volatile private var triedSoftwareForVideo = false
@@ -1808,44 +1850,66 @@ class OwnTVPlayer(
      * one connection would otherwise refuse ExoPlayer's open while mpv still holds the slot.
      */
     private fun fallbackToExoVod(mpvError: PlaybackFailure, mpvStuck: Boolean): Boolean {
-        if (isLiveContent || exoActive || triedExoVodFallback) return false
-        if (!itemEngine.allowsHandover) {
-            android.util.Log.w(TAG, "VOD failed on mpv but the engine setting is mpv-only — no fallback")
-            return false
+        val verdict = ExoFallbackPolicy.decide(
+            isLive = isLiveContent,
+            exoActive = exoActive,
+            alreadyTried = triedExoVodFallback,
+            engineAllowsHandover = itemEngine.allowsHandover,
+            hasUrl = currentUrl != null,
+            hasSurface = attachedSurface != null,
+            audioSafeForExo = ::audioCodecSafeForExo,
+        )
+        when (verdict) {
+            ExoFallbackVerdict.START -> Unit
+            ExoFallbackVerdict.ENGINE_SETTING -> {
+                android.util.Log.w(TAG, "VOD failed on mpv but the engine setting is mpv-only — no fallback")
+                return false
+            }
+            ExoFallbackVerdict.AUDIO_UNSAFE -> {
+                android.util.Log.w(TAG, "VOD failed on mpv but audio codec unsafe for ExoPlayer — no fallback")
+                return false
+            }
+            else -> return false
         }
         val url = currentUrl ?: return false
-        if (attachedSurface == null) return false
-        if (!audioCodecSafeForExo()) {
-            android.util.Log.w(TAG, "VOD failed on mpv but audio codec unsafe for ExoPlayer — no fallback")
-            return false
-        }
         triedExoVodFallback = true
         exoVodFallback = true
         mpvFailureBeforeFallback = mpvError
+        android.util.Log.i(TAG, "MPV_FALLBACK_TO_EXO: reason=$mpvError")
         android.util.Log.w(TAG, "VOD terminally failed on mpv ($mpvError) — falling back to ExoPlayer")
+        extendFirstFrameDeadlineForHandover()
         // Resume where mpv got to only if the file actually opened; otherwise _position is stale from the
         // previous item — use the intended start position instead.
         val pos = if (fileLoaded && _position.value > 0) _position.value else pendingSeekMs
         loadGeneration++ // supersede any mpv retry/watchdog work for this item
-        val gen = loadGeneration
         errorCheckJob?.cancel(); videoCheckJob?.cancel()
         expectingPlayback = false
         _error.value = null
         _buffering.value = true
         currentHwdec = null // keep the mpv decode guard inert while ExoPlayer owns playback
+        // Both branches go through [engineHandover]: it takes its generation token AFTER the release (the
+        // stuck branch's hardReset() bumps the generation itself — a token taken before it made every
+        // stuck-mpv fallback abandon its own ExoPlayer start), waits a bounded time for mpv to let go of
+        // the provider connection, and drops the start if Back/stop/another item superseded it meanwhile.
         if (mpvStuck) {
-            hardReset()
-            // hardReset() destroys mpv on its own thread and forces a fresh Surface; give the core a
-            // moment to die (it holds the panel's connection slot), then arm the deferred Exo start and
-            // request ANOTHER surface recreate. Grabbing `attachedSurface` here instead would race the
-            // recreate hardReset() just triggered: the old surface is already abandoned but not yet
-            // reported destroyed, so ExoPlayer configures onto a dead window and dies with
+            // hardReset() destroys mpv on its own thread and forces a fresh Surface; wait for the core to
+            // die (it holds the panel's connection slot), then arm the deferred Exo start and request
+            // ANOTHER surface recreate. Grabbing `attachedSurface` here instead would race the recreate
+            // hardReset() just triggered: the old surface is already abandoned but not yet reported
+            // destroyed, so ExoPlayer configures onto a dead window and dies with
             // `nativeWindowConnect returned an error: Invalid argument (-22)` → "failed on both engines"
             // for an item that plays fine on retry. Routing through pendingExoStart guarantees the
             // surface startExo receives was created AFTER this point.
-            scope.launch {
-                delay(CORE_RESET_SETTLE_MS)
-                if (gen != loadGeneration) return@launch // superseded (user zapped/backed out meanwhile)
+            engineHandover.start(
+                release = { hardReset() },
+                releaseTimeoutMs = STUCK_MPV_RELEASE_TIMEOUT_MS,
+                settleMs = CORE_RESET_SETTLE_MS,
+                onReleaseTimeout = {
+                    android.util.Log.w(TAG, "exo vod fallback: stuck mpv still releasing after ${STUCK_MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway")
+                },
+            ) {
+                if (exoActive) return@start // never a second ExoPlayer session for the same item
+                android.util.Log.i(TAG, "exo vod fallback: mpv released, arming ExoPlayer")
                 pendingUrl = url
                 pendingSeekMs = pos
                 pendingExoSub = null
@@ -1856,18 +1920,115 @@ class OwnTVPlayer(
         } else {
             // mpv is responsive (END_FILE / decode guard): stop it cleanly to free the connection +
             // decoder, then start ExoPlayer — same single-owner ordering as the image-sub handoff.
-            mpvAsync {
-                stopWithStopClassification("exo vod fallback")
-                setPropertyString("vo", "null")
-                runCatching { this.detachSurface() }
-                scope.launch {
-                    delay(SURFACE_HANDOFF_MS) // let mpv's MediaCodec release — a busy decoder would fail Exo instantly
-                    val s = attachedSurface ?: return@launch
-                    startExo(url, pos, s, sub = null)
-                }
+            engineHandover.start(
+                release = {
+                    mpvAsyncSignal {
+                        stopWithStopClassification("exo vod fallback")
+                        setPropertyString("vo", "null")
+                        runCatching { this.detachSurface() }
+                    }
+                },
+                releaseTimeoutMs = MPV_RELEASE_TIMEOUT_MS,
+                settleMs = SURFACE_HANDOFF_MS, // let mpv's MediaCodec release — a busy decoder would fail Exo instantly
+                onReleaseTimeout = {
+                    android.util.Log.w(TAG, "exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway")
+                },
+            ) {
+                if (exoActive) return@start
+                val s = attachedSurface ?: return@start
+                startExo(url, pos, s, sub = null)
             }
         }
         return true
+    }
+
+    /**
+     * Start the Movies/Series start budget ([VOD_FIRST_FRAME_DEADLINE_MS]) for the item being loaded, or
+     * just cancel the previous one for live. Cancelled by [stop] (Back, Home, leaving the player), by the
+     * next item, and by itself once the item plays. It never expires while an error is on screen.
+     */
+    private fun armFirstFrameDeadline(isLive: Boolean, startPaused: Boolean) {
+        firstFrameJob?.cancel()
+        firstFrameJob = null
+        firstFrameDeadline = null
+        if (isLive) return
+        val deadline = FirstFrameDeadline(VOD_FIRST_FRAME_DEADLINE_MS, VOD_HANDOVER_BUDGET_MS, VOD_START_HARD_CAP_MS)
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        firstFrameDeadline = deadline
+        firstFrameStartedAt = startedAt
+        firstFrameJob = scope.launch {
+            while (true) {
+                delay(FIRST_FRAME_CHECK_MS)
+                if (isLiveContent) return@launch
+                val signals = FirstFrameDeadline.Signals(
+                    videoFrame = currentHeightPx > 0,
+                    // mpv: FILE_LOADED. ExoPlayer: active and out of its loading state (it reports
+                    // buffering until the stream is ready).
+                    streamOpened = fileLoaded || (exoActive && !_buffering.value),
+                    audioOnly = _audioOnlyMedia.value || _audioOnly.value,
+                    startPaused = startPaused,
+                    positionMs = _position.value,
+                    errorShown = _error.value != null,
+                )
+                when (deadline.check(android.os.SystemClock.elapsedRealtime() - startedAt, signals)) {
+                    // An error on screen is the answer for now, but a ladder may clear it and retry, so
+                    // keep watching rather than stand down for good.
+                    FirstFrameDeadline.Verdict.WAIT, FirstFrameDeadline.Verdict.ERROR_SHOWN -> continue
+                    FirstFrameDeadline.Verdict.STARTED -> {
+                        vodSession.onStarted() // from here on the position is this title's own
+                        return@launch
+                    }
+                    FirstFrameDeadline.Verdict.EXPIRED -> {
+                        onFirstFrameDeadlineExpired(deadline.deadlineMs)
+                        return@launch
+                    }
+                }
+            }
+        }
+    }
+
+    /** An automatic engine handover for the current item: give the incoming engine its own (bounded)
+     *  share of the start budget. A no-op once the deadline is gone (played, stopped, live). */
+    private fun extendFirstFrameDeadlineForHandover() {
+        val deadline = firstFrameDeadline ?: return
+        if (firstFrameJob?.isActive != true) return
+        val before = deadline.deadlineMs
+        deadline.onHandover(android.os.SystemClock.elapsedRealtime() - firstFrameStartedAt)
+        if (deadline.deadlineMs != before) {
+            android.util.Log.i(TAG, "start budget: engine handover, deadline ${before / 1000}s → ${deadline.deadlineMs / 1000}s")
+        }
+    }
+
+    /**
+     * Neither engine produced anything within the start budget. Stop both — so no connection outlives the
+     * attempt — and say so, instead of leaving the spinner up. The item stays current, so Retry works.
+     */
+    private fun onFirstFrameDeadlineExpired(budgetMs: Long) {
+        val engine = if (exoActive) "exoplayer" else "mpv"
+        android.util.Log.w(TAG, "VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines")
+        PlaybackErrorLog.event(
+            context, engine, live = false,
+            reason = PlayerFailureReason.NETWORK,
+            detail = "no picture or sound within ${budgetMs / 1000}s",
+        )
+        loadGeneration++ // supersede every watchdog, retry and handover still working on this item
+        engineHandover.cancel()
+        errorCheckJob?.cancel(); videoCheckJob?.cancel()
+        pendingExoStart = false
+        pendingUrl = null
+        expectingPlayback = false
+        val exoOwned = exoActive
+        deactivateExo() // releases ExoPlayer, its decoder and its connection
+        // When ExoPlayer owned the attempt, the fallback already destroyed the mpv that failed; the core
+        // left is idle. Otherwise mpv owns it: a core still opening is blocked in FFmpeg, where a queued
+        // stop would wait behind it holding the connection, so destroy it; a loaded one stops cleanly.
+        if (!exoOwned && initialized) {
+            if (mpvHasActiveFile.get() && !fileLoaded) hardReset()
+            else mpvAsync { stopWithStopClassification("start timeout") }
+        }
+        _isPlaying.value = false
+        _buffering.value = false
+        _error.value = PlaybackFailure.StreamUnavailable(triedUaFallback)
     }
 
     /** ExoPlayer-preferred mode: the item started on Exo and Exo failed — retry it on mpv (the reverse
@@ -1877,6 +2038,7 @@ class OwnTVPlayer(
         if (!exoActive) return
         val url = currentUrl ?: return
         android.util.Log.w(TAG, "VOD terminally failed on ExoPlayer ($exoError) — falling back to mpv")
+        extendFirstFrameDeadlineForHandover()
         val pos = engineSwitchResumePos()
         exoFailureBeforeMpv = exoError
         exoPrimaryThisItem = false
@@ -1983,7 +2145,7 @@ class OwnTVPlayer(
     private fun vodErrorMessage(mpvMsg: PlaybackFailure): PlaybackFailure {
         val exoErr = exoFailureBeforeMpv ?: return mpvMsg
         android.util.Log.w(TAG, "VOD failed on BOTH engines — exo first: '$exoErr' / mpv: '$mpvMsg'")
-        return PlaybackFailure.BothEnginesExoFirst
+        return VodFailureWording.bothEnginesExoFirst(exoErr, mpvMsg, mpvOpenedFile = fileLoaded, customUserAgentHint = triedUaFallback)
     }
 
     /**
@@ -2018,7 +2180,7 @@ class OwnTVPlayer(
         deactivateExo()
         _isPlaying.value = false
         _buffering.value = false
-        _error.value = PlaybackFailure.BothEnginesMpvFirst(exoError)
+        _error.value = VodFailureWording.bothEnginesMpvFirst(exoError, customUserAgentHint = triedUaFallback)
     }
 
     /** ExoPlayer reached end-of-file while it owned VOD playback: mirror mpv's END_FILE auto-play-next
@@ -2212,7 +2374,7 @@ class OwnTVPlayer(
                 setOptionString("fbo-format", "rgba8") // 4K rgba16f intermediates are ~64MB each
                 setOptionString("tone-mapping", "clip") // cheapest HDR→SDR
             }
-            setOptionString("network-timeout", "60")
+            setOptionString("network-timeout", MPV_NETWORK_TIMEOUT_SECS.toString())
             // Strict IPTV panels briefly answer 5xx (e.g. 509 connection-limit right after a channel
             // switch, while the old session still counts). Let FFmpeg retry those itself instead of
             // EOF-ing the stream — the demuxer cache rides over the gap with no visible interruption.
@@ -2406,7 +2568,7 @@ class OwnTVPlayer(
             val url = try {
                 kotlinx.coroutines.withContext(Dispatchers.IO) { resolve() }
             } catch (e: Exception) {
-                android.util.Log.w(TAG, "queue item resolve failed: ${e.message}")
+                tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "queue item resolve failed", e)
                 if (gen == loadGeneration) {
                     _buffering.value = false
                     _error.value = PlaybackFailure.StreamLink
@@ -2482,6 +2644,12 @@ class OwnTVPlayer(
         // Internal retries keep the current item's notice; a new item must never inherit it.
         if (resetRetries) clearToast()
         ensureInit()
+        // A new title must not inherit the previous title's position or duration: until the new one
+        // reports its own, they would be saved as its resume point and reopened by Retry/restore.
+        if (vodSession.onLoad(meta.contentKey ?: url, startPositionMs, userInitiated = resetRetries)) {
+            _position.value = 0L
+            _duration.value = 0L
+        }
         fileLoaded = false
         loadStartTime = System.currentTimeMillis()
         pendingStartPaused = startPaused
@@ -2561,6 +2729,10 @@ class OwnTVPlayer(
             triedCopyRescue = false
             ccSoftwareOverride = false // CC override is per-selection; a new item starts per the setting
             if (needReconfig) mpvAsync { applyRenderConfig() }
+            // A new item (or a user Retry) gets a fresh start budget; internal retries of the same item
+            // (resetRetries=false) spend the one already running, so the total stays bounded.
+            engineHandover.cancel()
+            armFirstFrameDeadline(isLive, startPaused)
         }
         // Reset the decode watchdog + per-file video state.
         currentHwdec = null
@@ -2979,6 +3151,14 @@ class OwnTVPlayer(
             // proxy, or clear it when disabled. Applied per-load so toggling the setting takes effect on
             // the next stream. The URL may embed proxy credentials — it is NEVER logged here.
             setPropertyString("http-proxy", proxyHolder.mpvProxyUrl() ?: "")
+            // A film's opening connection waits at most VOD_OPEN_NETWORK_TIMEOUT_SECS for the panel, not
+            // 60 s: an unresponsive panel otherwise kept FFmpeg (and so a hard reset's destroy()) blocked
+            // for up to a minute, holding the provider connection the ExoPlayer fallback needs. Live keeps
+            // the normal value — its own open/stall watchdogs and reconnect ladder bound it.
+            setPropertyString(
+                "network-timeout",
+                (if (isLiveContent) MPV_NETWORK_TIMEOUT_SECS else VOD_OPEN_NETWORK_TIMEOUT_SECS).toString(),
+            )
             loadfileWithStopClassification(url, "replacement loadfile")
             setPropertyBoolean("pause", false)
         }
@@ -3183,6 +3363,14 @@ class OwnTVPlayer(
     }
 
     /**
+     * Position and duration to save for the current Movies/Series title, or null until that title has
+     * genuinely started (picture, sound, or an opened paused start). A title that never played is never
+     * written, and nothing can carry over from the title before it — see [VodSession].
+     */
+    fun persistableVodProgress(): Pair<Long, Long>? =
+        if (isLiveContent) null else vodSession.persistable(_position.value, _duration.value)
+
+    /**
      * HUD "Retry" on an error. The HUD offers it for *any* failed playback, so this must not assume
      * live: reloading a movie through the live path restarted it at 00:00 with live demuxer settings
      * and the live watchdogs attached, and — with a stale Stalker [reconnectUrlProvider] left over
@@ -3208,7 +3396,7 @@ class OwnTVPlayer(
      * a movie 40 minutes in.
      */
     private fun reload(url: String, isLive: Boolean, resetRetries: Boolean) {
-        val startAt = if (isLive) 0L else _position.value
+        val startAt = if (isLive) 0L else vodSession.resumePositionMs(_position.value)
         val provider = reconnectUrlProvider
         if (provider == null) {
             loadUrl(url, currentMetaSnapshot(), isLive = isLive, startPositionMs = startAt, resetRetries = resetRetries)
@@ -3229,6 +3417,10 @@ class OwnTVPlayer(
         deactivateExo() // give the surface back to mpv before tearing down
         pendingExoStart = false
         loadGeneration++ // cancels any queued-but-not-yet-executed load
+        engineHandover.cancel() // a fallback waiting to start ExoPlayer for the item being left
+        firstFrameJob?.cancel()
+        firstFrameDeadline = null
+        vodSession.onStop() // position stays readable for the save that follows; the next title starts fresh
         expectingPlayback = false
         errorCheckJob?.cancel()
         videoCheckJob?.cancel()
@@ -3292,7 +3484,11 @@ class OwnTVPlayer(
         hardReset()
     }
 
-    private fun hardReset() {
+    /**
+     * Returns a signal that completes once the old instance is destroyed — i.e. once it has dropped its
+     * provider connection. Callers that start another engine wait on it (bounded); the rest ignore it.
+     */
+    private fun hardReset(): CompletableDeferred<Unit> {
         val oldMpv = mpv
         mpv = null
         initialized = false
@@ -3302,21 +3498,33 @@ class OwnTVPlayer(
         // The core about to be destroyed owes these END_FILEs; the fresh one must not inherit them, or
         // its first genuine failure would be misclassified as our own cleanup.
         pendingStopEndFiles.reset()
-        // Destroy on a dedicated thread — mpvExecutor is blocked, so we CAN'T use mpvAsync here.
-        // destroy() aborts the stuck HTTP read synchronously, freeing the core.
-        Thread({
-            runCatching {
-                oldMpv?.let {
-                    it.removeObserver(this)
-                    it.destroy()
+        markActiveFile(false) // the fresh core has no file; the old one's never closed (it was destroyed)
+        val destroyed = CompletableDeferred<Unit>()
+        if (oldMpv == null) {
+            destroyed.complete(Unit)
+        } else {
+            // Destroy on a dedicated thread — mpvExecutor is blocked, so we CAN'T use mpvAsync here.
+            // destroy() is meant to abort the stuck HTTP read, but it waits for FFmpeg to return from it:
+            // on a Shield it took 7–72 s against an unresponsive panel, hence the signal and bounded waits.
+            Thread({
+                val startedAt = android.os.SystemClock.elapsedRealtime()
+                try {
+                    runCatching {
+                        oldMpv.removeObserver(this)
+                        oldMpv.destroy()
+                    }
+                } finally {
+                    destroyed.complete(Unit)
                 }
-            }
-            android.util.Log.i(TAG, "hardReset: old mpv instance destroyed — core unblocked")
-        }, "owntv-mpv-destroy").start()
+                val tookMs = android.os.SystemClock.elapsedRealtime() - startedAt
+                android.util.Log.i(TAG, "hardReset: old mpv instance destroyed — core unblocked (${tookMs}ms)")
+            }, "owntv-mpv-destroy").start()
+        }
         // Force the UI to recreate the SurfaceView, so the fresh mpv instance gets a clean decoder binding
         // (the old MediaCodec was left dirty by the abort — a back-to-back 4K load on the same Surface
         // would throw Realtek 0x80001000).
         _surfaceResetToken.value++
+        return destroyed
     }
 
     /**
@@ -3331,7 +3539,7 @@ class OwnTVPlayer(
             // position. (Live just re-tunes; the archive/VOD stream is freed for memory while invisible.)
             backgroundRestore = if (!isLiveContent) {
                 BackgroundRestore(
-                    url, currentMetaSnapshot(), _position.value, _isPlaying.value,
+                    url, currentMetaSnapshot(), vodSession.resumePositionMs(_position.value), _isPlaying.value,
                     tunedUserAgent, tunedHttpHeaders, reconnectUrlProvider,
                 )
             } else null
@@ -3439,6 +3647,16 @@ class OwnTVPlayer(
         surfaceW = width; surfaceH = height // remembered for the freeze-frame PixelCopy at handoff time
         if (exoActive) return // ExoPlayer scales to the surface itself; nothing to tell mpv
         if (initialized) mpvAsync { setPropertyString("android-surface-size", "${width}x$height") }
+    }
+
+    /**
+     * The view hosting [surface] is going away. Ignored when another view has already attached its own
+     * surface: the Guide's preview and the full-screen player hand mpv's picture between two views, and
+     * the old one's destroy callback can arrive after the new one's create (Phase 4).
+     */
+    fun detachSurface(surface: Surface) {
+        if (attachedSurface !== surface && attachedSurface != null) return
+        detachSurface()
     }
 
     fun detachSurface() {
@@ -3957,6 +4175,9 @@ class OwnTVPlayer(
                     )
                 }
                 markActiveFile(true)
+                // The film is open: connections mpv opens from here on (a reopen after a drop) get the
+                // normal network timeout back instead of the shorter opening one (see startLoad).
+                if (!isLiveContent) mpvAsync { setPropertyString("network-timeout", MPV_NETWORK_TIMEOUT_SECS.toString()) }
                 // The new file opened successfully — cancel any pending error and clear a stale one.
                 // This callback runs on mpv's event thread (not main), so sync reads are safe here.
                 expectingPlayback = false

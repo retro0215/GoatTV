@@ -26,6 +26,7 @@ import tv.own.owntv.core.sync.SyncManager
 import tv.own.owntv.core.sync.work.CatalogSyncScheduler
 import tv.own.owntv.core.sync.work.EpgSyncScheduler
 import tv.own.owntv.core.weather.WeatherRepository
+import tv.own.owntv.features.sports.live.asSportsApi
 import java.util.concurrent.TimeUnit
 
 /** Networking, parsers, sync engine, and repositories (Phase 5). */
@@ -39,7 +40,14 @@ val dataModule = module {
     single {
         val proxyHolder = get<tv.own.owntv.core.network.ProxyConfigHolder>()
         val dnsHolder = get<tv.own.owntv.core.network.DnsConfigHolder>()
+        val trust = tv.own.owntv.core.network.ExtraTrustAnchors(
+            androidContext().resources.openRawResource(tv.own.owntv.R.raw.isrg_extra_roots),
+        )
         OkHttpClient.Builder()
+            // Platform trust plus the Let's Encrypt roots older/current devices lack (upstream
+            // OwnTV_Core 0b9f64bb). Clients derived with newBuilder() — streaming/ExoPlayer, Coil,
+            // Sports, Diagnostic Center, updates — inherit it. mpv's own TLS is not affected.
+            .sslSocketFactory(trust.sslSocketFactory, trust.trustManager)
             .connectTimeout(15, TimeUnit.SECONDS)  // fast fail on dead host
             .readTimeout(20, TimeUnit.SECONDS)    // detect mid-sync disconnect quickly
             .writeTimeout(20, TimeUnit.SECONDS)
@@ -84,6 +92,14 @@ val dataModule = module {
     // Per-item zoom/volume the player remembers (playbackPrefsDao, settings).
     single { tv.own.owntv.core.player.PlaybackPrefsStore(get(), get()) }
     single { tv.own.owntv.core.player.ExternalPlayerLauncher(androidContext()) }
+    // Settings → Video Tutorials: public catalog RPC on the shared client + a small per-brand offline cache.
+    single { tv.own.owntv.features.tutorials.VideoTutorialsApi(get()) }
+    single {
+        tv.own.owntv.features.tutorials.VideoTutorialsRepository(
+            get<tv.own.owntv.features.tutorials.VideoTutorialsApi>(),
+            tv.own.owntv.features.tutorials.SharedPrefsVideoTutorialsCacheStore(androidContext()),
+        )
+    }
     // store, sourceDao, epgRepository
     single { tv.own.owntv.core.epg.EpgMigration(get(), get(), get()) }
     single { M3uParser() }
@@ -108,6 +124,26 @@ val dataModule = module {
     // candidate list; deliberately DataStore, not Room (derived state, no migration, no backup).
     single { tv.own.owntv.core.trending.TrendingScheduleStore(androidContext()) }
     single { tv.own.owntv.core.trending.TrendingRepository(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    // GoatTV Sports Live (Phase C1): public read-only DigitalOcean Sports API + app-scoped in-memory
+    // slate cache (survives navigation; last-known-good kept through failures). Event requests carry the
+    // build's ?brand= (GoatTV: goat) so events include matched channels[]; the channel resolver verifies
+    // every one against the user's ACTIVE Xtream source before it can be shown or played.
+    single { tv.own.owntv.features.sports.live.SportsApiClient(get()) }
+    single { tv.own.owntv.features.sports.live.SportsLiveStore(get<tv.own.owntv.features.sports.live.SportsApiClient>().asSportsApi()) }
+    single {
+        tv.own.owntv.features.sports.live.SportsChannelResolver(
+            tv.own.owntv.features.sports.live.RoomSportsChannelLookup(get(), get(), get()),
+        )
+    }
+    // Game Center preview: real detail from the Sports API (GET /sports/events/{id}/game-center). A
+    // factory so a debug build's fixture-mode switch applies the next time Sports opens; release never
+    // has fixtures.
+    factory {
+        tv.own.owntv.features.sports.live.SportsGameCenterConfig.create(
+            resolver = get(),
+            production = tv.own.owntv.features.sports.live.GameCenterApiSource(get<tv.own.owntv.features.sports.live.SportsApiClient>()),
+        )
+    }
     // Per-content TMDB name overrides (plan §11.2 U5b): DataStore side-store, no Room schema change.
     single { tv.own.owntv.core.metadata.MetadataOverrideStore(androidContext()) }
     // OpenSubtitles (subtitle plan Phase 1): Worker-proxied REST client + Keystore-sealed
@@ -121,6 +157,7 @@ val dataModule = module {
     single { tv.own.owntv.core.subtitles.SubtitleController(get(), get(), get(), get()) }
     single { WeatherRepository(get(), get()) }
     single { BulkInsertHelper(get()) }
+    single { tv.own.owntv.core.channelcatalog.ChannelCatalogRepository(androidContext(), get(), get(), get()) }
     single {
         tv.own.owntv.core.sync.ImportFinalizer(
             channelDao = get(),
@@ -129,13 +166,29 @@ val dataModule = module {
             db = get(),
             bulkInsertHelper = get(),
             metadataDao = get(),
+            channelCatalogRepository = get(),
         )
     }
     // context, channelDao, movieDao, seriesDao, profileDao, favoriteDao, historyDao, progressDao,
     // contentOrderDao, customCategoryDao, seriesSortOrderDao, db
     single { UserDataResolver(androidContext(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    // sourceDao, syncManager, userDataResolver, channelDao, movieDao, seriesDao, categoryDao
-    single { SourceRepository(get(), get(), get(), get(), get(), get(), get()) }
+    // sourceDao, syncManager, userDataResolver, channelDao, movieDao, seriesDao, categoryDao, reminderRelinker
+    single { SourceRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        tv.own.owntv.core.sync.work.ReminderRelinker(
+            get(), get(), tv.own.owntv.core.sync.work.WorkManagerReminderJobs(androidContext()),
+        )
+    }
+    single {
+        tv.own.owntv.core.sync.work.ProgramReminders(
+            reminderDao = get(),
+            channelDao = get(),
+            sourceDao = get(),
+            relinker = get(),
+            jobs = tv.own.owntv.core.sync.work.WorkManagerReminderJobs(androidContext()),
+            activeProfileId = get<tv.own.owntv.features.settings.data.SettingsRepository>().activeProfileId,
+        )
+    }
     single {
         SyncManager(
             context = androidContext(),
@@ -206,4 +259,12 @@ val dataModule = module {
     single { UpdateManager(androidContext(), get()) }
     single { CatalogSyncScheduler(androidContext()) }
     single { EpgSyncScheduler(androidContext()) }
+    // settings, epgSourceStore, epgDao, epgSyncScheduler — one per process so every trigger shares its spacing.
+    single { tv.own.owntv.core.sync.work.EpgAutoRefreshCheck(get(), get(), get(), get()) }
+    // Settings → Diagnostic Center: read-only probes over the clients registered above.
+    single {
+        tv.own.owntv.core.diagnostics.AndroidDiagnosticProbes(
+            androidContext(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(),
+        )
+    }
 }

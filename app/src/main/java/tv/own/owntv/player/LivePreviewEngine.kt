@@ -718,7 +718,10 @@ class LivePreviewEngine(
     // all), we never false-trigger a reconnect on healthy playback; we fall back to the position check.
     private var everRendered = false
     private var videoRenderer: Renderer? = null
-    private val frameListener = VideoFrameMetadataListener { _, _, _, _ -> frameCounter.incrementAndGet() }
+    // 4.6.0: every frame rendered by any player this engine has built. Never reset (the count above restarts
+    // at each READY and with each new player), so the surface-switch watch can compare across a rebuild.
+    private val renderedTotal = java.util.concurrent.atomic.AtomicLong(0)
+    private val frameListener = VideoFrameMetadataListener { _, _, _, _ -> frameCounter.incrementAndGet(); renderedTotal.incrementAndGet() }
     private var fpsAttempts = 0
     private val fpsFastRefresh: Runnable = Runnable {
         val fresh = player?.let { fpsSample.peek(it) }
@@ -796,6 +799,8 @@ class LivePreviewEngine(
                     if (++frozenChecks >= FROZEN_LIMIT) {
                         LiveDiagnosticsLog.event("progressWatchdog: picture frozen, frames stuck at $frames for $frozenChecks polls (pos still advancing)")
                         frozenChecks = 0
+                        // Phase 4C: a stuck decoder survives a reconnect (prepare() reuses it); a new one does not.
+                        if (rebuildDecoderForFreeze("picture frozen")) return
                         reconnect("picture frozen"); return
                     }
                 } else {
@@ -977,6 +982,7 @@ class LivePreviewEngine(
         mainHandler.removeCallbacks(progressWatchdog)
         mainHandler.removeCallbacks(openWatchdog)
         mainHandler.removeCallbacks(healthyReset)
+        mainHandler.removeCallbacks(handoffCheck)
         gaveUp = true
         _isPlaying.value = false; _buffering.value = false
         _error.value = PlayerErrors.visibleFailure(reason, currentUrl, PlaybackFailure.Channel)
@@ -1110,7 +1116,7 @@ class LivePreviewEngine(
         override fun onCues(cueGroup: androidx.media3.common.text.CueGroup) { _cues.value = cueGroup.cues }
 
         override fun onPlayerError(error: PlaybackException) {
-            android.util.Log.w(LiveDiagnosticsLog.TAG, "ExoPlayer error: ${error.errorCodeName}", error)
+            tv.own.owntv.core.diagnostics.SafeLog.w(LiveDiagnosticsLog.TAG, "ExoPlayer error: ${error.errorCodeName}", error)
             LiveDiagnosticsLog.event("player_error code=${error.errorCodeName} hasPlayed=$hasPlayed")
             logAudioDiag("player_error_${error.errorCodeName}")
             // mid-stream drop → reconnect, unless a reconnect from the SAME failed prepare is already
@@ -1166,10 +1172,93 @@ class LivePreviewEngine(
         }
     }
 
+    // ---- Phase 4C: explicit surface ownership (see SurfaceOwnership) ----------------------------------
+    // The surface each kind of view last offered, and the role the shell says owns the picture. With no
+    // owner set (screens that never set one) the last surface offered wins, as before.
+    private val surfaceOwners = SurfaceOwners<Surface>()
+    private val surfaceOwner: SurfaceOwnership.Role? get() = surfaceOwners.owner
+
+    /** Names the view that drives the decoder. Its surface, if it already has one, is attached now. */
+    internal fun setSurfaceOwner(role: SurfaceOwnership.Role?) {
+        surfaceOwners.setOwner(role) { it.isValid }?.let { setSurface(it) }
+    }
+
+    /** A view of kind [role] has a surface. It reaches the decoder only if [role] owns the picture. */
+    internal fun offerSurface(role: SurfaceOwnership.Role, s: Surface) {
+        if (surfaceOwners.offer(role, s)) {
+            setSurface(s)
+        } else {
+            LiveDiagnosticsLog.event("surface from $role kept off the decoder (owner $surfaceOwner)")
+        }
+    }
+
+    /** A view of kind [role] lost its surface. Detached only if it is the one in use. */
+    internal fun withdrawSurface(role: SurfaceOwnership.Role, s: Surface) {
+        surfaceOwners.withdraw(role, s)
+        detachSurface(s)
+    }
+
     /** Attach the preview SurfaceView's surface, or null when it's destroyed. */
     fun setSurface(s: Surface?) {
+        if (s != null && s === surface) return // the same window again: re-pointing the codec is not free
+        val previous = surface ?: lastSurface
         surface = s
+        if (s != null) lastSurface = s
         if (s != null) player?.setVideoSurface(s) else player?.clearVideoSurface()
+        // The picture moved to another view (Guide preview <-> full screen): watch that it keeps rendering.
+        if (SurfaceHandoff.isSwitch(previous, s, hasPlayed)) {
+            LiveDiagnosticsLog.event("surface switch (owner $surfaceOwner) - watching frames")
+            armHandoffCheck(0)
+        }
+    }
+
+    // The last non-null surface: a switch is old view destroyed -> new view created, with a null between.
+    private var lastSurface: Surface? = null
+    private var handoffFrames = 0L
+    private var handoffCheckIndex = 0
+    private var handoffFramesAtSwitch = 0L
+    // Phase 4C: when a frozen picture last got a decoder rebuild (elapsedRealtime; 0 = not this tune).
+    private var lastFreezeRebuildMs = 0L
+    private val handoffCheck = Runnable {
+        val p = player
+        val playingVideo = p != null && p.playWhenReady && p.playbackState == Player.STATE_READY &&
+            p.videoFormat != null && !_audioOnly.value && surface != null
+        val framesNow = renderedTotal.get()
+        when (SurfaceHandoff.afterCheck(handoffFrames, framesNow, playingVideo, handoffCheckIndex)) {
+            SurfaceHandoff.Action.WATCH -> armHandoffCheck(handoffCheckIndex + 1)
+            SurfaceHandoff.Action.NONE ->
+                LiveDiagnosticsLog.event("surface switch ok: ${framesNow - handoffFramesAtSwitch} frames since the switch")
+            SurfaceHandoff.Action.REBUILD_DECODER ->
+                if (!rebuildDecoderForFreeze("surface switch: no new frame for ${SurfaceHandoff.CHECK_MS}ms")) {
+                    LiveDiagnosticsLog.event("surface switch: picture frozen again - left to the freeze watchdog")
+                }
+        }
+    }
+
+    private fun armHandoffCheck(check: Int) {
+        handoffCheckIndex = check
+        handoffFrames = renderedTotal.get()
+        if (check == 0) handoffFramesAtSwitch = handoffFrames
+        mainHandler.removeCallbacks(handoffCheck)
+        mainHandler.postDelayed(handoffCheck, SurfaceHandoff.CHECK_MS)
+    }
+
+    /**
+     * Phase 4C: a frozen picture on a playing stream gets a new decoder on the same stream (the same cure as
+     * [rebuildDecoderAndRetry]): one at a time, no re-tune of the channel, a second or so of black instead of
+     * the ~30 s the reconnect ladder took. At most once per [SurfaceHandoff.REBUILD_COOLDOWN_MS]; false when
+     * not allowed, and the caller's regular path (reconnect, then mpv) runs instead.
+     */
+    private fun rebuildDecoderForFreeze(why: String): Boolean {
+        val url = currentUrl ?: return false
+        if (surface == null) return false
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!SurfaceHandoff.mayRebuild(lastFreezeRebuildMs, now)) return false
+        lastFreezeRebuildMs = now
+        mainHandler.removeCallbacks(handoffCheck)
+        LiveDiagnosticsLog.event("$why - new decoder on the same stream")
+        rebuildDecoder(url)
+        return true
     }
 
     /** Enable/disable Media3's own Surface.setFrameRate mechanism. This is separate from the window-level
@@ -1271,7 +1360,7 @@ class LivePreviewEngine(
         lastCodecError = null; lastVideoDecoder = null; lastVideoDecoderHardware = null
         this.muted = muted
         currentUrl = url
-        hasPlayed = false; retryCount = 0; reconnectPending = false; gaveUp = false; decoderRetryDone = false
+        hasPlayed = false; retryCount = 0; reconnectPending = false; gaveUp = false; decoderRetryDone = false; lastFreezeRebuildMs = 0L
         flapWindowStartMs = 0L; flapCount = 0; flapWindowStartPos = 0L; prerollRetunePending = false
         responseWasHls = false; forceHlsForCurrentLoad = false; redirectedHlsRetryDone = false
         refusedSegments.clear(); _segmentsRefused.value = false; playlistLogged = false
@@ -1337,7 +1426,7 @@ class LivePreviewEngine(
             // [openWatchdog]. Armed for every tune, pre-roll or not: branch (1) doesn't need one.
             reprepare(p, url)
         }.onFailure {
-            android.util.Log.w(LiveDiagnosticsLog.TAG, "preview play() failed for ${HttpClient.redactUrl(url)}", it)
+            tv.own.owntv.core.diagnostics.SafeLog.w(LiveDiagnosticsLog.TAG, "preview play() failed for ${HttpClient.redactUrl(url)}", it)
             LiveDiagnosticsLog.event("play() failed: ${it.message}")
             _state.value = State.ERROR
             val raw = lastCodecError ?: diagnostics.recentError() ?: it.message
@@ -1469,11 +1558,12 @@ class LivePreviewEngine(
         LiveDiagnosticsLog.event("stop() — intentional")
         stoppingIntentionally = true
         currentUrl = null
-        hasPlayed = false; retryCount = 0; reconnectPending = false; gaveUp = false; decoderRetryDone = false
+        hasPlayed = false; retryCount = 0; reconnectPending = false; gaveUp = false; decoderRetryDone = false; lastFreezeRebuildMs = 0L
         cancelProviderBackOff(); providerBackOffs = 0
         mainHandler.removeCallbacks(stallWatchdog); mainHandler.removeCallbacks(progressWatchdog); mainHandler.removeCallbacks(fpsFastRefresh)
         mainHandler.removeCallbacks(openWatchdog)
         mainHandler.removeCallbacks(healthyReset)
+        mainHandler.removeCallbacks(handoffCheck)
         frameCounter.set(0); lastFrameCount = 0; everRendered = false; lastProgressPos = -1L; frozenChecks = 0
         audioTrackList = emptyList(); audioSelections = emptyList(); _audioCount.value = 0
         textTrackList = emptyList(); textSelections = emptyList(); _subCount.value = 0
@@ -1524,6 +1614,7 @@ class LivePreviewEngine(
         mainHandler.removeCallbacks(progressWatchdog)
         mainHandler.removeCallbacks(openWatchdog)
         mainHandler.removeCallbacks(healthyReset)
+        mainHandler.removeCallbacks(handoffCheck)
         mainHandler.removeCallbacks(audioOnlyConfirmation)
         player?.run { removeListener(listener); release() }
         player = null
@@ -1967,6 +2058,11 @@ class LivePreviewEngine(
         decoderRetryDone = true
         LiveDiagnosticsLog.event("decoder failed before first frame (${error.errorCodeName}) — rebuilding the decoder and retrying once")
         android.util.Log.w(LiveDiagnosticsLog.TAG, "decoder failure before first frame — rebuild + retry once")
+        rebuildDecoder(url)
+    }
+
+    /** Drops the player and its decoder, asks for a fresh surface and plays [url] again on a new player. */
+    private fun rebuildDecoder(url: String) {
         _state.value = State.LOADING; _buffering.value = true
         _error.value = null; _errorInfo.value = null
         // Drop the whole player: removeListener first so this release doesn't come back as STATE_IDLE.

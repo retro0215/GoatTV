@@ -41,6 +41,8 @@ fun OwnTVPopup(
     dismissOnBackPress: Boolean = true,
     dismissOnClickOutside: Boolean = true,
     fontScale: Float = 0.70f,
+    /** The popup's size against the app's (dp geometry). 1 keeps a screen's own dialog at the size it had in place. */
+    scale: Float = 0.70f,
     content: @Composable () -> Unit,
 ) {
     Dialog(
@@ -105,7 +107,7 @@ fun OwnTVPopup(
         val availableHeightPx = (usableBottomPx - topSafePx).coerceAtLeast(1)
         val availableHeightDp = with(baseDensity) { availableHeightPx.toDp() }
 
-        val popupScale = 0.70f
+        val popupScale = scale
         // Shrink dp geometry while compensating fontScale; PopupFontTheme applies exactly the same
         // 30% reduction to sp typography instead of accidentally scaling text twice.
         val popupDensity = Density(
@@ -113,7 +115,9 @@ fun OwnTVPopup(
             fontScale = baseDensity.fontScale / popupScale,
         )
 
-        Box(Modifier.fillMaxSize()) {
+        // 4.6.0: a release Android sends only because another window (the reminder warning) took focus
+        // mid-press never presses a button here (CanceledKeyRelease).
+        Box(Modifier.fillMaxSize().ignoreCanceledKeyReleases()) {
             // Centre inside the unobstructed physical band. ADJUST_NOTHING ensures this is the only
             // movement, eliminating double pan/translation across different TV implementations.
             Box(

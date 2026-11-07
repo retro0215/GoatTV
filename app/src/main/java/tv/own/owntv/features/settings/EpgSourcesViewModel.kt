@@ -54,7 +54,7 @@ class EpgSourcesViewModel(
         viewModelScope.launch { settings.setEpgUseLogos(source.id, enabled) }
     }
 
-    fun add(name: String, url: String, userAgent: String? = null, autoRefresh: EpgAutoRefresh = EpgAutoRefresh.OFF, useLogos: Boolean = false) {
+    fun add(name: String, url: String, userAgent: String? = null, autoRefresh: EpgAutoRefresh = tv.own.owntv.core.epg.EpgAutoRefreshPolicy.DEFAULT, useLogos: Boolean = false) {
         viewModelScope.launch {
             val source = store.add(name, url, userAgent)
             settings.setEpgAutoRefresh(source.id, autoRefresh)

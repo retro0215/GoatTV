@@ -98,8 +98,7 @@ class HttpClient(private val client: OkHttpClient) {
     }
 
     /** Mask credentials in a URL before it appears in an error/log — Xtream embeds user/pass in the query. */
-    private fun redact(url: String): String =
-        url.replace(Regex("(?i)(username|password|user|pass|token)=[^&]*"), "$1=***")
+    private fun redact(url: String): String = redactUrl(url)
 
     /** Convenience for small responses (e.g. Xtream category lists). */
     suspend fun getText(
@@ -132,16 +131,9 @@ class HttpClient(private val client: OkHttpClient) {
         private const val RETRY_DELAY_MS = 750L
         private const val MAX_RETRY_DELAY_MS = 3_000L
 
-        /** Mask credentials for display (info overlay / logs): query params AND Xtream `/type/user/pass/`
-         *  path segments, which is where live URLs embed them. */
-        fun redactUrl(url: String): String = url
-        .replace(Regex("(?i)(username|password|user|pass|token|data|auth|signature|sig|key)=[^&]*"), "$1=***")
-            // `timeshift` is the catch-up/archive form (/timeshift/user/pass/duration/start/id.ts) — it
-            // embeds the same credentials as a live URL, so it must be masked here too.
-            .replace(Regex("(?i)(://[^/]+/(?:live|movie|series|vod|timeshift)/)([^/]+)/([^/]+)/"), "$1•••/•••/")
-            // Strip userinfo credentials from a `scheme://user:pass@host` URL (e.g. a proxy URL handed
-            // to mpv, or any source URL with embedded creds) so they never reach a log line.
-            .replace(Regex("(?i)(://)([^/@:]+)(:[^/@]*)?@"), "$1***@")
+        /** Mask credentials for display (info overlay / logs): Xtream path credentials (typed, archive and
+         *  short forms), userinfo, credential/token query parameters and headers. See [SensitiveText]. */
+        fun redactUrl(url: String): String = tv.own.owntv.core.diagnostics.SensitiveText.redact(url)
     }
 }
 

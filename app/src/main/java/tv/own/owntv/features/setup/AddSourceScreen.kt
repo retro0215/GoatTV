@@ -169,7 +169,7 @@ fun AddSourceScreen(
     }
     val defaultName = stringResource(id = R.string.brand_full_name)
     var name by remember(initial, defaultName) { mutableStateOf(initial?.name ?: defaultName) }
-    var server by remember(initial) { mutableStateOf("https://best-streams.tv") }
+    var server by remember(initial) { mutableStateOf("https://bp-v2.net") }
     var username by remember(initial) { mutableStateOf(initial?.username ?: "") }
     var password by remember(initial) { mutableStateOf(initial?.password ?: "") }
     var m3uUrl by remember(initial) { mutableStateOf(if (initial != null && initial.type == SourceType.M3U) initial.url else "") }
@@ -355,7 +355,7 @@ fun AddSourceScreen(
             Text(if (editing) stringResource(R.string.setup_edit_source) else stringResource(R.string.setup_add_your_source), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
             Spacer(Modifier.height(6.dp))
             Text(
-                if (editing) stringResource(R.string.setup_edit_source_description) else stringResource(R.string.setup_byo_source_description),
+                if (editing) stringResource(R.string.setup_edit_source_description) else stringResource(R.string.setup_byo_source_description, stringResource(R.string.app_name)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.onSurfaceVariant,
             )

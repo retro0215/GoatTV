@@ -249,7 +249,7 @@ private fun DisclaimerScreen(onAgree: () -> Unit, onBack: () -> Unit) {
         Text(stringResource(R.string.setup_before_you_start), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
         Spacer(Modifier.height(10.dp))
         Text(
-            stringResource(R.string.setup_disclaimer),
+            stringResource(R.string.setup_disclaimer, stringResource(R.string.app_name)),
             style = MaterialTheme.typography.bodyLarge,
             color = colors.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -283,7 +283,7 @@ private fun SetupChoiceScreen(onCreate: () -> Unit, onRestore: () -> Unit, onBac
     MainSetupPage {
         BrandLockup(markSize = 36, textSize = 26)
         Spacer(Modifier.height(24.dp))
-        Text(stringResource(R.string.setup_set_up_owntv), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
+        Text(stringResource(R.string.setup_set_up_owntv, stringResource(R.string.app_name)), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)
         Spacer(Modifier.height(10.dp))
         Text(
             stringResource(R.string.setup_setup_choice_description),

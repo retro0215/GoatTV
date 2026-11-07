@@ -47,12 +47,28 @@ interface ChannelDao {
     @Query("DELETE FROM channels WHERE sourceId = :sourceId AND remoteId IS NULL")
     suspend fun deleteNullRemoteIds(sourceId: Long)
 
+    @Query("SELECT * FROM channels WHERE remoteId = :remoteId")
+    suspend fun findByRemoteId(remoteId: String): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE epgChannelId = :epgChannelId")
+    suspend fun findByEpgChannelId(epgChannelId: String): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE streamUrl = :streamUrl")
+    suspend fun findByStreamUrl(streamUrl: String): List<ChannelEntity>
+
+    @Query("SELECT * FROM channels WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name))")
+    suspend fun findByNameCaseInsensitive(name: String): List<ChannelEntity>
+
     @Query("SELECT * FROM channels WHERE id = :id")
     suspend fun getById(id: Long): ChannelEntity?
 
     // --- Stable-key lookups (Backup & Restore resolution: content ids change on re-sync) ---
     @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId LIMIT 1")
     suspend fun findByRemote(sourceId: Long, remoteId: String): ChannelEntity?
+
+    /** Every row with this provider id (no LIMIT), so a caller that must not guess can see duplicates. */
+    @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId")
+    suspend fun findAllByRemote(sourceId: Long, remoteId: String): List<ChannelEntity>
 
     @Query("SELECT * FROM channels WHERE sourceId = :sourceId AND name = :name LIMIT 1")
     suspend fun findByName(sourceId: Long, name: String): ChannelEntity?
@@ -100,23 +116,30 @@ interface ChannelDao {
     suspend fun countCatchup(sourceIds: List<Long>): Int
 
     /**
-     * Channels that actually HAVE programmes in the window — so the guide never wastes its row limit
-     * on channels without data. The id match is case/whitespace-insensitive: XMLTV channel ids often
-     * differ from the panel's epg_channel_id in case.
+     * Channels that actually HAVE programmes, in guide order — Phase 4B's one-statement guide query
+     * ([GuideSql.CHANNELS_WITH_GUIDE]). The Guide now uses [guideCandidates] + [byIds] (same result); this
+     * stays as the reference the unit tests compare that path with.
      */
-    @Query(
-        "SELECT * FROM channels WHERE sourceId IN (:sourceIds) AND epgChannelId IS NOT NULL AND epgChannelId != '' " +
-            "AND (:query = '' OR name LIKE '%' || :query || '%') " +
-            // "channels that have guide data": distinct epgChannelIds present in epg_programmes. The programme
-            // table is already pruned to the retained window, so we don't time-filter here — that lets the
-            // DISTINCT use the (epgChannelId, startMs) index as a fast skip-scan instead of scanning every
-            // windowed row and running LOWER(TRIM) per row (was multi-second on big guides). epg_programmes
-            // ids are stored normalized, so no LOWER(TRIM) on that side either.
-            "AND LOWER(TRIM(epgChannelId)) IN (" +
-            "  SELECT DISTINCT epgChannelId FROM epg_programmes WHERE sourceId IN (:sourceIds)" +
-            ") ORDER BY number ASC, name ASC LIMIT :limit",
-    )
+    @Query(GuideSql.CHANNELS_WITH_GUIDE)
     suspend fun channelsWithGuide(sourceIds: List<Long>, query: String, limit: Int): List<ChannelEntity>
+
+    /**
+     * The TV Guide's channel candidates (4.6.0), in [channelsWithGuide]'s order: each channel's id and its
+     * guide key normalized exactly as [channelsWithGuide] does (`LOWER(TRIM(epgChannelId))`). Narrow rows,
+     * so the whole list fits one CursorWindow and the query runs once. [channelsWithGuide] returns ~19k
+     * full rows, which take several CursorWindows, and SQLite re-runs the statement (and its scan of the
+     * programme table) for each one: 7 times on the onn, 5.9 s, and 62 s under memory pressure.
+     */
+    @Query(GuideSql.GUIDE_CANDIDATES)
+    suspend fun guideCandidates(sourceIds: List<Long>, query: String): List<GuideChannelCandidate>
+
+    /** Full channel rows by primary key. Callers keep [ids] under SQLite's 999-variable limit. */
+    @Query(GuideSql.CHANNELS_BY_IDS)
+    suspend fun byIds(ids: List<Long>): List<ChannelEntity>
+
+    /** How many channels these playlists hold: part of the Guide's cheap "data changed" signal. */
+    @Query("SELECT COUNT(*) FROM channels WHERE sourceId IN (:sourceIds)")
+    suspend fun countForSources(sourceIds: List<Long>): Int
 
     /** Channels matching these remoteIds (Xtream stream ids) — to resolve smart-matched channels in bulk
      *  without loading the whole channel table. */
@@ -377,3 +400,6 @@ interface ChannelDao {
         limit: Int,
     ): Flow<List<ChannelWithWatchedAt>>
 }
+
+/** One TV Guide channel candidate: its id and its normalized guide key ([ChannelDao.guideCandidates]). */
+data class GuideChannelCandidate(val id: Long, val guideKey: String?)

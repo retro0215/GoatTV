@@ -13,8 +13,8 @@ import tv.own.owntv.BuildConfig
  * time, and this device's vendor PQ/AI logging floods logcat fast enough that OwnTV's own lines don't survive
  * to a bugreport — so this keeps its own bounded record independent of Logcat.
  *
- * Enabled by default in debug builds, disabled by default in release. Callers must redact URLs/credentials
- * before passing text in — this class does not inspect or strip anything itself.
+ * Enabled by default in debug builds, disabled by default in release. Callers redact URLs/credentials before
+ * passing text in, and [event] runs [tv.own.owntv.core.diagnostics.SensitiveText] again before storing it.
  */
 object LiveDiagnosticsLog {
     const val TAG = "OwnTV-LivePreviewEngine"
@@ -38,8 +38,10 @@ object LiveDiagnosticsLog {
     }
 
     /** Record one diagnostic line. Always kept in the in-memory ring; also written to Logcat + the rolling
-     *  file when [enabled]. [message] must already be redacted of URLs/credentials by the caller. */
-    fun event(message: String) {
+     *  file when [enabled]. Callers redact already; [raw] is redacted again here as the backstop for the
+     *  ring, Logcat and the file (4.6.0). */
+    fun event(raw: String) {
+        val message = tv.own.owntv.core.diagnostics.SensitiveText.redact(raw)
         val line = "${timeFmt.format(Date())} $message"
         synchronized(lock) {
             ring.addLast(line)

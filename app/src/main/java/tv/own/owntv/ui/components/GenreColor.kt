@@ -75,7 +75,12 @@ enum class ChannelGenre(@param:StringRes val displayLabelRes: Int, val canonical
             ENTERTAINMENT, MOVIES, SERIES,
         )
 
-        private fun keywords(g: ChannelGenre): List<String> = when (g) {
+        // 4.6.0: built once (they were new lists on every call, ~16 per category name the guide classifies).
+        private val keywordLists: Map<ChannelGenre, List<String>> by lazy { entries.associateWith { keywordsOf(it) } }
+
+        private fun keywords(g: ChannelGenre): List<String> = keywordLists.getValue(g)
+
+        private fun keywordsOf(g: ChannelGenre): List<String> = when (g) {
             // "adults" (not bare "adult", so "adult swim" animation still reads as Anime); رعب-free.
             ADULT -> listOf(
                 "for adult", "adults", "rated r", "rated-r", "+18", "18+", "xxx", "للكبار", "adult movies",

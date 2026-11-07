@@ -65,7 +65,7 @@ fun ExitDialog(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = androidx.compose.ui.res.stringResource(R.string.content_exit_owntv),
+                text = androidx.compose.ui.res.stringResource(R.string.content_exit_owntv, androidx.compose.ui.res.stringResource(R.string.app_name)),
                 style = MaterialTheme.typography.titleLarge,
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center,

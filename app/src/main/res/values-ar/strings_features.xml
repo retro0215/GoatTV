@@ -140,8 +140,8 @@
     <string name="update_failed_download_http">استجاب تنزيل التحديث برمز HTTP <xliff:g id="code">%1$s</xliff:g>.</string>
     <string name="update_empty_download">أعاد خادم التحديث ملف APK فارغًا.</string>
     <string name="update_install_failed">تعذّر على مثبّت النظام فتح التحديث الذي تم تنزيله.</string>
-    <string name="update_ready">OwnTV v<xliff:g id="available">%1$s</xliff:g> جاهز (لديك v<xliff:g id="current">%2$s</xliff:g>).</string>
-    <string name="recovery_title">تعذّر على OwnTV فتح قاعدة بياناته</string>
+    <string name="update_ready"><xliff:g id="app_name">%3$s</xliff:g> v<xliff:g id="available">%1$s</xliff:g> جاهز (لديك v<xliff:g id="current">%2$s</xliff:g>).</string>
+    <string name="recovery_title">تعذّر على <xliff:g id="app_name">%1$s</xliff:g> فتح قاعدة بياناته</string>
     <string name="recovery_data_safe_full">لم تُحذف ملفاتك الشخصية أو قوائم التشغيل أو المفضّلة أو سجل المشاهدة — فهذا إخفاق في ترقية قاعدة البيانات، وما تزال البيانات على هذا الجهاز.\n\nيرجى الإبلاغ عن ذلك حتى يمكن إصلاحه، وإرفاق الرسالة أدناه.</string>
     <string name="recovery_retry">إعادة المحاولة</string>
     <string name="recovery_backup_hint">إذا كان لديك ملف نسخة احتياطية، فيمكنك إعادة ضبط التطبيق ثم الاستعادة منه بعد ذلك. تؤدي إعادة الضبط إلى حذف كل ما هو مخزّن على هذا الجهاز.</string>

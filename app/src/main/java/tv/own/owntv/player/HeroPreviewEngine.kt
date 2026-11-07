@@ -113,8 +113,8 @@ class HeroPreviewEngine(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            android.util.Log.w(TAG, "Hero preview error: ${error.errorCodeName}", error)
-            if (BuildConfig.DEBUG) Log.e("HomePreview", "player error: ${error.errorCodeName}", error)
+            tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "Hero preview error: ${error.errorCodeName}", error)
+            if (BuildConfig.DEBUG) tv.own.owntv.core.diagnostics.SafeLog.e("HomePreview", "player error: ${error.errorCodeName}", error)
             currentUrl?.let { url -> if (httpStatusOf(error) == 458) LiveStreamQuirks.rememberSessionLimit(url) }
             watchdog.removeCallbacks(noFrameTimeout)
             hasStarted = false
@@ -172,7 +172,7 @@ class HeroPreviewEngine(
             watchdog.removeCallbacks(noFrameTimeout)
             watchdog.postDelayed(noFrameTimeout, NO_FRAME_TIMEOUT_MS)
         }.onFailure {
-            android.util.Log.w(TAG, "Hero preview play failed for ${HttpClient.redactUrl(url)}", it)
+            tv.own.owntv.core.diagnostics.SafeLog.w(TAG, "Hero preview play failed for ${HttpClient.redactUrl(url)}", it)
             hasStarted = false
             currentUrl = null
             player?.run {

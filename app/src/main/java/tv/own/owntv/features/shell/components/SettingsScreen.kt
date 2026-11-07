@@ -124,7 +124,7 @@ import java.util.Locale
 
 private enum class TileTone { PRIMARY, SECONDARY, TERTIARY }
 
-private enum class SettingsTab { ROOT, LANGUAGE, SOURCES, EPG, PROFILES, BACKUP, VIDEO, MINI_PLAYER, CUSTOMIZE, HOME, NETWORK, DNS, METADATA, OPEN_SUBTITLES, WEATHER, NAV_MENU, CH_NAV, PANEL_WIDTH }
+private enum class SettingsTab { ROOT, LANGUAGE, SOURCES, EPG, PROFILES, BACKUP, VIDEO, MINI_PLAYER, CUSTOMIZE, HOME, NETWORK, DNS, METADATA, OPEN_SUBTITLES, WEATHER, NAV_MENU, CH_NAV, PANEL_WIDTH, DIAGNOSTICS, TUTORIALS, REMINDERS }
 
 @Composable
 private fun surroundModeLabel(mode: SurroundMode): String = stringResource(
@@ -360,6 +360,9 @@ fun SettingsScreen(
         SettingsTab.NAV_MENU to FocusRequester(),
         SettingsTab.CH_NAV to FocusRequester(),
         SettingsTab.PANEL_WIDTH to FocusRequester(),
+        SettingsTab.DIAGNOSTICS to FocusRequester(),
+        SettingsTab.TUTORIALS to FocusRequester(),
+        SettingsTab.REMINDERS to FocusRequester(),
     ) }
     val open: (SettingsTab) -> Unit = { lastTab = it; tab = it }
     // Restore focus to the row a sub-screen was opened from when the user navigates back. Fresh entry
@@ -393,6 +396,9 @@ fun SettingsScreen(
         SettingsTab.NAV_MENU -> { tv.own.owntv.features.settings.NavMenuSettingsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.CH_NAV -> { tv.own.owntv.features.settings.ChNavSettingsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.PANEL_WIDTH -> { tv.own.owntv.features.settings.PanelWidthSettingsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
+        SettingsTab.DIAGNOSTICS -> { tv.own.owntv.features.settings.DiagnosticCenterScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
+        SettingsTab.TUTORIALS -> { tv.own.owntv.features.tutorials.VideoTutorialsScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
+        SettingsTab.REMINDERS -> { tv.own.owntv.features.settings.UpcomingRemindersScreen(onBack = { tab = SettingsTab.ROOT }, modifier = modifier); return }
         SettingsTab.ROOT -> Unit
     }
 
@@ -509,6 +515,12 @@ fun SettingsScreen(
             chipTone = TileTone.PRIMARY,
             onClick = { savedScroll = scrollState.value; dialogReturn = catchupRowFocus; showCatchupTime = true }, showChevron = true,
             modifier = Modifier.focusRequester(catchupRowFocus),
+        )
+        SettingsRow(
+            tone = TileTone.SECONDARY, icon = OwnTVIcon.EPG,
+            title = stringResource(R.string.content_reminder_upcoming), desc = stringResource(R.string.content_reminder_upcoming_description),
+            onClick = { open(SettingsTab.REMINDERS) }, showChevron = true,
+            modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.REMINDERS)),
         )
         SettingsRow(
             tone = TileTone.PRIMARY, icon = OwnTVIcon.SORT,
@@ -728,7 +740,7 @@ fun SettingsScreen(
             desc = when (surroundMode) {
                 SurroundMode.AUTO -> stringResource(R.string.settings_surround_auto_description)
                 SurroundMode.STEREO -> stringResource(R.string.settings_surround_stereo_description)
-                SurroundMode.SURROUND -> stringResource(R.string.settings_surround_forced_description)
+                SurroundMode.SURROUND -> stringResource(R.string.settings_surround_forced_description, stringResource(R.string.app_name))
             },
             chip = when (surroundMode) {
                 SurroundMode.AUTO -> stringResource(R.string.settings_auto)
@@ -763,7 +775,7 @@ fun SettingsScreen(
         GroupLabel(stringResource(R.string.settings_network_group))
         SettingsRow(
             tone = TileTone.SECONDARY, icon = OwnTVIcon.SHARE,
-            title = stringResource(R.string.common_proxy), desc = stringResource(R.string.settings_proxy_description),
+            title = stringResource(R.string.common_proxy), desc = stringResource(R.string.settings_proxy_description, stringResource(R.string.app_name)),
             onClick = { open(SettingsTab.NETWORK) }, showChevron = true,
             modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.NETWORK)),
         )
@@ -778,8 +790,20 @@ fun SettingsScreen(
         SectionDivider()
         GroupLabel(stringResource(R.string.settings_app_group))
         SettingsRow(
+            tone = TileTone.PRIMARY, icon = OwnTVIcon.INFO,
+            title = stringResource(R.string.diag_title), desc = stringResource(R.string.diag_subtitle),
+            onClick = { open(SettingsTab.DIAGNOSTICS) }, showChevron = true,
+            modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.DIAGNOSTICS)),
+        )
+        SettingsRow(
+            tone = TileTone.SECONDARY, icon = OwnTVIcon.PLAY,
+            title = stringResource(R.string.settings_video_tutorials), desc = stringResource(R.string.settings_video_tutorials_description, stringResource(R.string.app_name)),
+            onClick = { open(SettingsTab.TUTORIALS) }, showChevron = true,
+            modifier = Modifier.focusRequester(rowFocus.getValue(SettingsTab.TUTORIALS)),
+        )
+        SettingsRow(
             tone = TileTone.SECONDARY, icon = OwnTVIcon.HOME,
-            title = stringResource(R.string.settings_app_startup), desc = stringResource(R.string.settings_app_startup_description),
+            title = stringResource(R.string.settings_app_startup), desc = stringResource(R.string.settings_app_startup_description, stringResource(R.string.app_name)),
             chip = if (startupMode == tv.own.owntv.features.settings.data.StartupMode.SPECIFIC_CHANNEL) {
                 startupChannel?.name ?: startupLabel(startupMode)
             } else startupLabel(startupMode), chipTone = TileTone.PRIMARY,
@@ -885,6 +909,8 @@ fun SettingsScreen(
                 SettingsSearchEntry(stringResource(R.string.settings_group_playback), stringResource(R.string.settings_detailed_playback_logging), stringResource(R.string.settings_search_keywords_detailed_logging), OwnTVIcon.INFO, TileTone.SECONDARY) { open(SettingsTab.VIDEO) },
                 SettingsSearchEntry(stringResource(R.string.settings_group_network), stringResource(R.string.common_proxy), stringResource(R.string.settings_search_keywords_proxy), OwnTVIcon.SHARE, TileTone.SECONDARY) { open(SettingsTab.NETWORK) },
                 SettingsSearchEntry(stringResource(R.string.settings_group_network), stringResource(R.string.settings_dns), stringResource(R.string.settings_search_keywords_dns), OwnTVIcon.SEARCH, TileTone.SECONDARY) { open(SettingsTab.DNS) },
+                SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.diag_title), stringResource(R.string.diag_settings_search_keywords), OwnTVIcon.INFO, TileTone.PRIMARY) { open(SettingsTab.DIAGNOSTICS) },
+                SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.settings_video_tutorials), stringResource(R.string.settings_search_keywords_video_tutorials), OwnTVIcon.PLAY, TileTone.SECONDARY) { open(SettingsTab.TUTORIALS) },
                 SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.settings_app_startup), stringResource(R.string.settings_search_keywords_startup), OwnTVIcon.HOME, TileTone.SECONDARY,
                     chip = startupLabel(startupMode)) { savedScroll = scrollState.value; dialogReturn = searchFieldFocus; showStartup = true },
                 SettingsSearchEntry(stringResource(R.string.settings_group_app), stringResource(R.string.settings_check_updates), stringResource(R.string.settings_search_keywords_updates), OwnTVIcon.DOWNLOADS, TileTone.PRIMARY,
@@ -1804,6 +1830,7 @@ private fun AutoFrameRateWarningDialog(onEnable: () -> Unit, onDismiss: () -> Un
                 stringResource(
                     R.string.settings_auto_frame_rate_warning_description,
                     android.os.Build.VERSION.RELEASE,
+                    stringResource(R.string.app_name),
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = colors.onSurfaceVariant,
@@ -2884,7 +2911,7 @@ private fun CatchupTimeDialog(
                     OwnTVButton(
                         when (p) {
                             SettingsRepository.CatchupPlayer.ASK -> stringResource(R.string.settings_catchup_player_ask)
-                            SettingsRepository.CatchupPlayer.INTERNAL -> stringResource(R.string.settings_catchup_player_internal)
+                            SettingsRepository.CatchupPlayer.INTERNAL -> stringResource(R.string.settings_catchup_player_internal, stringResource(R.string.app_name))
                             SettingsRepository.CatchupPlayer.EXTERNAL -> stringResource(R.string.settings_catchup_player_external)
                         },
                         onClick = { onSetPlayer(p) },

@@ -71,7 +71,7 @@ private class MpvSurfaceView(context: Context, private val player: OwnTVPlayer) 
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        player.detachSurface()
+        player.detachSurface(holder.surface)
     }
 }
 
@@ -148,6 +148,8 @@ fun ExoPreviewSurface(
     modifier: Modifier = Modifier,
     keepAwake: Boolean = false,
     autoFrameRate: Boolean = false,
+    /** Phase 4C: what kind of view this is; it drives the decoder only while the shell names it the owner. */
+    role: SurfaceOwnership.Role = SurfaceOwnership.Role.PAGE,
 ) {
     // Only the full-screen live player passes autoFrameRate = true — the in-pane preview must never
     // reconfigure the display while the user is just scrolling the channel list.
@@ -171,9 +173,9 @@ fun ExoPreviewSurface(
                 factory = { ctx ->
                     SurfaceView(ctx).apply {
                         holder.addCallback(object : SurfaceHolder.Callback {
-                            override fun surfaceCreated(holder: SurfaceHolder) = engine.setSurface(holder.surface)
+                            override fun surfaceCreated(holder: SurfaceHolder) = engine.offerSurface(role, holder.surface)
                             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-                            override fun surfaceDestroyed(holder: SurfaceHolder) = engine.detachSurface(holder.surface)
+                            override fun surfaceDestroyed(holder: SurfaceHolder) = engine.withdrawSurface(role, holder.surface)
                         })
                     }
                 },

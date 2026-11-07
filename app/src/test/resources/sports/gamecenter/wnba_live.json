@@ -1,0 +1,1054 @@
+{
+ "event": {
+  "id": "evt_fdeb1a7dbac341b6b929",
+  "away": {
+   "id": "wnba.dal",
+   "name": "Dallas Wings",
+   "score": "28",
+   "logoUrl": null,
+   "shortName": "Wings",
+   "abbreviation": "DAL"
+  },
+  "home": {
+   "id": "wnba.gs",
+   "name": "Golden State Valkyries",
+   "score": "26",
+   "logoUrl": null,
+   "shortName": "Valkyries",
+   "abbreviation": "GS"
+  },
+  "title": "First Round - Game 3",
+  "status": "LIVE",
+  "leagueId": "wnba",
+  "priority": 75,
+  "startTime": "2026-10-03T01:00:00Z",
+  "updatedAt": "2026-10-03T01:39:48.793Z",
+  "venueName": "Chase Center",
+  "broadcasts": [
+   {
+    "name": "ESPN2",
+    "type": "TV",
+    "market": "NATIONAL",
+    "networkKey": "espn2"
+   }
+  ],
+  "statusDetail": "4:50 - 2nd"
+ },
+ "gameCenter": {
+  "availability": "AVAILABLE",
+  "phase": "LIVE",
+  "updatedAt": "2026-10-03T01:40:22.543Z",
+  "stale": false,
+  "status": {
+   "clock": "4:50",
+   "phase": "LIVE",
+   "detail": "4:50 - 2nd",
+   "period": 2
+  },
+  "leaders": {
+   "scope": "GAME",
+   "categories": [
+    {
+     "key": "points",
+     "away": {
+      "value": "8",
+      "player": {
+       "id": "ply_66965b0bd06445328123",
+       "name": "Arike Ogunbowale",
+       "jersey": "24",
+       "position": "G",
+       "shortName": "A. Ogunbowale",
+       "headshotUrl": null
+      },
+      "summary": "3/7 FG, 1/1 FT"
+     },
+     "home": {
+      "value": "5",
+      "player": {
+       "id": "ply_cfc58ca5e62f4befb4d4",
+       "name": "Tiffany Hayes",
+       "jersey": "15",
+       "position": "G",
+       "shortName": "T. Hayes",
+       "headshotUrl": null
+      },
+      "summary": "2/4 FG, 1/3 FT"
+     },
+     "label": "Points"
+    },
+    {
+     "key": "assists",
+     "away": {
+      "value": "3",
+      "player": {
+       "id": "ply_4db5f232f27c414181f5",
+       "name": "Paige Bueckers",
+       "jersey": "5",
+       "position": "G",
+       "shortName": "P. Bueckers",
+       "headshotUrl": null
+      },
+      "summary": "0 TO, 15 MIN"
+     },
+     "home": {
+      "value": "2",
+      "player": {
+       "id": "ply_2a63085bbc4d49b3b37e",
+       "name": "Cecilia Zandalasini",
+       "jersey": "24",
+       "position": "F",
+       "shortName": "C. Zandalasini",
+       "headshotUrl": null
+      },
+      "summary": "1 TO, 10 MIN"
+     },
+     "label": "Assists"
+    },
+    {
+     "key": "rebounds",
+     "away": {
+      "value": "8",
+      "player": {
+       "id": "ply_a9852307670c4e768551",
+       "name": "Jessica Shepard",
+       "jersey": "32",
+       "position": "F",
+       "shortName": "J. Shepard",
+       "headshotUrl": null
+      },
+      "summary": "7 DREB, 1 OREB"
+     },
+     "home": {
+      "value": "3",
+      "player": {
+       "id": "ply_98f3be05edca440ca27f",
+       "name": "Kaila Charles",
+       "jersey": "6",
+       "position": "G",
+       "shortName": "K. Charles",
+       "headshotUrl": null
+      },
+      "summary": "3 DREB, 0 OREB"
+     },
+     "label": "Rebounds"
+    }
+   ]
+  },
+  "scoring": [],
+  "boxScore": {
+   "away": {
+    "groups": [
+     {
+      "key": "players",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_a9852307670c4e768551",
+         "name": "Jessica Shepard",
+         "jersey": "32",
+         "position": "F",
+         "shortName": "J. Shepard",
+         "headshotUrl": null
+        },
+        "values": [
+         "15",
+         "4",
+         "2-3",
+         "0-0",
+         "0-1",
+         "8",
+         "2",
+         "1",
+         "0",
+         "0",
+         "1",
+         "7",
+         "1",
+         "+2"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_d5ea9f8a3a7e427f8386",
+         "name": "Maddy Siegrist",
+         "jersey": "20",
+         "position": "F",
+         "shortName": "M. Siegrist",
+         "headshotUrl": null
+        },
+        "values": [
+         "5",
+         "0",
+         "0-1",
+         "0-1",
+         "0-0",
+         "2",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "2",
+         "1",
+         "+2"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_45e06ae365664ce19e52",
+         "name": "Awak Kuier",
+         "jersey": "34",
+         "position": "F",
+         "shortName": "A. Kuier",
+         "headshotUrl": null
+        },
+        "values": [
+         "11",
+         "6",
+         "3-4",
+         "0-1",
+         "0-0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "1",
+         "1",
+         "0",
+         "1",
+         "+4"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_66965b0bd06445328123",
+         "name": "Arike Ogunbowale",
+         "jersey": "24",
+         "position": "G",
+         "shortName": "A. Ogunbowale",
+         "headshotUrl": null
+        },
+        "values": [
+         "13",
+         "8",
+         "3-7",
+         "1-2",
+         "1-1",
+         "2",
+         "2",
+         "3",
+         "1",
+         "0",
+         "1",
+         "1",
+         "2",
+         "0"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_4db5f232f27c414181f5",
+         "name": "Paige Bueckers",
+         "jersey": "5",
+         "position": "G",
+         "shortName": "P. Bueckers",
+         "headshotUrl": null
+        },
+        "values": [
+         "15",
+         "3",
+         "0-4",
+         "0-2",
+         "3-3",
+         "1",
+         "3",
+         "0",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "+2"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_d9aee67f252f4a699be0",
+         "name": "Alysha Clark",
+         "jersey": "7",
+         "position": "F",
+         "shortName": "A. Clark",
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "2",
+         "1-1",
+         "0-0",
+         "0-0",
+         "2",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "2",
+         "0",
+         "+3"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_dd529c267c0b4573943b",
+         "name": "Odyssey Sims",
+         "jersey": "1",
+         "position": "G",
+         "shortName": "O. Sims",
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "3",
+         "1-1",
+         "1-1",
+         "0-0",
+         "1",
+         "2",
+         "0",
+         "1",
+         "0",
+         "0",
+         "1",
+         "2",
+         "-1"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_f6dc744329944f84b0e0",
+         "name": "Aziaha James",
+         "jersey": "10",
+         "position": "G",
+         "shortName": "A. James",
+         "headshotUrl": null
+        },
+        "values": [
+         "4",
+         "2",
+         "1-4",
+         "0-2",
+         "0-0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "2",
+         "-2"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_51d4eefcb54a439aad13",
+         "name": "Li Yueru",
+         "jersey": "28",
+         "position": "C",
+         "shortName": "L. Yueru",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_282b24f7c02a4d9eb8da",
+         "name": "Kitija Laksa",
+         "jersey": "33",
+         "position": "G",
+         "shortName": "K. Laksa",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_c6928b7e51bc4592bf8e",
+         "name": "Christyn Williams",
+         "jersey": "31",
+         "position": "G",
+         "shortName": "C. Williams",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_ce14f8ad4f55403d86e9",
+         "name": "Haley Jones",
+         "jersey": "30",
+         "position": "G",
+         "shortName": "H. Jones",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       }
+      ],
+      "label": "Players",
+      "totals": [
+       null,
+       "28",
+       "11-25",
+       "2-9",
+       "4-5",
+       "17",
+       "9",
+       "5",
+       "2",
+       "1",
+       "3",
+       "14",
+       "9",
+       null
+      ],
+      "columns": [
+       {
+        "key": "minutes",
+        "label": "MIN"
+       },
+       {
+        "key": "points",
+        "label": "PTS"
+       },
+       {
+        "key": "fieldGoalsMade-fieldGoalsAttempted",
+        "label": "FG"
+       },
+       {
+        "key": "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+        "label": "3PT"
+       },
+       {
+        "key": "freeThrowsMade-freeThrowsAttempted",
+        "label": "FT"
+       },
+       {
+        "key": "rebounds",
+        "label": "REB"
+       },
+       {
+        "key": "assists",
+        "label": "AST"
+       },
+       {
+        "key": "turnovers",
+        "label": "TO"
+       },
+       {
+        "key": "steals",
+        "label": "STL"
+       },
+       {
+        "key": "blocks",
+        "label": "BLK"
+       },
+       {
+        "key": "offensiveRebounds",
+        "label": "OREB"
+       },
+       {
+        "key": "defensiveRebounds",
+        "label": "DREB"
+       },
+       {
+        "key": "fouls",
+        "label": "PF"
+       },
+       {
+        "key": "plusMinus",
+        "label": "+/-"
+       }
+      ]
+     }
+    ],
+    "formation": null
+   },
+   "home": {
+    "groups": [
+     {
+      "key": "players",
+      "rows": [
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_a72485f7ffe343d3830b",
+         "name": "Kayla Thornton",
+         "jersey": "5",
+         "position": "F",
+         "shortName": "K. Thornton",
+         "headshotUrl": null
+        },
+        "values": [
+         "8",
+         "0",
+         "0-1",
+         "0-1",
+         "0-0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "-5"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_7b2afdb1ffe548db9457",
+         "name": "Gabby Williams",
+         "jersey": "1",
+         "position": "F",
+         "shortName": "G. Williams",
+         "headshotUrl": null
+        },
+        "values": [
+         "12",
+         "2",
+         "1-4",
+         "0-1",
+         "0-0",
+         "2",
+         "0",
+         "1",
+         "2",
+         "0",
+         "0",
+         "2",
+         "1",
+         "-6"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_2a63085bbc4d49b3b37e",
+         "name": "Cecilia Zandalasini",
+         "jersey": "24",
+         "position": "F",
+         "shortName": "C. Zandalasini",
+         "headshotUrl": null
+        },
+        "values": [
+         "10",
+         "5",
+         "1-3",
+         "0-0",
+         "3-3",
+         "0",
+         "2",
+         "1",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "-4"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_db1c8175c8bc41bc8c60",
+         "name": "Kiah Stokes",
+         "jersey": "41",
+         "position": "C",
+         "shortName": "K. Stokes",
+         "headshotUrl": null
+        },
+        "values": [
+         "10",
+         "4",
+         "2-3",
+         "0-1",
+         "0-0",
+         "1",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "1",
+         "1",
+         "+1"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_d8c35d57d613490399c0",
+         "name": "Veronica Burton",
+         "jersey": "22",
+         "position": "G",
+         "shortName": "V. Burton",
+         "headshotUrl": null
+        },
+        "values": [
+         "12",
+         "4",
+         "2-4",
+         "0-1",
+         "0-0",
+         "1",
+         "2",
+         "1",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "+4"
+        ],
+        "starter": true
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_f177ea7fb2564bb6a275",
+         "name": "Janelle Salaun",
+         "jersey": "13",
+         "position": "F",
+         "shortName": "J. Salaun",
+         "headshotUrl": null
+        },
+        "values": [
+         "5",
+         "3",
+         "1-2",
+         "1-1",
+         "0-0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "0",
+         "1",
+         "-3"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_cfc58ca5e62f4befb4d4",
+         "name": "Tiffany Hayes",
+         "jersey": "15",
+         "position": "G",
+         "shortName": "T. Hayes",
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "5",
+         "2-4",
+         "0-0",
+         "1-3",
+         "2",
+         "1",
+         "0",
+         "0",
+         "0",
+         "1",
+         "1",
+         "0",
+         "+2"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_98f3be05edca440ca27f",
+         "name": "Kaila Charles",
+         "jersey": "6",
+         "position": "G",
+         "shortName": "K. Charles",
+         "headshotUrl": null
+        },
+        "values": [
+         "6",
+         "3",
+         "1-3",
+         "1-3",
+         "0-0",
+         "3",
+         "0",
+         "0",
+         "0",
+         "1",
+         "0",
+         "3",
+         "1",
+         "-2"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": null,
+        "player": {
+         "id": "ply_4c738203d1e640f483c7",
+         "name": "Kaitlyn Chen",
+         "jersey": "2",
+         "position": "G",
+         "shortName": "K. Chen",
+         "headshotUrl": null
+        },
+        "values": [
+         "7",
+         "0",
+         "0-2",
+         "0-0",
+         "0-0",
+         "3",
+         "1",
+         "0",
+         "0",
+         "0",
+         "1",
+         "2",
+         "1",
+         "+3"
+        ],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_9e65682cf7344f04a06f",
+         "name": "Laeticia Amihere",
+         "jersey": "3",
+         "position": "F",
+         "shortName": "L. Amihere",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_ed5e0a2a5c7c443592e5",
+         "name": "Ashten Prechtel",
+         "jersey": "11",
+         "position": "F",
+         "shortName": "A. Prechtel",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_a3733680bcfc498a971d",
+         "name": "Aminata Gueye",
+         "jersey": "31",
+         "position": "C",
+         "shortName": "A. Gueye",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_af6f3e70384d43e0bfa4",
+         "name": "Miela Sowah",
+         "jersey": "7",
+         "position": "G",
+         "shortName": "M. Sowah",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       },
+       {
+        "dnp": "COACH'S DECISION",
+        "player": {
+         "id": "ply_b406c10449664315950c",
+         "name": "Juste Jocyte",
+         "jersey": "4",
+         "position": "G",
+         "shortName": "J. Jocyte",
+         "headshotUrl": null
+        },
+        "values": [],
+        "starter": false
+       }
+      ],
+      "label": "Players",
+      "totals": [
+       null,
+       "26",
+       "10-26",
+       "2-8",
+       "4-6",
+       "12",
+       "7",
+       "3",
+       "2",
+       "2",
+       "3",
+       "9",
+       "5",
+       null
+      ],
+      "columns": [
+       {
+        "key": "minutes",
+        "label": "MIN"
+       },
+       {
+        "key": "points",
+        "label": "PTS"
+       },
+       {
+        "key": "fieldGoalsMade-fieldGoalsAttempted",
+        "label": "FG"
+       },
+       {
+        "key": "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+        "label": "3PT"
+       },
+       {
+        "key": "freeThrowsMade-freeThrowsAttempted",
+        "label": "FT"
+       },
+       {
+        "key": "rebounds",
+        "label": "REB"
+       },
+       {
+        "key": "assists",
+        "label": "AST"
+       },
+       {
+        "key": "turnovers",
+        "label": "TO"
+       },
+       {
+        "key": "steals",
+        "label": "STL"
+       },
+       {
+        "key": "blocks",
+        "label": "BLK"
+       },
+       {
+        "key": "offensiveRebounds",
+        "label": "OREB"
+       },
+       {
+        "key": "defensiveRebounds",
+        "label": "DREB"
+       },
+       {
+        "key": "fouls",
+        "label": "PF"
+       },
+       {
+        "key": "plusMinus",
+        "label": "+/-"
+       }
+      ]
+     }
+    ],
+    "formation": null
+   }
+  },
+  "gameInfo": {
+   "venue": "Chase Center",
+   "officials": [
+    "Angel Kent",
+    "Fatou Cissoko-Stephens",
+    "Kevin Fahy",
+    "Marcy Williams"
+   ],
+   "attendance": null
+  },
+  "shootout": null,
+  "lineScore": {
+   "away": [
+    "19",
+    "9"
+   ],
+   "home": [
+    "14",
+    "12"
+   ],
+   "extras": [],
+   "labels": [
+    "1",
+    "2"
+   ]
+  },
+  "probables": [],
+  "situation": {
+   "kind": "basketball",
+   "outs": null,
+   "balls": null,
+   "onFirst": null,
+   "onThird": null,
+   "strikes": null,
+   "lastPlay": "Official timeout",
+   "onSecond": null,
+   "isRedZone": null,
+   "inningHalf": null,
+   "possession": null,
+   "downDistance": null
+  },
+  "teamStats": [
+   {
+    "key": "fieldGoals",
+    "away": "11-25",
+    "home": "10-26",
+    "group": null,
+    "label": "FG"
+   },
+   {
+    "key": "fieldGoalPct",
+    "away": "44",
+    "home": "38",
+    "group": null,
+    "label": "FG%"
+   },
+   {
+    "key": "threePointers",
+    "away": "2-9",
+    "home": "2-8",
+    "group": null,
+    "label": "3PT"
+   },
+   {
+    "key": "threePointPct",
+    "away": "22",
+    "home": "25",
+    "group": null,
+    "label": "3P%"
+   },
+   {
+    "key": "freeThrows",
+    "away": "4-5",
+    "home": "4-6",
+    "group": null,
+    "label": "FT"
+   },
+   {
+    "key": "freeThrowPct",
+    "away": "80",
+    "home": "67",
+    "group": null,
+    "label": "FT%"
+   },
+   {
+    "key": "rebounds",
+    "away": "17",
+    "home": "12",
+    "group": null,
+    "label": "Rebounds"
+   },
+   {
+    "key": "assists",
+    "away": "9",
+    "home": "7",
+    "group": null,
+    "label": "Assists"
+   },
+   {
+    "key": "steals",
+    "away": "2",
+    "home": "2",
+    "group": null,
+    "label": "Steals"
+   },
+   {
+    "key": "blocks",
+    "away": "1",
+    "home": "2",
+    "group": null,
+    "label": "Blocks"
+   },
+   {
+    "key": "turnovers",
+    "away": "5",
+    "home": "3",
+    "group": null,
+    "label": "Turnovers"
+   },
+   {
+    "key": "fouls",
+    "away": "9",
+    "home": "5",
+    "group": null,
+    "label": "Fouls"
+   },
+   {
+    "key": "pointsInPaint",
+    "away": "16",
+    "home": "16",
+    "group": null,
+    "label": "Points in Paint"
+   },
+   {
+    "key": "fastBreakPoints",
+    "away": "2",
+    "home": "5",
+    "group": null,
+    "label": "Fast Break Points"
+   },
+   {
+    "key": "largestLead",
+    "away": "9",
+    "home": "0",
+    "group": null,
+    "label": "Largest Lead"
+   }
+  ],
+  "matchEvents": []
+ },
+ "refreshAfterSeconds": 30
+}

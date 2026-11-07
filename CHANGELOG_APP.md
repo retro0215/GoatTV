@@ -9,6 +9,360 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## allaccess-v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## 5star-v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## supreme-v4.6.0 — 2026-11-06
+
+### ✨ What's new
+
+- **📺 Redesigned TV Guide**
+   A new full-screen timeline that's easier to browse with your remote.
+- **👀 Live Preview in the TV Guide**
+   Press OK on a channel to preview it right in the guide, and OK again to watch.
+- **⚡ Faster TV Guide**
+   The guide opens sooner, scrolls more smoothly and keeps Categories one press away.
+- **🕒 Always-Current Now & Next**
+   The Live TV guide opens on what's on now and keeps Now and Next up to date.
+- **⏰ Reminders Everywhere**
+   Set and remove program reminders from any guide, and see reminder alerts anywhere in the app.
+- **🎮 Smoother Remote Control**
+   Holding OK while a reminder appears no longer opens menus behind it.
+- **🔒 Improved Privacy**
+   Stream login details are no longer written to app logs.
+
+## v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## allaccess-v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## 5star-v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## supreme-v4.5.0 — 2026-10-23
+
+### ✨ What's new
+
+- **🎓 New Video Tutorials**
+   Watch short how-to videos for the app from Settings → Video Tutorials.
+- **📺 Improved Live TV Reliability**
+   Smoother channel playback and clearer messages when a connection problem occurs.
+- **🗓️ Automatic TV Guide Updates**
+   The TV Guide now refreshes itself on schedule, even while the app stays open.
+- **🔲 More Stable Multiscreen**
+   Fixed a crash when choosing channels, and Back and Cancel now close Multiscreen menus reliably.
+- **🎬 Better Movies & Series Playback**
+   Titles start more reliably, with an automatic switch to the backup player when needed.
+- **⏯️ Resume Playback Fixes**
+   Movies and episodes now continue from the correct position.
+- **⏰ More Reliable Program Reminders**
+   Reminders now stay on the right channel after your playlist refreshes, and switch to it automatically when the program starts.
+
+## v4.4.24 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## allaccess-v4.4.25 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## 5star-v4.4.25 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## supreme-v4.4.25 — 2026-10-10
+
+### ✨ What's new
+
+- **✨ New Diagnostic Center**
+   Check your internet connection, streaming service, playlist, TV Guide and device health directly from Settings.
+- **⚡ Built-in Internet Speed Test**
+   Measure your download speed and latency with live results.
+- **📺 Improved TV Guide Stability**
+   Fixed an issue that could cause the app to crash while the TV Guide was updating.
+- **🎬 Cleaner Home Screen**
+   Improved movie and series recommendations by filtering adult content from Home discovery sections.
+- **🛠️ Improved Navigation & Reliability**
+   Better remote-control navigation, more reliable update checks, and improved troubleshooting recommendations.
+
+## allaccess-v4.4.24 — 2026-10-04
+
+### ✨ New features
+
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🥊 UFC fight cards now show where to watch**
+
+## 5star-v4.4.24 — 2026-10-04
+
+### ✨ New features
+
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🥊 UFC fight cards now show where to watch**
+
+## supreme-v4.4.24 — 2026-10-04
+
+### ✨ New features
+
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🥊 UFC fight cards now show where to watch**
+
+## v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **📺 Where to Watch with your channels for each game**
+- **▶️ Live event preview in Sports**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
+## allaccess-v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
+## 5star-v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
+## supreme-v4.4.23 — 2026-10-03
+
+### ✨ New features
+
+- **🏟️ Redesigned Sports experience**
+- **📊 Live Game Center with scores and stats**
+- **🏈 Expanded football schedule**
+- **⚽ Soccer support**
+- **🥊 UFC/MMA fight cards and Fight Details**
+
+### 🐛 Fixes
+
+- **🧭 Sports remembers your place after fullscreen and Multiscreen**
+- **🎮 Smoother TV remote navigation in Sports**
+
+## v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
+## allaccess-v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
+## 5star-v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
+## supreme-v4.4.22 — 2026-09-30
+
+### ✨ New features
+
+- **📺 Redesigned Multiscreen with new 1, 2, 3 and 4-screen layouts**
+- **➕ Multiscreen now supports up to four channels**
+- **🔁 Add Channel and Replace Channel in Multiscreen**
+- **↔️ Easier Move / Swap for Multiscreen tiles**
+
+### 🐛 Fixes
+
+- **🎮 Improved TV remote navigation and audio focus in Multiscreen**
+- **⚡ Improved Multiscreen playback stability**
+
 ## allaccess-v1.4.0 — 2026-09-01
 
 ### ✨ New features

@@ -17,12 +17,15 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import tv.own.owntv.core.customize.SectionCustomizations
 import tv.own.owntv.core.database.dao.ChannelDao
@@ -77,6 +80,7 @@ data class EpgUiState(
     val windowEnd: Long = 0,
     val now: Long = 0,
     val loading: Boolean = true,
+    /** A reload or category change is running while the previous list stays on screen. */
     val refreshing: Boolean = false,
     val message: EpgMessage? = null,
     val isError: Boolean = false,
@@ -119,7 +123,69 @@ class EpgViewModel(
     private val streamUrlResolver: tv.own.owntv.core.stalker.StreamUrlResolver,
     private val externalPlayerLauncher: tv.own.owntv.core.player.ExternalPlayerLauncher,
     private val customCategoryDao: tv.own.owntv.core.database.dao.CustomCategoryDao,
+    private val epgActivity: tv.own.owntv.core.sync.EpgActivityTracker,
+    private val historyDao: tv.own.owntv.core.database.dao.HistoryDao,
 ) : ViewModel() {
+
+    // The guide grid can hold hundreds of thousands of programme rows. Only one load may be in flight
+    // (a newer request cancels the older one and its catch-up back-fill), otherwise overlapping reloads
+    // each hold a full copy of the window and a low-RAM TV box runs out of heap.
+    private var loadJob: kotlinx.coroutines.Job? = null
+    private var backfillJob: kotlinx.coroutines.Job? = null
+    private var categoryJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * The last full load's channel list before its category filter, so a category change only has to
+     * re-filter it. A full [load] re-runs the playlist-channel join against the whole guide table and two
+     * table-wide counts, none of which depend on the category; on the onn that took 10 s, and up to 70 s
+     * when the catch-up back-fill was reading at the same time. Null until a load has finished, and for a
+     * custom category (its members may include channels hidden elsewhere, so it always loads fully).
+     */
+    private class GuideBase(val profileId: Long, val query: String, val sorted: List<ChannelEntity>, val cust: tv.own.owntv.core.customize.SectionCustomizations)
+    @Volatile private var lastBase: GuideBase? = null
+
+    /** Phase 4B: open timing (logcat `GuideTiming`) and the inputs of the list on screen (see GuideLoad). */
+    internal val timing = GuideTiming()
+
+    /** 4.6.0: the Guide screen's prepared rows, texts, logos and scroll position, kept between visits. */
+    internal val screenCache = GuideScreenCache()
+    @Volatile private var lastKey: GuideLoad.Key? = null
+    @Volatile private var lastSignal: GuideLoad.Signal? = null
+    // The per-feed stored programme counts Room already observes (summed): a cheap "guide data changed" signal.
+    @Volatile private var dataSignal: Long? = null
+
+    /** Called by the Guide screen when it opens, before [load]. */
+    fun onGuideOpened() = timing.open()
+
+    // 4.6.0: D-pad activity in the guide; the background window preload waits while it is recent.
+    private val inputGate = GuideInputGate()
+
+    /** Called by the Guide screen on each key press in the grid. */
+    fun noteGuideInput() = inputGate.note()
+
+    // Whether the Guide screen is on screen. The ViewModel is activity-scoped and outlives the screen;
+    // data-change reloads are skipped while it is hidden because the screen reloads on every open anyway.
+    private val screenVisible = MutableStateFlow(false)
+
+    /** Frees the loaded guide window; the next load() re-reads it from the database. */
+    private fun releaseGridCache() {
+        loadJob?.cancel()
+        backfillJob?.cancel()
+        rowCache.clear()
+        shiftedRowCache.clear()
+        cachedWindow = null
+        coverage = null
+        preloadProgress.clear()
+        lastStored = -1
+        lastKey = null
+        guideKeyCache.clear()
+        _cacheRevision.value++
+    }
+
+    /** Called by the Guide screen as it enters / leaves composition. */
+    fun setScreenVisible(visible: Boolean) {
+        screenVisible.value = visible
+    }
 
     // This profile's customizations — shared by the Guide picker, guide rows, and manual EPG match.
     // It must be initialized before guideCategories (Kotlin property initializers run top-to-bottom).
@@ -134,6 +200,11 @@ class EpgViewModel(
     /** Guide category filter: null = all channels, otherwise a provider/custom stable key. */
     private val _categoryFilter = MutableStateFlow<String?>(null)
     val categoryFilter: StateFlow<String?> = _categoryFilter.asStateFlow()
+
+    /** Guide → More → Show all channels: include rows whose loaded window has no programmes. */
+    private val _showAllChannels = MutableStateFlow(false)
+    val showAllChannels: StateFlow<Boolean> = _showAllChannels.asStateFlow()
+    fun setShowAllChannels(show: Boolean) { _showAllChannels.value = show }
 
     /** Live categories for the active profile — drives the guide's "Category" picker. Applies the
      *  profile's Live customizations like the Live TV rail does: hidden categories stay out of the
@@ -166,6 +237,16 @@ class EpgViewModel(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /**
+     * 4.6.0: the grid's category dot colours by category id, worked out off the main thread once per category
+     * list. The Guide built this map in its first composition, classifying every live category (adult-content
+     * check, genre keywords): on the onn that was the largest single cost of the 2.9 s Guide open.
+     */
+    val guideCategoryDots: StateFlow<Map<Long, androidx.compose.ui.graphics.Color>> = guideCategories
+        .map { GuideCategoryDots.of(it) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     fun setCategoryFilter(categoryKey: String?) { _categoryFilter.value = categoryKey }
 
     private val _state = MutableStateFlow(EpgUiState())
@@ -177,11 +258,20 @@ class EpgViewModel(
     // Per-row programme cache (epg key → programmes in the current window). Rows re-read it instantly
     // when scrolled back into view; cleared whenever the window/data reloads.
     private val rowCache = java.util.concurrent.ConcurrentHashMap<String, List<EpgProgrammeEntity>>()
-    @Volatile private var loadedSourceIds: List<Long> = emptyList()
+    // Phase 4C: the ids the rows read with, set before any list is shown (see GuideRowSources).
+    private val rowSources = GuideRowSources()
+    // Phase 4C: the guide keys that have programmes, kept while the stored guide is unchanged.
+    private val guideKeyCache = GuideKeyCache()
     // The window the rowCache was filled for — re-batch only when it actually changes (a sort/filter change
     // keeps the same window, so the cache stays valid and we skip the reload entirely).
     @Volatile private var cachedWindow: Pair<Long, Long>? = null
     @Volatile private var lastStored = -1 // stored programme count the cache was built from (data-change guard)
+    // 4.6.0: what rowCache holds IN FULL — every programme overlapping [from, to) of these sources, for this
+    // stored guide — so a half-hour window move can keep it and read only what the window gained.
+    private data class Coverage(val ids: List<Long>, val from: Long, val to: Long, val stored: Int, val maxProgrammeId: Long)
+    @Volatile private var coverage: Coverage? = null
+    // 4.6.0: the pages of an interrupted window preload, continued by the next load of the same window.
+    private val preloadProgress = GuideWindowProgress<EpgProgrammeEntity>()
     // Bumped when the background catch-up lookback (pass 2) merges into rowCache, so visible rows re-read it.
     private val _cacheRevision = MutableStateFlow(0)
     val cacheRevision: StateFlow<Int> = _cacheRevision.asStateFlow()
@@ -195,6 +285,17 @@ class EpgViewModel(
     private fun shiftFor(channel: ChannelEntity): Int =
         tv.own.owntv.core.epg.EpgShift.minutesFor(custom.value, channel, epgOffset.value)
 
+    /**
+     * Whether [channel]'s row has programmes in the loaded window: null while unknown (its guide isn't
+     * read yet, or no batch load backs the cache, e.g. during an EPG import), so it is never hidden early.
+     */
+    fun hasGuideInWindow(channel: ChannelEntity): Boolean? {
+        cachedProgrammes(channel)?.let { return it.isNotEmpty() }
+        if (channel.epgChannelId.isNullOrBlank()) return false
+        // The batch load covers every unshifted guide key in the forward window: absent means empty.
+        return if (cachedWindow != null && shiftFor(channel) == 0) false else null
+    }
+
     /** Synchronous cache peek — lets a re-composed row render instantly without a loading flash. */
     fun cachedProgrammes(channel: ChannelEntity): List<EpgProgrammeEntity>? {
         val key = channel.epgChannelId?.trim()?.lowercase() ?: return null
@@ -205,6 +306,9 @@ class EpgViewModel(
     /** Lazily loads one row's programmes (indexed query + cache) as the row scrolls into view. */
     suspend fun programmesFor(channel: ChannelEntity): List<EpgProgrammeEntity> {
         val key = channel.epgChannelId?.trim()?.lowercase() ?: return emptyList()
+        // Not known yet: answer empty WITHOUT caching it, so the row reads again once they are (Phase 4C).
+        if (!rowSources.canQuery()) return emptyList()
+        val sourceIds = rowSources.ids
         val s = _state.value
         val shift = shiftFor(channel)
         if (shift != 0) {
@@ -212,13 +316,13 @@ class EpgViewModel(
             shiftedRowCache[cacheKey]?.let { return it }
             val from = tv.own.owntv.core.epg.EpgShift.toStored(s.windowStart, shift)
             val to = tv.own.owntv.core.epg.EpgShift.toStored(s.windowEnd, shift)
-            val shifted = epgDao.programmeSummariesForChannel(loadedSourceIds, key, from, to)
+            val shifted = epgDao.programmeSummariesForChannel(sourceIds, key, from, to)
                 .map { tv.own.owntv.core.epg.EpgShift.apply(it, shift) }
             shiftedRowCache[cacheKey] = shifted
             return shifted
         }
         rowCache[key]?.let { return it }
-        val list = epgDao.programmeSummariesForChannel(loadedSourceIds, key, s.windowStart, s.windowEnd)
+        val list = epgDao.programmeSummariesForChannel(sourceIds, key, s.windowStart, s.windowEnd)
         rowCache[key] = list
         return list
     }
@@ -232,16 +336,30 @@ class EpgViewModel(
      * grouped by EPG channel id with every row list ordered by start time for the grid. A big lineup
      * returns far more rows than one ~2 MB window holds, so it MUST be paged. Runs off the main thread.
      */
-    private suspend fun loadWindowGrouped(ids: List<Long>, from: Long, to: Long): Map<String, List<EpgProgrammeEntity>> =
+    private suspend fun loadWindowGrouped(key: GuideWindowProgress.Key): Map<String, List<EpgProgrammeEntity>> =
+        withContext(Dispatchers.Default) {
+            // 4.6.0: one run at a time, continuing the pages an interrupted run of the same read left.
+            preloadProgress.lock.withLock {
+                val run = preloadProgress.resume(key)
+                while (true) {
+                    inputGate.awaitQuiet()
+                    val page = epgDao.programmesInWindowPage(key.sourceIds, key.from, key.to, run.afterId, EPG_WINDOW_PAGE)
+                    if (page.isEmpty()) break
+                    run.add(page, page.last().id)
+                    if (page.size < EPG_WINDOW_PAGE) break
+                }
+                preloadProgress.finished(run)
+                run.rows.groupBy { it.epgChannelId }.mapValues { (_, v) -> v.sortedBy { it.startMs } }
+            }
+        }
+
+    /** 4.6.0: what a moved window gained: the programmes of [keys] starting in [from, to) (GuideWindowMove). */
+    private suspend fun loadWindowTopUp(ids: List<Long>, keys: Set<String>, from: Long, to: Long): Map<String, List<EpgProgrammeEntity>> =
         withContext(Dispatchers.Default) {
             val all = ArrayList<EpgProgrammeEntity>()
-            var afterId = 0L
-            while (true) {
-                val page = epgDao.programmesInWindowPage(ids, from, to, afterId, EPG_WINDOW_PAGE)
-                if (page.isEmpty()) break
-                all += page
-                afterId = page.last().id
-                if (page.size < EPG_WINDOW_PAGE) break
+            for (chunk in keys.toList().chunked(GuideChannelQuery.CHUNK)) {
+                inputGate.awaitQuiet()
+                all += epgDao.programmesStartingIn(ids, chunk, from, to)
             }
             all.groupBy { it.epgChannelId }.mapValues { (_, v) -> v.sortedBy { it.startMs } }
         }
@@ -262,11 +380,11 @@ class EpgViewModel(
             .distinctUntilChanged()
             .onEach { load() }
             .launchIn(viewModelScope)
-        // Reload when the category filter changes (#8).
+        // Category filter changes (#8): re-filter the last list when possible, else reload.
         _categoryFilter
             .drop(1)
             .distinctUntilChanged()
-            .onEach { load() }
+            .onEach { applyCategoryChange() }
             .launchIn(viewModelScope)
         settings.sortLive
             .drop(1)
@@ -281,15 +399,32 @@ class EpgViewModel(
             .distinctUntilChanged()
             .onEach { load() }
             .launchIn(viewModelScope)
+        // Reload when the stored guide data changes — but never mid-import. An EPG sync writes a batch every
+        // few seconds; reloading the whole window after each one stacked full copies of the guide in memory
+        // and crashed the app (OutOfMemoryError) while the user browsed during a long sync. The count is
+        // only taken once no EPG sync is running, so a sync causes exactly one reload when it finishes, and
+        // only while the Guide is actually on screen (it reloads itself on the next open otherwise).
         epgSourceStore.sources
             .map { sources -> sources.map { it.id } }
             .distinctUntilChanged()
             .flatMapLatest { ids ->
                 if (ids.isEmpty()) flowOf(0) else combine(ids.map { epgDao.countForSource(it) }) { it.sum() }
             }
-            .debounce(GUIDE_DATA_SETTLE_MS)
-            .drop(1)
-            .onEach { load() }
+            .onEach { dataSignal = it.toLong() }
+            .let { counts -> guideReloadTriggers(counts, epgActivity.active.map { it.isEmpty() }, GUIDE_DATA_SETTLE_MS) }
+            .onEach { if (screenVisible.value) load() }
+            .launchIn(viewModelScope)
+        // While an EPG sync runs and the guide is off screen, drop its programme cache. On a big lineup
+        // that cache is the whole guide window (hundreds of thousands of rows) and, kept alongside a
+        // running import, it left only a few MB of a TV box's heap. The data is stale during a sync
+        // anyway, and the screen reloads the window on its next open.
+        combine(screenVisible, epgActivity.active.map { it.isNotEmpty() }) { visible, syncing -> !visible && syncing }
+            .distinctUntilChanged()
+            .onEach { release -> if (release) releaseGridCache() }
+            .launchIn(viewModelScope)
+        // 4.6.0: and under real memory pressure while the guide is off screen (GuideMemoryPressure).
+        GuideMemoryPressure.events
+            .onEach { if (!screenVisible.value) releaseGridCache() }
             .launchIn(viewModelScope)
     }
 
@@ -372,11 +507,8 @@ class EpgViewModel(
 
     /** True when a programme can be played from the archive: a catch-up channel, already started, and
      *  still inside the channel's archive window. The Guide gates its "Watch from start" button on this. */
-    fun canCatchup(channel: ChannelEntity, programme: EpgProgrammeEntity, now: Long): Boolean {
-        if (!channel.catchup || programme.startMs > now) return false
-        val windowMs = channel.catchupDays.coerceAtLeast(1) * 24L * 60 * 60 * 1000
-        return now - programme.startMs <= windowMs
-    }
+    fun canCatchup(channel: ChannelEntity, programme: EpgProgrammeEntity, now: Long): Boolean =
+        GuideNav.canCatchup(channel, programme, now)
 
     /** Live channels this profile has favourited — so the Guide can show/toggle a channel's star. */
     val favoriteChannelIds: StateFlow<Set<Long>> = settings.activeProfileId
@@ -615,12 +747,97 @@ class EpgViewModel(
     // which sets the shell's zapSource to LIVE_TV, so CH+/CH- always used LiveViewModel.zap — the one
     // with the ExoPlayer ladder, the pending-tune anchor and the bounded rebuild.
 
+    /**
+     * A category change: filter the last full list in memory (milliseconds on 11k channels), keeping the
+     * cache and any running catch-up back-fill. Falls back to [load] when there is no list to filter, a
+     * full load is already running (it will apply the new category itself), or the category is custom.
+     * Each change cancels the previous one, so a stale result can never replace a newer selection.
+     */
+    private fun applyCategoryChange() {
+        val base = lastBase
+        val category = _categoryFilter.value?.let { key -> guideCategories.value.firstOrNull { it.key == key } }
+        val mode = GuideNav.categoryChange(
+            hasLastList = base != null,
+            fullLoadRunning = loadJob?.isActive == true,
+            customCategory = category?.customId != null,
+        )
+        if (base == null || mode == GuideNav.CategoryChange.FULL_LOAD) {
+            load()
+            return
+        }
+        categoryJob?.cancel()
+        categoryJob = viewModelScope.launch {
+            if (currentProfileId() != base.profileId) {
+                load()
+                return@launch
+            }
+            _state.value = _state.value.copy(refreshing = true)
+            val channels = withContext(Dispatchers.Default) {
+                GuideNav.filterByCategory(base.sorted, null, category?.categoryId, category?.key) { ch ->
+                    base.cust.movedFromOrigin[CustomizeKeys.channel(ch)]
+                }
+            }
+            val message = when {
+                channels.isEmpty() && base.query.isNotBlank() -> EpgMessage.NoChannelsForQuery(base.query)
+                channels.isEmpty() -> EpgMessage.MismatchedIds
+                else -> null
+            }
+            _state.value = _state.value.copy(channels = channels, message = message, refreshing = false)
+            lastKey = lastKey?.copy(category = _categoryFilter.value)
+        }
+    }
+
+    /** The live channel this profile watched most recently (from watch history), or null. */
+    suspend fun lastWatchedChannelId(): Long? {
+        val pid = currentProfileId() ?: return null
+        return runCatching { historyDao.mostRecentItemId(pid, MediaType.LIVE) }.getOrNull()
+    }
+
+    /** What one load reads before its channel query (read together, see load()). */
+    private class LoadInputs(
+        val maxCatchupDays: Int,
+        val cust: tv.own.owntv.core.customize.SectionCustomizations,
+        val favoriteIds: Set<Long>,
+        val sortLive: SettingsRepository.SortMode,
+        val sortGuide: SettingsRepository.GuideSort,
+        val maxProgrammeId: Long,
+        val channelCount: Int,
+    )
+
+    /** One load's channel list, with the counts shown beside it. */
+    private class BuiltList(val channels: List<ChannelEntity>, val catchupCount: Int, val favoriteIds: Set<Long>)
+
+    /**
+     * The guide's channels, as `ChannelDao.channelsWithGuide` returns them, without its cost (Phase 4C).
+     * That one query returned ~19k full rows; SQLite re-ran it, with its scan of ~2.1M programmes, for every
+     * CursorWindow it filled (7 on the onn). Here: the guide keys once (kept while the guide is unchanged),
+     * the ordered candidates as narrow rows (one window), the matching ids picked in Kotlin, then the full
+     * rows by primary key in window-sized chunks.
+     */
+    private suspend fun guideChannels(ids: List<Long>, query: String, signal: GuideLoad.Signal, importRunning: Boolean): List<ChannelEntity> {
+        val keys = guideKeyCache.get(ids, signal, importRunning) ?: epgDao.guideKeys(ids).toHashSet().also {
+            guideKeyCache.put(ids, signal, importRunning, it)
+            timing.mark("guide keys read (${it.size})")
+        }
+        val candidates = channelDao.guideCandidates(ids, query)
+        val wanted = withContext(Dispatchers.Default) { GuideChannelQuery.select(candidates, keys, MAX_CHANNELS) }
+        val rows = ArrayList<ChannelEntity>(wanted.size)
+        for (chunk in GuideChannelQuery.chunks(wanted)) rows += channelDao.byIds(chunk)
+        return GuideChannelQuery.inOrder(wanted, rows) { it.id }
+    }
+
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        backfillJob?.cancel()
+        categoryJob?.cancel()
+        loadJob = viewModelScope.launch {
             // Show the spinner only on the FIRST load. The EpgViewModel is shared, so on re-entry the guide
             // is already populated — keep the existing list on screen and refresh it silently, so opening the
             // Guide menu is instant instead of flashing a spinner and re-rendering from scratch every time.
+            // (`refreshing` lets the screen show that a reload is under way without hiding the list.)
             if (_state.value.channels.isEmpty()) _state.value = _state.value.copy(loading = true, message = null)
+            else _state.value = _state.value.copy(refreshing = true)
+            timing.mark("load start")
             val pid = currentProfileId()
             if (pid == null) {
                 _state.value = EpgUiState(
@@ -640,84 +857,147 @@ class EpgViewModel(
                 _state.value = EpgUiState(loading = false, message = EpgMessage.AddPlaylist)
                 return@launch
             }
+            // Phase 4C: the rows get their playlist ids BEFORE any list is shown (Phase 4B set them after the
+            // stored count, so the first visible rows read `sourceId IN ()` and stayed empty). New sources
+            // make the row caches stale.
+            val sourcesChanged = rowSources.prepare(ids)
+            if (sourcesChanged) {
+                cachedWindow = null
+                coverage = null
+                rowCache.clear()
+                shiftedRowCache.clear()
+            }
 
             val now = System.currentTimeMillis()
             val nowAligned = now - (now % HALF_HOUR_MS) // align to the half hour
+            // 4.6.0: the reads the channel query waits on are independent, so they run together (Room serves
+            // reads from its pool). Phase 4C measured ~2.1 s of them back to back before the query.
+            val inputs = kotlinx.coroutines.coroutineScope {
+                val catchupDays = async { channelDao.maxCatchupDays(playlistIds) }
+                val custAsync = async { customize.observe(pid, MediaType.LIVE).first() }
+                val favAsync = async { favoriteDao.observeFavoriteIds(pid, MediaType.LIVE).first().toSet() }
+                val sortLiveAsync = async { settings.sortLive.first() }
+                val sortGuideAsync = async { settings.sortGuide.first() }
+                val maxIdAsync = async { epgDao.maxProgrammeId() }
+                val channelCountAsync = async { channelDao.countForSources(playlistIds) }
+                LoadInputs(
+                    catchupDays.await(), custAsync.await(), favAsync.await(), sortLiveAsync.await(),
+                    sortGuideAsync.await(), maxIdAsync.await(), channelCountAsync.await(),
+                )
+            }
+            timing.mark("inputs read")
             // When the profile has catch-up channels, extend the guide BACKWARD so archived programmes
             // are visible (and playable), bounded by both the archive depth and what EPG we retain.
-            val maxCatchupDays = channelDao.maxCatchupDays(playlistIds)
+            val maxCatchupDays = inputs.maxCatchupDays
             val lookbackMs = if (maxCatchupDays > 0)
                 minOf(maxCatchupDays * DAY_MS, CATCHUP_LOOKBACK_CAP_MS) else 0L
             val windowStart = nowAligned - lookbackMs
             val windowEnd = nowAligned + GRID_HOURS * 60L * 60 * 1000
 
             // Respect customizations: hidden channels stay out of the guide, renames show.
-            val cust = customize.observe(pid, MediaType.LIVE).first()
+            val cust = inputs.cust
             val q = _query.value.trim()
-            val rawChannels = channelDao.channelsWithGuide(ids, q, MAX_CHANNELS)
-            // Catch-up count comes from the playlist channels (the tv_archive flag), so it shows even
-            // before any XMLTV guide is downloaded — it tells the user their provider supports catch-up.
-            val catchupCount = channelDao.countCatchup(playlistIds)
-            val favoriteIds = favoriteDao.observeFavoriteIds(pid, MediaType.LIVE).first().toSet()
-            val sortLiveMode = settings.sortLive.first()
-            val sortGuideMode = settings.sortGuide.first()
-            // Hidden categories keep their channels out of the guide too (parity with Live TV), and a
-            // filter pointing at a now-hidden category falls back to "All" instead of an empty grid.
-        val isKidsProfile = profileDao.getById(pid)?.isKids == true
-        val hiddenCatIds = if (cust.hiddenCategories.isEmpty() && !isKidsProfile) {
-            emptySet()
-        } else {
-            tv.own.owntv.core.content.AdultCategoryClassifier.hiddenCategoryIds(
-                categoryDao.observe(ids, MediaType.LIVE).first(),
-                cust.hiddenCategories,
-                isKidsProfile,
+            val favoriteIdsEarly = inputs.favoriteIds
+            val key = GuideLoad.Key(
+                profileId = pid, sourceIds = ids, query = q, category = _categoryFilter.value,
+                sortLive = inputs.sortLive.name, sortGuide = inputs.sortGuide.name,
+                favoriteIds = favoriteIdsEarly, customizations = cust, windowStart = windowStart,
             )
-        }
-            val categoryFilter = _categoryFilter.value
-                ?.let { key -> guideCategories.value.firstOrNull { it.key == key } }
-            val customMemberIds = categoryFilter?.customId
-                ?.let { customCategoryDao.itemIds(pid, MediaType.LIVE, it).toSet() }
-            // Heavy work — filter hidden, apply renames + manual EPG matches, sort, category-filter — runs off
-            // the main thread (#3/#5) so a 50k-channel playlist never freezes the UI building the guide list.
-            val channels = withContext(Dispatchers.Default) {
-                val auto = rawChannels
-                    .filter { CustomizeKeys.channel(it) !in cust.hiddenItems }
-                    .filter {
-                        customMemberIds != null || it.categoryId == null || it.categoryId !in hiddenCatIds
-                    }
-                    .map { ch -> cust.itemNames[CustomizeKeys.channel(ch)]?.let { ch.copy(name = it) } ?: ch }
-                val matched = applyEpgMatches(auto, cust, playlistIds, q)
-                // Order the guide by its own sort. LIVE_TV mirrors the Live sort; CATCHUP floats archive
-                // channels to the top; ALPHA/PROVIDER are explicit. CATCHUP with none available falls to LIVE_TV.
-                val byAlpha = compareBy<ChannelEntity> { it.name.lowercase() }
-                val byProvider = compareBy<ChannelEntity>({ it.sourceId }, { it.sortOrder }, { it.name.lowercase() })
-                val liveOrdered = when (sortLiveMode) {
-                    SettingsRepository.SortMode.ALPHA -> matched.sortedWith(byAlpha)
-                    // Live/EPG have no rating; RATING can't be selected there, so treat it as provider order.
-                    SettingsRepository.SortMode.PLAYLIST, SettingsRepository.SortMode.RATING, SettingsRepository.SortMode.DATE_ADDED -> matched.sortedWith(byProvider)
-                }
-                when (sortGuideMode) {
-                    SettingsRepository.GuideSort.ALPHA -> matched.sortedWith(byAlpha)
-                    SettingsRepository.GuideSort.PROVIDER -> matched.sortedWith(byProvider)
-                    SettingsRepository.GuideSort.CATCHUP ->
-                        if (catchupCount > 0) matched.sortedWith(compareByDescending<ChannelEntity> { it.catchup }.then(byAlpha)) else liveOrdered
-                    // Favorites: show ONLY favourited channels (in the Live order); none favourited → fall back.
-                    SettingsRepository.GuideSort.FAVORITES ->
-                        if (favoriteIds.isNotEmpty()) liveOrdered.filter { it.id in favoriteIds } else liveOrdered
-                    SettingsRepository.GuideSort.LIVE_TV -> liveOrdered
-                }.let { sorted ->
-                    // Category filter (#8): when a group is chosen, show only its channels.
-                    when {
-                        customMemberIds != null -> sorted.filter { it.id in customMemberIds }
-                        categoryFilter?.categoryId != null -> sorted.filter { ch ->
-                            ch.categoryId == categoryFilter.categoryId &&
-                                cust.movedFromOrigin[CustomizeKeys.channel(ch)] != categoryFilter.key
+            val signal = GuideLoad.Signal(dataSignal, inputs.maxProgrammeId, inputs.channelCount)
+            val importRunningAtOpen = epgActivity.active.value.isNotEmpty()
+            if (GuideLoad.reuse(lastKey, key, lastSignal, signal, _state.value.channels.isNotEmpty(), importRunningAtOpen)) {
+                // Nothing changed since the last load: the list and window cache on screen are current.
+                _state.value = _state.value.copy(loading = false, refreshing = false, now = now)
+                timing.mark("reused list on screen (no query)")
+                return@launch
+            }
+            // Phase 4C: only the half-hour window moved: the same channel list, new programmes.
+            val reuseList = GuideLoad.reuseList(lastKey, key, lastSignal, signal, _state.value.channels.isNotEmpty(), importRunningAtOpen)
+            val built: BuiltList = if (reuseList) {
+                timing.mark("channel list kept (window moved)")
+                BuiltList(_state.value.channels, _state.value.catchupCount, favoriteIdsEarly)
+            } else run {
+                timing.mark("channel query start")
+                val rawChannels = guideChannels(ids, q, signal, importRunningAtOpen)
+                timing.mark("channel query end (${rawChannels.size} channels)")
+                // Catch-up count comes from the playlist channels (the tv_archive flag), so it shows even
+                // before any XMLTV guide is downloaded — it tells the user their provider supports catch-up.
+                val catchupCount = channelDao.countCatchup(playlistIds)
+                val favoriteIds = favoriteIdsEarly
+                val sortLiveMode = inputs.sortLive
+                val sortGuideMode = inputs.sortGuide
+                // Hidden categories keep their channels out of the guide too (parity with Live TV), and a
+                // filter pointing at a now-hidden category falls back to "All" instead of an empty grid.
+            val isKidsProfile = profileDao.getById(pid)?.isKids == true
+            val hiddenCatIds = if (cust.hiddenCategories.isEmpty() && !isKidsProfile) {
+                emptySet()
+            } else {
+                tv.own.owntv.core.content.AdultCategoryClassifier.hiddenCategoryIds(
+                    categoryDao.observe(ids, MediaType.LIVE).first(),
+                    cust.hiddenCategories,
+                    isKidsProfile,
+                )
+            }
+                val categoryFilter = _categoryFilter.value
+                    ?.let { key -> guideCategories.value.firstOrNull { it.key == key } }
+                val customMemberIds = categoryFilter?.customId
+                    ?.let { customCategoryDao.itemIds(pid, MediaType.LIVE, it).toSet() }
+                // Heavy work — filter hidden, apply renames + manual EPG matches, sort, category-filter — runs off
+                // the main thread (#3/#5) so a 50k-channel playlist never freezes the UI building the guide list.
+                val (sortedAll, channels) = withContext(Dispatchers.Default) {
+                    val auto = rawChannels
+                        .filter { CustomizeKeys.channel(it) !in cust.hiddenItems }
+                        .filter {
+                            customMemberIds != null || it.categoryId == null || it.categoryId !in hiddenCatIds
                         }
-                        else -> sorted
+                        .map { ch -> cust.itemNames[CustomizeKeys.channel(ch)]?.let { ch.copy(name = it) } ?: ch }
+                    val matched = applyEpgMatches(auto, cust, playlistIds, q)
+                    // Order the guide by its own sort. LIVE_TV mirrors the Live sort; CATCHUP floats archive
+                    // channels to the top; ALPHA/PROVIDER are explicit. CATCHUP with none available falls to LIVE_TV.
+                    val byAlpha = compareBy<ChannelEntity> { it.name.lowercase() }
+                    val byProvider = compareBy<ChannelEntity>({ it.sourceId }, { it.sortOrder }, { it.name.lowercase() })
+                    val liveOrdered = when (sortLiveMode) {
+                        SettingsRepository.SortMode.ALPHA -> matched.sortedWith(byAlpha)
+                        // Live/EPG have no rating; RATING can't be selected there, so treat it as provider order.
+                        SettingsRepository.SortMode.PLAYLIST, SettingsRepository.SortMode.RATING, SettingsRepository.SortMode.DATE_ADDED -> matched.sortedWith(byProvider)
+                    }
+                    when (sortGuideMode) {
+                        SettingsRepository.GuideSort.ALPHA -> matched.sortedWith(byAlpha)
+                        SettingsRepository.GuideSort.PROVIDER -> matched.sortedWith(byProvider)
+                        SettingsRepository.GuideSort.CATCHUP ->
+                            if (catchupCount > 0) matched.sortedWith(compareByDescending<ChannelEntity> { it.catchup }.then(byAlpha)) else liveOrdered
+                        // Favorites: show ONLY favourited channels (in the Live order); none favourited → fall back.
+                        SettingsRepository.GuideSort.FAVORITES ->
+                            if (favoriteIds.isNotEmpty()) liveOrdered.filter { it.id in favoriteIds } else liveOrdered
+                        SettingsRepository.GuideSort.LIVE_TV -> liveOrdered
+                    }.let { sorted ->
+                        // Category filter (#8): when a group is chosen, show only its channels.
+                        sorted to GuideNav.filterByCategory(
+                            sorted, customMemberIds, categoryFilter?.categoryId, categoryFilter?.key,
+                        ) { ch -> cust.movedFromOrigin[CustomizeKeys.channel(ch)] }
                     }
                 }
+                // Kept for category changes; a custom category's list skipped the hidden-category filter.
+                lastBase = if (customMemberIds == null) GuideBase(pid, q, sortedAll, cust) else null
+                BuiltList(channels, catchupCount, favoriteIds)
+            }
+            val channels = built.channels
+            val catchupCount = built.catchupCount
+            val favoriteIds = built.favoriteIds
+
+            // Show the guide now (Phase 4B): rows read their own programmes (one indexed query each) while the
+            // window preload, counts and stats below run behind them. An empty list still waits for the
+            // count, which decides between "no guide yet" and "no matches".
+            if (channels.isNotEmpty()) {
+                _state.value = _state.value.copy(
+                    channels = channels, windowStart = windowStart, windowEnd = windowEnd, now = now,
+                    loading = false, refreshing = true, message = null, hasEpgSources = epgIds.isNotEmpty(),
+                    catchupCount = catchupCount, favoriteCount = favoriteIds.size,
+                )
+                timing.mark("first channel data published (${channels.size} rows)")
             }
             val stored = epgDao.countForSources(ids)
+            timing.mark("stored count done ($stored)")
 
 
             // Per-row programmes are loaded in ONE batched query and grouped into rowCache here, instead of
@@ -726,16 +1006,55 @@ class EpgViewModel(
             // window, so the cache stays valid and we reuse it. Grouping runs off the main thread.
             // Also re-batch when the stored programme count changed (a sync, or a post-match top-up, added
             // data) even if the window is unchanged — so freshly-matched channels' guides appear.
-            val windowChanged = cachedWindow != (windowStart to windowEnd) || loadedSourceIds != ids || stored != lastStored
-            loadedSourceIds = ids
+            val windowChanged = cachedWindow != (windowStart to windowEnd) || sourcesChanged || stored != lastStored
             lastStored = stored
-            if (windowChanged) {
-                cachedWindow = windowStart to windowEnd
+            // While an EPG import is running, skip the whole-window preload: on a big lineup it holds
+            // hundreds of thousands of rows, and together with the import it nearly filled a TV box's heap.
+            // Rows then load lazily as they scroll into view (programmesFor); the one reload when the sync
+            // finishes restores the fast preloaded grid.
+            val importRunning = epgActivity.active.value.isNotEmpty()
+            // 4.6.0: only the half-hour window moved on the same stored guide: keep what is loaded and read
+            // what the window gained (GuideWindowMove), instead of the whole 24-hour preload again.
+            val loaded = coverage
+            val guideKeys = guideKeyCache.get(ids, signal, importRunning)
+            val move = if (!windowChanged) null else GuideWindowMove.plan(
+                coveredFrom = loaded?.from, coveredTo = loaded?.to, forwardFrom = nowAligned, windowEnd = windowEnd,
+                dataUnchanged = loaded != null && loaded.ids == ids && loaded.stored == stored && loaded.maxProgrammeId == inputs.maxProgrammeId,
+                sourcesChanged = sourcesChanged, importRunning = importRunning, keysKnown = guideKeys != null,
+            )
+            if (windowChanged && importRunning) {
+                cachedWindow = null
+                coverage = null
+                lastStored = -1
                 rowCache.clear()
                 shiftedRowCache.clear()
-                // Pass 1 (blocking): the forward window only, so the Guide opens instantly and fully from cache.
-                val forward = loadWindowGrouped(ids, nowAligned, windowEnd)
+                _cacheRevision.value++
+            } else if (move != null && loaded != null && guideKeys != null) {
+                cachedWindow = null
+                shiftedRowCache.clear() // read per row for its own shifted window; re-read lazily
+                timing.mark("window top-up start (loaded guide kept)")
+                val added = if (move.fetchFrom < move.fetchTo) loadWindowTopUp(ids, guideKeys, move.fetchFrom, move.fetchTo) else emptyMap()
+                val merged = GuideWindowMove.merge(HashMap(rowCache), added, windowStart, { it.id }, { it.startMs }, { it.stopMs })
+                rowCache.keys.retainAll(merged.keys)
+                rowCache.putAll(merged)
+                cachedWindow = windowStart to windowEnd
+                coverage = Coverage(ids, maxOf(loaded.from, windowStart), windowEnd, stored, inputs.maxProgrammeId)
+                timing.mark("window top-up end (${added.size} guide channels)")
+                _cacheRevision.value++
+            } else if (windowChanged) {
+                cachedWindow = null
+                coverage = null
+                rowCache.clear()
+                shiftedRowCache.clear()
+                // Pass 1: the forward window, read behind the rows already on screen. Only once it is complete
+                // does the window count as cached (absent = empty); until then no row is hidden as empty.
+                val forwardKey = GuideWindowProgress.Key(ids, nowAligned, windowEnd, stored, inputs.maxProgrammeId)
+                timing.mark("window preload start")
+                val forward = loadWindowGrouped(forwardKey)
                 forward.forEach { (k, list) -> rowCache[k] = list }
+                cachedWindow = windowStart to windowEnd
+                coverage = Coverage(ids, nowAligned, windowEnd, stored, inputs.maxProgrammeId)
+                timing.mark("window preload end (${forward.size} guide channels)")
                 // Signal GuideChannelRow's produceState to re-read rowCache now that the batch load
                 // is complete — without this, the initial composition renders channels with empty
                 // programmes until the user scrolls and triggers fresh item composition.
@@ -761,20 +1080,27 @@ class EpgViewModel(
                 loading = false, message = message, hasEpgSources = hasEpg, stats = stats, catchupCount = catchupCount,
                 favoriteCount = favoriteIds.size,
             )
+            lastKey = key
+            lastSignal = signal
+            timing.mark("background refresh complete")
 
             // Pass 2 (background): merge the catch-up lookback into rowCache gradually, so a multi-day × many-
             // channel window never blocks the open or spikes memory on low-RAM (1.8 GB) boxes. Only runs when
             // there's a real lookback (catch-up channels). distinctBy(id): a programme straddling `now` is in
             // both window queries. The revision bump makes already-visible rows re-read the completed cache.
-            if (windowChanged && windowStart < nowAligned) {
-                viewModelScope.launch {
-                    val back = loadWindowGrouped(ids, windowStart, nowAligned)
+            // 4.6.0: only the part not loaded yet (a moved window usually has its lookback already).
+            val forwardLoaded = coverage
+            val backTo = forwardLoaded?.from?.coerceAtMost(nowAligned) ?: nowAligned
+            if (windowChanged && !importRunning && forwardLoaded != null && windowStart < backTo) {
+                backfillJob = viewModelScope.launch {
+                    val back = loadWindowGrouped(GuideWindowProgress.Key(ids, windowStart, backTo, stored, inputs.maxProgrammeId))
                     if (back.isNotEmpty()) {
                         back.forEach { (k, extra) ->
                             rowCache[k] = (extra + (rowCache[k] ?: emptyList())).distinctBy { it.id }.sortedBy { it.startMs }
                         }
                         _cacheRevision.value++
                     }
+                    if (coverage === forwardLoaded) coverage = forwardLoaded.copy(from = windowStart)
                 }
             }
         }

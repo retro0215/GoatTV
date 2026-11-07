@@ -16,4 +16,6 @@
     <string name="settings_font_playfair_display" translatable="false">Playfair Display</string>
     <string name="settings_font_dancing_script" translatable="false">Dancing Script</string>
     <string name="settings_font_poppins" translatable="false">Poppins</string>
+    <!-- Debug-build marker when Video Tutorials read the staging catalog; never shown in release. -->
+    <string name="tutorials_staging_marker" translatable="false">STAGING</string>
 </resources>

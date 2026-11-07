@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Isolated test APK only (build type `tutorialTest`, application id <brand id>.tutorialtest).
+  It installs next to the customer app, so it must not compete with it: no owntv:// deep links (the
+  customer app's launcher rows and Watch Next entries open owntv:// links without naming a package),
+  no TV-provider writes, no package installs (it can never install or update a customer APK), and no
+  push metadata. Pushwoosh/Firebase libraries are not in this build at all (app/build.gradle.kts).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA" tools:node="remove" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
+
+    <application
+        android:label="@string/isolated_test_app_name"
+        tools:replace="android:label">
+
+        <meta-data android:name="com.pushwoosh.appid" tools:node="remove" />
+        <meta-data android:name="com.pushwoosh.senderid" tools:node="remove" />
+        <meta-data android:name="com.pushwoosh.apitoken" tools:node="remove" />
+        <meta-data android:name="com.pushwoosh.notification_channel_importance" tools:node="remove" />
+        <meta-data android:name="com.pushwoosh.notification_factory" tools:node="remove" />
+        <meta-data android:name="com.pushwoosh.notification_channel_name" tools:node="remove" />
+
+        <activity
+            android:name="tv.own.owntv.MainActivity"
+            tools:node="merge">
+            <intent-filter tools:node="remove">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="play"
+                    android:scheme="owntv" />
+                <data
+                    android:host="open"
+                    android:scheme="owntv" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

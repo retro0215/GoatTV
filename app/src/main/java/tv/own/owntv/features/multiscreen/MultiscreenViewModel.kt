@@ -2,10 +2,7 @@ package tv.own.owntv.features.multiscreen
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
 import androidx.paging.PagingData
-import androidx.paging.PagingSource
 import androidx.paging.cachedIn
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -144,17 +141,8 @@ class MultiscreenViewModel(
     ) { c, key, query -> Triple(c, key, query) }
         .flatMapLatest { (c, key, query) ->
             if (c.profileId < 0) return@flatMapLatest flowOf(PagingData.empty())
-            
-            val source: PagingSource<Int, ChannelEntity> = when {
-                query.isNotBlank() -> channelDao.searchAll(query, c.sourceIds)
-                key is LiveKey.Favorites -> channelDao.pagingFavorites(c.profileId)
-                key is LiveKey.History -> channelDao.pagingHistory(c.profileId, c.sourceIds)
-                key is LiveKey.All -> channelDao.pagingAllOriginal(c.sourceIds)
-                key is LiveKey.Folder -> channelDao.pagingByCategory(key.id)
-                else -> channelDao.pagingAllOriginal(c.sourceIds)
-            }
-            
-            Pager(PagingConfig(pageSize = 50)) { source }.flow
+            // A new PagingSource per invalidation; reusing one crashed the app (see MultiscreenPickerPaging).
+            MultiscreenPickerPaging.pager(channelDao, c.profileId, c.sourceIds, key, query).flow
         }
         .cachedIn(viewModelScope)
 

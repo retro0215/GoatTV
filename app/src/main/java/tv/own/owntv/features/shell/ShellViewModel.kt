@@ -32,7 +32,6 @@ import tv.own.owntv.core.sync.ImportFinalizer
 import tv.own.owntv.core.sync.work.CatalogSyncScheduler
 import tv.own.owntv.core.sync.work.EpgSyncScheduler
 import tv.own.owntv.core.database.dao.EpgDao
-import tv.own.owntv.features.settings.data.EpgAutoRefresh
 import tv.own.owntv.features.settings.data.PlaylistAutoRefresh
 import tv.own.owntv.features.settings.data.SettingsRepository
 import tv.own.owntv.ui.theme.AccentColor
@@ -49,6 +48,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
     MOVIES(tv.own.owntv.R.string.common_nav_movies),
     SERIES(tv.own.owntv.R.string.common_nav_series),
     SPORTS(tv.own.owntv.R.string.common_nav_sports),
+    SOCIAL_ROOMS(tv.own.owntv.R.string.common_nav_social_rooms),
     DOWNLOADS(tv.own.owntv.R.string.common_nav_downloads),
     EPG(tv.own.owntv.R.string.common_nav_guide),
     MULTISCREEN(tv.own.owntv.R.string.content_multiscreen),
@@ -65,6 +65,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
             add(MOVIES)
             add(SERIES)
             add(SPORTS)
+            add(SOCIAL_ROOMS)
             add(DOWNLOADS)
             add(EPG)
         }
@@ -82,6 +83,7 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
          */
         fun dynamicVisible(hasLive: Boolean, hasMovies: Boolean, hasSeries: Boolean): Set<MainSection> = buildSet {
             add(HOME)
+            add(SOCIAL_ROOMS)
             if (hasLive) {
                 add(LIVE_TV)
                 add(EPG)
@@ -106,6 +108,7 @@ class ShellViewModel(
     private val epgSyncScheduler: EpgSyncScheduler,
     private val epgSourceStore: EpgSourceStore,
     private val epgDao: EpgDao,
+    private val epgAutoRefreshCheck: tv.own.owntv.core.sync.work.EpgAutoRefreshCheck,
     private val importFinalizer: ImportFinalizer,
     private val weatherRepository: WeatherRepository,
     private val channelDao: tv.own.owntv.core.database.dao.ChannelDao,
@@ -198,24 +201,9 @@ class ShellViewModel(
                     }
                 }
             }
-            // --- EPG sources ---
-            val epgModes = settings.epgAutoRefresh.first()
-            if (epgModes.isNotEmpty()) {
-                val epgSources = epgSourceStore.getAll()
-                epgSources.forEach { src ->
-                    val mode = epgModes[src.id] ?: EpgAutoRefresh.OFF
-                    if (shouldRefreshEpg(mode, src.lastSyncAt, nowMs, includeStartup)) {
-                        val base = epgDao.countForSources(listOf(src.id))
-                        Log.d(TAG, "checkAutoRefresh epg sourceId=${src.id} mode=$mode — enqueuing")
-                        epgSyncScheduler.enqueueSync(
-                            src.id,
-                            reason = "auto_refresh",
-                            baseProgrammes = base,
-                            policy = ExistingWorkPolicy.KEEP,
-                        )
-                    }
-                }
-            }
+            // --- EPG sources --- (no stored choice = every 24 h; an explicit Off stays off). The same check
+            // also runs hourly from WorkManager, so a guide refreshes even if the app is never reopened.
+            epgAutoRefreshCheck.run(coldStart = includeStartup, trigger = if (includeStartup) "cold_start" else "resume")
             if (includeStartup) refillGuideEmptiedByMigration()
         }
     }
@@ -269,18 +257,6 @@ class ShellViewModel(
     ): Boolean = when (mode) {
         PlaylistAutoRefresh.OFF -> false
         PlaylistAutoRefresh.STARTUP -> includeStartup
-        else -> (now - (lastSyncAt ?: 0L)) >= (mode.thresholdMs ?: Long.MAX_VALUE)
-    }
-
-    /** EPG equivalent of [shouldRefresh]. */
-    private fun shouldRefreshEpg(
-        mode: EpgAutoRefresh,
-        lastSyncAt: Long?,
-        now: Long,
-        includeStartup: Boolean,
-    ): Boolean = when (mode) {
-        EpgAutoRefresh.OFF -> false
-        EpgAutoRefresh.STARTUP -> includeStartup
         else -> (now - (lastSyncAt ?: 0L)) >= (mode.thresholdMs ?: Long.MAX_VALUE)
     }
 

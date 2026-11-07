@@ -682,24 +682,23 @@ class MovieViewModel(
         val ref = playingRef ?: return
         val m = ref.movie
         if (player.isLiveContent || !playerIsOn(ref)) return
-        val pos = player.position.value
-        val dur = player.duration.value
-        if (pos > 0 && dur > 0) {
-            viewModelScope.launch {
-                // The position belongs to the profile that started playback. If the user switched
-                // profiles mid-film, drop it rather than writing it into the new profile's list.
-                val pid = currentProfileId() ?: return@launch
-                if (pid != ref.profileId) return@launch
-                Log.d(TAG, "saveProgressNow movieId=${m.id} profile=$pid positionMs=$pos durationMs=$dur")
-                runCatching {
-                    progressDao.save(
-                        PlaybackProgressEntity(profileId = pid, mediaType = MediaType.MOVIE, itemId = m.id, positionMs = pos, durationMs = dur),
-                    )
-                }.onFailure { t ->
-                    Log.w(TAG, "saveProgressNow progress save failed movieId=${m.id} profile=$pid", t)
-                }
-                launcherIntegrationRepository.publishMovieProgress(pid, m.id, pos, dur)
+        // Only a title that genuinely started has a position of its own; until then the player may
+        // still hold the previous title's values, which must never become this title's resume point.
+        val (pos, dur) = player.persistableVodProgress() ?: return
+        viewModelScope.launch {
+            // The position belongs to the profile that started playback. If the user switched
+            // profiles mid-film, drop it rather than writing it into the new profile's list.
+            val pid = currentProfileId() ?: return@launch
+            if (pid != ref.profileId) return@launch
+            Log.d(TAG, "saveProgressNow movieId=${m.id} profile=$pid positionMs=$pos durationMs=$dur")
+            runCatching {
+                progressDao.save(
+                    PlaybackProgressEntity(profileId = pid, mediaType = MediaType.MOVIE, itemId = m.id, positionMs = pos, durationMs = dur),
+                )
+            }.onFailure { t ->
+                Log.w(TAG, "saveProgressNow progress save failed movieId=${m.id} profile=$pid", t)
             }
+            launcherIntegrationRepository.publishMovieProgress(pid, m.id, pos, dur)
         }
     }
 

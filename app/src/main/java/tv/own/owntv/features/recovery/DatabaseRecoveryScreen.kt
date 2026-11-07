@@ -49,7 +49,7 @@ fun DatabaseRecoveryScreen(
             modifier = Modifier.widthIn(max = 760.dp).padding(48.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(stringResource(R.string.recovery_title), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(stringResource(R.string.recovery_title, stringResource(R.string.app_name)), fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Text(
                 stringResource(R.string.recovery_data_safe_full),
                 fontSize = 18.sp,

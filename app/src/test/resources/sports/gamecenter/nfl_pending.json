@@ -1,0 +1,44 @@
+{
+ "event": {
+  "id": "evt_673614a26bc94ec4b379",
+  "away": {
+   "id": "nfl.ind",
+   "name": "Indianapolis Colts",
+   "score": null,
+   "logoUrl": null,
+   "shortName": "Colts",
+   "abbreviation": "IND"
+  },
+  "home": {
+   "id": "nfl.wsh",
+   "name": "Washington Commanders",
+   "score": null,
+   "logoUrl": null,
+   "shortName": "Commanders",
+   "abbreviation": "WSH"
+  },
+  "title": "NFL London Games",
+  "status": "SCHEDULED",
+  "leagueId": "nfl",
+  "priority": 90,
+  "startTime": "2026-10-04T13:30:00Z",
+  "updatedAt": "2026-10-01T21:02:52.958Z",
+  "venueName": "Tottenham Hotspur Stadium",
+  "broadcasts": [
+   {
+    "name": "NFL Network",
+    "type": "TV",
+    "market": "NATIONAL",
+    "networkKey": "nfl-network"
+   }
+  ],
+  "statusDetail": null
+ },
+ "gameCenter": {
+  "availability": "PENDING",
+  "phase": null,
+  "updatedAt": null,
+  "stale": false
+ },
+ "refreshAfterSeconds": 10
+}

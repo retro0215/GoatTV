@@ -38,7 +38,7 @@ object ReminderScheduler {
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
-            "epg_warning_${reminder.channelId}_${reminder.programStartMs}",
+            warningWorkName(reminder.channelId, reminder.programStartMs),
             ExistingWorkPolicy.REPLACE,
             warningReq,
         )
@@ -56,7 +56,7 @@ object ReminderScheduler {
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
-            "epg_autotune_${reminder.channelId}_${reminder.programStartMs}",
+            autotuneWorkName(reminder.channelId, reminder.programStartMs),
             ExistingWorkPolicy.REPLACE,
             autotuneReq,
         )
@@ -65,7 +65,23 @@ object ReminderScheduler {
 
     fun cancel(context: Context, channelId: Long, programStartMs: Long) {
         Log.d(TAG, "REMINDER_CANCELLED: channelId=$channelId, start=$programStartMs")
-        WorkManager.getInstance(context).cancelUniqueWork("epg_warning_${channelId}_$programStartMs")
-        WorkManager.getInstance(context).cancelUniqueWork("epg_autotune_${channelId}_$programStartMs")
+        WorkManager.getInstance(context).cancelUniqueWork(warningWorkName(channelId, programStartMs))
+        WorkManager.getInstance(context).cancelUniqueWork(autotuneWorkName(channelId, programStartMs))
     }
+
+    /** Unique WorkManager names; [schedule] and [cancel] must agree, so both read them from here. */
+    internal fun warningWorkName(channelId: Long, programStartMs: Long) = "epg_warning_${channelId}_$programStartMs"
+    internal fun autotuneWorkName(channelId: Long, programStartMs: Long) = "epg_autotune_${channelId}_$programStartMs"
+}
+
+/** The scheduling operations reminder maintenance needs, so it can run without WorkManager in tests. */
+interface ReminderJobs {
+    fun schedule(reminder: ReminderEntity)
+    fun cancel(channelId: Long, programStartMs: Long)
+}
+
+/** Production [ReminderJobs]: the existing [ReminderScheduler] WorkManager jobs. */
+class WorkManagerReminderJobs(private val context: Context) : ReminderJobs {
+    override fun schedule(reminder: ReminderEntity) = ReminderScheduler.schedule(context, reminder)
+    override fun cancel(channelId: Long, programStartMs: Long) = ReminderScheduler.cancel(context, channelId, programStartMs)
 }

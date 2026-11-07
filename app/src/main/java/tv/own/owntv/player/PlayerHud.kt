@@ -177,6 +177,12 @@ fun PlayerHud(
     liveEpgCard: (@Composable () -> Unit)? = null,
     // Open the full TV Guide overlay on Fullscreen Live TV.
     onOpenGuide: (() -> Unit)? = null,
+    // Open the full TV Guide with this channel kept playing in its preview (Phase 4).
+    onOpenFullGuide: (() -> Unit)? = null,
+    // Set after Back closed that overlay: open with the controls up and focus on the Guide button, then
+    // [onGuideFocused] (so a later HUD rebuild starts on plain video again).
+    focusGuideOnShow: Boolean = false,
+    onGuideFocused: () -> Unit = {},
     // The archive's own wall-clock instant while catch-up/rewind is playing; null means the picture is
     // the present, and only the real clock shows. Drives the second, framed clock at top centre.
     watchingWallMs: Long? = null,
@@ -214,6 +220,7 @@ fun PlayerHud(
     val retryFocus = remember { FocusRequester() }
     val catchFocus = remember { FocusRequester() }
     val nextFocus = remember { FocusRequester() }
+    val guideFocus = remember { FocusRequester() }
 
     // Next-episode countdown card (VOD queues only): appears in the last ~30s before the automatic
     // advance (which fires at duration − 8s), counts down to it, and offers Play now / Cancel.
@@ -225,7 +232,7 @@ fun PlayerHud(
         msToAdvance in 0L..30_000L && !autoNextDismissed
     val nextCountdown = ((msToAdvance + 999L) / 1000L).toInt().coerceIn(0, 30)
 
-    var controlsVisible by remember { mutableStateOf(false) }
+    var controlsVisible by remember { mutableStateOf(focusGuideOnShow) }
     var showInfo by remember { mutableStateOf(false) } // stream technical-info overlay
     // Used only by "Report this stream", which writes the current readout into the playback log (F18).
     val reportContext = androidx.compose.ui.platform.LocalContext.current
@@ -375,7 +382,14 @@ fun PlayerHud(
         // The next-episode countdown card owns focus while it's up so Play now / Cancel are reachable.
         if (showNextCard) { runCatching { nextFocus.requestFocus() }; return@LaunchedEffect }
         if (controlsVisible) {
-            if (error != null) runCatching { retryFocus.requestFocus() } else runCatching { playFocus.requestFocus() }
+            if (error != null) {
+                runCatching { retryFocus.requestFocus() }
+            } else if (focusGuideOnShow && onOpenGuide != null) {
+                onGuideFocused()
+                if (runCatching { guideFocus.requestFocus() }.isFailure) runCatching { playFocus.requestFocus() }
+            } else {
+                runCatching { playFocus.requestFocus() }
+            }
         } else runCatching { catchFocus.requestFocus() }
     }
 
@@ -567,7 +581,7 @@ fun PlayerHud(
                         engineFlash++
                     },
                     favorite = favorite, onToggleFavorite = onToggleFavorite,
-                    onOpenDialog = { dialog = it }, onPip = onPip, onAudioMode = onAudioMode, onOpenGuide = onOpenGuide, onBack = onBack,
+                    onOpenDialog = { dialog = it }, onPip = onPip, onAudioMode = onAudioMode, onOpenGuide = onOpenGuide, guideFocus = guideFocus, onBack = onBack, onOpenFullGuide = onOpenFullGuide,
                     modifier = Modifier.align(Alignment.BottomStart),
                 )
             }
