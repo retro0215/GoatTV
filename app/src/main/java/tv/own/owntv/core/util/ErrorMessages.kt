@@ -13,6 +13,8 @@ sealed interface FriendlySyncFailure {
     data object PortalHandshakeFailed : FriendlySyncFailure
     data object PortalSessionExpired : FriendlySyncFailure
     data object AuthenticationRejected : FriendlySyncFailure
+    /** The provider answered but refused the login because the subscription has expired. */
+    data object AccountExpired : FriendlySyncFailure
     data object NotFound : FriendlySyncFailure
     data object ServerError : FriendlySyncFailure
     data object SecureConnectionFailed : FriendlySyncFailure
@@ -36,11 +38,19 @@ fun classifySyncFailure(raw: String?, online: Boolean): FriendlySyncFailure = wh
     raw.containsAny("timeout", "timed out") -> FriendlySyncFailure.Timeout
     raw.containsAny("Unable to resolve host", "UnknownHost", "No address associated") -> FriendlySyncFailure.Unreachable
     raw.containsAny("Failed to connect", "ECONNREFUSED", "Connection refused", "Connection reset") -> FriendlySyncFailure.ConnectionFailed
-    raw.containsAny("stream was reset", "PROTOCOL_ERROR", "StreamReset") -> FriendlySyncFailure.StreamInterrupted
+    // The last two are a download cut off midway: a gzip body ("…ZLIB…") or a plain one (OkHttp).
+    raw.containsAny(
+        "stream was reset", "PROTOCOL_ERROR", "StreamReset",
+        "Unexpected end of ZLIB input stream", "unexpected end of stream",
+    ) -> FriendlySyncFailure.StreamInterrupted
     raw.containsAny("MAC may not be authorized", "MAC not authorized", "Portal rejected", "no valid MAC") -> FriendlySyncFailure.MacNotAuthorised
     raw.containsAny("Portal handshake", "portal API endpoint") -> FriendlySyncFailure.PortalHandshakeFailed
     raw.containsAny("token may have expired", "returned no cmd") -> FriendlySyncFailure.PortalSessionExpired
-    raw.containsAny("HTTP 401", "HTTP 403") -> FriendlySyncFailure.AuthenticationRejected
+    // Checked before the HTTP codes: an expired account is refused with a 401-shaped error too.
+    raw.contains(XTREAM_ACCOUNT_EXPIRED, ignoreCase = true) -> FriendlySyncFailure.AccountExpired
+    // 513 is not a standard status; some Xtream panels answer it, with an empty body, to every call made
+    // with a username or password they do not accept.
+    raw.containsAny("HTTP 401", "HTTP 403", "HTTP 513") -> FriendlySyncFailure.AuthenticationRejected
     raw.contains("HTTP 404", ignoreCase = true) -> FriendlySyncFailure.NotFound
     raw.containsAny("HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504") -> FriendlySyncFailure.ServerError
     raw.containsAny("CertPath", "SSLHandshake", "trust anchor", "CertificateException") -> FriendlySyncFailure.SecureConnectionFailed
@@ -63,10 +73,18 @@ fun isTransientSyncError(raw: String?, online: Boolean): Boolean = when {
         "Unable to resolve host", "UnknownHost", "No address associated",
         "Failed to connect", "ECONNREFUSED", "Connection refused", "Connection reset",
         "Software caused connection abort", "unexpected end of stream",
+        // A gzip body cut off mid-download (a guide feed dropped by the server).
+        "Unexpected end of ZLIB input stream",
         "stream was reset", "PROTOCOL_ERROR", "StreamReset",
         "HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504",
     )
 }
+
+/**
+ * Stable comparison key carried by the error a sync throws when an Xtream panel refuses the login of an
+ * expired account (see `XtreamSyncer.requireAccepted`). Never shown to the user.
+ */
+const val XTREAM_ACCOUNT_EXPIRED = "Xtream account expired"
 
 private fun String.containsAny(vararg needles: String): Boolean =
     needles.any { contains(it, ignoreCase = true) }

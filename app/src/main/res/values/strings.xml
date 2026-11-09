@@ -349,6 +349,8 @@
     <string name="sync_error_session">The portal session expired. Please try again.</string>
     <!-- Translators: Error when the server rejects login credentials. -->
     <string name="sync_error_auth">The server rejected your login. Check your username and password.</string>
+    <!-- Translators: Error when the provider refuses the login because the subscription has expired. -->
+    <string name="sync_error_account_expired">Your subscription has expired. Renew it, then refresh this playlist.</string>
     <!-- Translators: Error when the requested resource is not found on the server. -->
     <string name="sync_error_not_found">Not found on the server. Check the URL.</string>
     <!-- Translators: Generic server error during sync. -->

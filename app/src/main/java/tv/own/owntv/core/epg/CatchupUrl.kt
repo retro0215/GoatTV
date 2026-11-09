@@ -5,6 +5,8 @@ import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import tv.own.owntv.core.database.entity.SourceEntity
 import tv.own.owntv.core.model.SourceType
 import tv.own.owntv.core.parser.XtreamClient
+import java.net.URLDecoder
+import java.net.URLEncoder
 import java.util.TimeZone
 
 /**
@@ -123,7 +125,17 @@ object CatchupUrl {
      */
     fun timeshiftPhpAlternate(url: String?): String? {
         val g = url?.let { TIMESHIFT_PATH.find(it) }?.groupValues ?: return null
-        return "${g[1]}/streaming/timeshift.php?username=${g[2]}&password=${g[3]}&stream=${g[6]}&start=${g[5]}&duration=${g[4]}"
+        return "${g[1]}/streaming/timeshift.php?username=${queryValue(g[2])}&password=${queryValue(g[3])}&stream=${g[6]}&start=${g[5]}&duration=${g[4]}"
+    }
+
+    /**
+     * A credential path segment re-encoded as a query value. A `+` or `&` is literal in a path but not in a
+     * query, so the segment is decoded first (keeping `+` a plus, as a path means it) and encoded again.
+     * Plain letters and digits come out unchanged. Reference: upstream OwnTV_Core 6d656bd1.
+     */
+    private fun queryValue(pathSegment: String): String {
+        val decoded = runCatching { URLDecoder.decode(pathSegment.replace("+", "%2B"), "UTF-8") }.getOrDefault(pathSegment)
+        return URLEncoder.encode(decoded, "UTF-8")
     }
 
     /**
@@ -215,7 +227,7 @@ object CatchupUrl {
         val durationMin = (((endMs - startMs) / 60_000L).toInt()).coerceAtLeast(1)
         val fmt = java.text.SimpleDateFormat("yyyy-MM-dd:HH-mm", java.util.Locale.US).apply { timeZone = tz }
         val start = fmt.format(java.util.Date(startMs))
-        return "${g[1]}/streaming/timeshift.php?username=${g[2]}&password=${g[3]}&stream=${g[4]}" +
+        return "${g[1]}/streaming/timeshift.php?username=${queryValue(g[2])}&password=${queryValue(g[3])}&stream=${g[4]}" +
             "&start=$start&duration=$durationMin"
     }
 }

@@ -12,6 +12,32 @@ import tv.own.owntv.core.network.HttpClient
 import java.io.InputStream
 import java.net.URLEncoder
 
+/**
+ * [value] as one URL path segment, for the Xtream stream paths (`…/live/{user}/{pass}/{id}.ts`).
+ *
+ * Only what a segment cannot hold raw is percent-encoded — `/ ? # %`, spaces, other ASCII outside
+ * RFC 3986's `pchar`, and non-ASCII bytes — so an account of letters, digits and the usual punctuation
+ * keeps exactly the URL it always had, while a password with `#` or `/` no longer cuts the URL short
+ * (it used to pass the login, which encodes the same values as query parameters, then play nothing).
+ * Reference: upstream OwnTV_Core 6d656bd1.
+ */
+internal fun xtreamPathSegment(value: String?): String {
+    val bytes = value.orEmpty().toByteArray(Charsets.UTF_8)
+    val out = StringBuilder(bytes.size)
+    for (b in bytes) {
+        val c = b.toInt() and 0xFF
+        if (c < 0x80 && (c.toChar().isLetterOrDigit() || c.toChar() in PATH_SEGMENT_SAFE)) {
+            out.append(c.toChar())
+        } else {
+            out.append('%').append(HEX_DIGITS[c shr 4]).append(HEX_DIGITS[c and 0x0F])
+        }
+    }
+    return out.toString()
+}
+
+private const val PATH_SEGMENT_SAFE = "-._~!$&'()*+,;=:@"
+private const val HEX_DIGITS = "0123456789ABCDEF"
+
 // --- Parsed Xtream models ---
 data class XtCategory(val id: String, val name: String)
 data class XtLiveStream(
@@ -107,13 +133,15 @@ class XtreamClient(private val http: HttpClient) {
     suspend fun vodCategories(s: SourceEntity, onProgress: ((Long, Long?) -> Unit)? = null) = categories(s, "get_vod_categories", onProgress)
     suspend fun seriesCategories(s: SourceEntity, onProgress: ((Long, Long?) -> Unit)? = null) = categories(s, "get_series_categories", onProgress)
 
-    private suspend fun categories(s: SourceEntity, action: String, onProgress: ((Long, Long?) -> Unit)? = null): List<XtCategory> {
+    private suspend fun categories(s: SourceEntity, action: String, onProgress: ((Long, Long?) -> Unit)? = null): List<XtCategory> =
+        http.get(api(s, action), s.userAgent, onProgress, maxAttempts = CATEGORY_MAX_ATTEMPTS) { input -> parseCategories(input) }
+
+    /** One `get_*_categories` response. Split out so the parsing is tested without a server. */
+    internal suspend fun parseCategories(input: InputStream): List<XtCategory> {
         val out = ArrayList<XtCategory>()
-        http.get(api(s, action), s.userAgent, onProgress, maxAttempts = CATEGORY_MAX_ATTEMPTS) { input ->
-            streamObjects(input) { m ->
-                val id = m["category_id"] ?: return@streamObjects
-                out.add(XtCategory(id, m["category_name"] ?: id))
-            }
+        streamObjects(input) { m ->
+            val id = m["category_id"] ?: return@streamObjects
+            out.add(XtCategory(id, m["category_name"] ?: id))
         }
         return out
     }
@@ -625,7 +653,7 @@ class XtreamClient(private val http: HttpClient) {
     // Live uses the raw MPEG-TS endpoint (.ts) — the universal Xtream live format. The .m3u8/HLS
     // wrapper isn't served by every panel (mpegts-only providers 404 on it, so channels won't load),
     // whereas every panel serves .ts and mpv plays it natively.
-    fun liveUrl(s: SourceEntity, streamId: String) = "${base(s)}/live/${s.username}/${s.password}/$streamId.ts"
+    fun liveUrl(s: SourceEntity, streamId: String) = "${base(s)}/live/${credentials(s)}/$streamId.ts"
 
     /**
      * Catch-up (timeshift) URL for a past programme:
@@ -634,12 +662,12 @@ class XtreamClient(private val http: HttpClient) {
      */
     fun timeshiftUrl(s: SourceEntity, streamId: String, startMs: Long, durationMinutes: Int, tz: java.util.TimeZone = java.util.TimeZone.getTimeZone("UTC"), ext: String = "ts"): String {
         val fmt = java.text.SimpleDateFormat("yyyy-MM-dd:HH-mm", java.util.Locale.US).apply { timeZone = tz }
-        return "${base(s)}/timeshift/${s.username}/${s.password}/$durationMinutes/${fmt.format(java.util.Date(startMs))}/$streamId.$ext"
+        return "${base(s)}/timeshift/${credentials(s)}/$durationMinutes/${fmt.format(java.util.Date(startMs))}/$streamId.$ext"
     }
     fun movieUrl(s: SourceEntity, streamId: String, ext: String?) =
-        "${base(s)}/movie/${s.username}/${s.password}/$streamId.${ext ?: "mp4"}"
+        "${base(s)}/movie/${credentials(s)}/$streamId.${ext ?: "mp4"}"
     fun seriesEpisodeUrl(s: SourceEntity, episodeId: String, ext: String?) =
-        "${base(s)}/series/${s.username}/${s.password}/$episodeId.${ext ?: "mp4"}"
+        "${base(s)}/series/${credentials(s)}/$episodeId.${ext ?: "mp4"}"
 
     /** Full XMLTV guide for the whole account (all channels) — the bulk EPG used by the guide grid. */
     data class XtAccountDetails(
@@ -651,7 +679,17 @@ class XtreamClient(private val http: HttpClient) {
         /** `user_info.auth` — false when the panel answered but refused the login; null when omitted.
          *  Read for the Diagnostic Center's service check. */
         val authenticated: Boolean? = null,
-    )
+        /** `user_info.status` as the panel words it ("Active", "Expired", "Banned", "Disabled"); null when omitted. */
+        val status: String? = null,
+    ) {
+        /**
+         * The panel answered and refused the account as expired: `auth` 0 together with an "Expired" status
+         * or an expiry date already in the past. Only meaningful when [authenticated] is false.
+         */
+        fun refusedAsExpired(nowMs: Long): Boolean =
+            authenticated == false &&
+                (status.equals("Expired", ignoreCase = true) || (expiryMs != null && expiryMs <= nowMs))
+    }
 
     /**
      * Account details (expiry + HLS support) from the bare `player_api.php` call
@@ -670,6 +708,7 @@ class XtreamClient(private val http: HttpClient) {
                 var hlsSupported = false
                 var maxConnections = 0
                 var authenticated: Boolean? = null
+                var status: String? = null
                 JsonReader(java.io.InputStreamReader(input, Charsets.UTF_8)).use { r ->
                     r.isLenient = true
                     if (r.peek() != JsonToken.BEGIN_OBJECT) return@use
@@ -695,6 +734,7 @@ class XtreamClient(private val http: HttpClient) {
                                             else -> { r.skipValue(); null }
                                         }
                                     }
+                                    "status" -> status = r.nextScalarStringOrNull()?.trim()?.takeIf { it.isNotEmpty() }
                                     "max_connections" -> {
                                         maxConnections = when (r.peek()) {
                                             JsonToken.STRING -> r.nextString().trim().toIntOrNull() ?: 0
@@ -738,6 +778,7 @@ class XtreamClient(private val http: HttpClient) {
                     hlsSupported = hlsSupported,
                     maxConnections = maxConnections,
                     authenticated = authenticated,
+                    status = status,
                 )
             }
         } catch (e: Exception) {
@@ -791,7 +832,7 @@ class XtreamClient(private val http: HttpClient) {
      * and never plays anything, so it costs one short request.
      */
     suspend fun probeHls(s: SourceEntity, streamId: String): HlsProbe {
-        val url = "${base(s)}/live/${s.username}/${s.password}/$streamId.m3u8"
+        val url = "${base(s)}/live/${credentials(s)}/$streamId.m3u8"
         return try {
             http.get(url, s.userAgent) { input ->
                 val head = ByteArray(HLS_PROBE_BYTES)
@@ -873,6 +914,9 @@ class XtreamClient(private val http: HttpClient) {
 
     // --- helpers ---
     private fun base(s: SourceEntity) = s.url.trimEnd('/')
+
+    /** The `{user}/{pass}` pair of a stream path, each encoded as one path segment ([xtreamPathSegment]). */
+    private fun credentials(s: SourceEntity) = "${xtreamPathSegment(s.username)}/${xtreamPathSegment(s.password)}"
 
     private fun api(s: SourceEntity, action: String, extra: String = ""): String {
         val u = URLEncoder.encode(s.username.orEmpty(), "UTF-8")
@@ -1156,7 +1200,9 @@ class XtreamClient(private val http: HttpClient) {
                     map[name] = null
                 }
                 JsonToken.BEGIN_ARRAY, JsonToken.BEGIN_OBJECT -> reader.skipValue()
-                else -> map[name] = reader.nextString()
+                // Booleans as text: a category list carrying `"is_adult": false` used to fail the whole
+                // Xtream import with "Expected a string but was BOOLEAN" (upstream OwnTV #349).
+                else -> map[name] = reader.nextScalarStringOrNull()
             }
         }
         reader.endObject()

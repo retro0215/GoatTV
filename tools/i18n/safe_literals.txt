@@ -347,6 +347,11 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	identity
 1	url	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	ping.bin
 1	url	app/src/main/java/tv/own/owntv/core/diagnostics/SpeedTestEndpoint.kt	speedtest.bin
+1	url	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	${g[1]}/streaming/timeshift.php?username=${queryValue(g[2])}&password=${queryValue(g[3])}&stream=${g[4]}
+1	url	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	${g[1]}/streaming/timeshift.php?username=${queryValue(g[2])}&password=${queryValue(g[3])}&stream=${g[6]}&start=${g[5]}&duration=${g[4]}
+1	uri	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	%2B
+1	uri	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	+
+2	protocol	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	UTF-8
 2	empty	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	\0
 1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}$PLACEHOLDER/$PLACEHOLDER/
 1	url	app/src/main/java/tv/own/owntv/core/epg/EpgUrlMask.kt	${m.groupValues[1]}${m.groupValues[2]}=
@@ -372,12 +377,25 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/network/ExtraTrustAnchors.kt	X.509
 1	technical	app/src/main/java/tv/own/owntv/core/network/ExtraTrustAnchors.kt	isrg-$i
 5	empty	app/src/main/java/tv/own/owntv/core/network/ProxyConfig.kt	\0
+1	log	app/src/main/java/tv/own/owntv/core/parser/XmltvParser.kt	parse read failed channels=$channels programmes=$programmes error=${e.javaClass.simpleName}
+1	url	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/live/${credentials(s)}/$streamId.m3u8
+1	url	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/live/${credentials(s)}/$streamId.ts
+1	url	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/movie/${credentials(s)}/$streamId.${ext ?: "mp4"}
+1	url	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/series/${credentials(s)}/$episodeId.${ext ?: "mp4"}
+1	url	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/timeshift/${credentials(s)}/$durationMinutes/${fmt.format(java.util.Date(startMs))}/$streamId.$ext
+1	url	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${xtreamPathSegment(s.username)}/${xtreamPathSegment(s.password)}
+1	uri	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	-._~!$&'()*+,;=:@
+1	technical	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	0123456789ABCDEF
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	Expired
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	auth
+1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	status
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink failed sourceId=${source.id}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink sourceId=${source.id} ${it.values.groupingBy { o -> o }.eachCount()}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder snapshot failed sourceId=${source.id}
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	HTTP 401: $reason
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	panel rejected the username or password
 2	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	EpgAutoRefresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	auto_refresh
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	epg auto-refresh due sourceId=$id trigger=$trigger — enqueuing
@@ -403,6 +421,10 @@
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=channel missing
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	reminder tune skipped id=${reminder.id} sourceId=${reminder.sourceId} reason=other playlist
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/ReminderRelinker.kt	unsupported source type
+1	protocol	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	HTTP 513
+2	protocol	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	Unexpected end of ZLIB input stream
+1	protocol	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	Xtream account expired
+2	protocol	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	unexpected end of stream
 1	performance	app/src/main/java/tv/own/owntv/features/epg/EpgScreen.kt	Guide.scrollIntoView
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	background refresh complete
 1	log	app/src/main/java/tv/own/owntv/features/epg/EpgViewModel.kt	channel list kept (window moved)

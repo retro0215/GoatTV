@@ -16,6 +16,7 @@ import tv.own.owntv.core.database.entity.MovieEntity
 import tv.own.owntv.core.database.entity.SeriesEntity
 import tv.own.owntv.core.database.entity.SourceEntity
 import tv.own.owntv.core.model.MediaType
+import tv.own.owntv.core.network.HttpClient
 import tv.own.owntv.core.parser.XtCategory
 import tv.own.owntv.core.parser.XtreamClient
 import kotlin.coroutines.CoroutineContext
@@ -33,6 +34,12 @@ internal class XtreamSyncer(
 ) {
     suspend fun sync(s: SourceEntity, progress: SyncCounters, stats: SyncStatsCollector, contentTypes: SyncContentTypes) {
         val details = runCatching { xtream.fetchAccountDetails(s) }.getOrNull()
+        if (details?.authenticated == false) {
+            // Refused: keep a stated expiry date so Home's subscription warning can say why, but touch
+            // nothing else — HLS support and the session limit from a refusal are not the account's.
+            details.expiryMs?.let { support.sourceDao.updateExpiry(s.id, it, null) }
+        }
+        requireAccepted(details, System.currentTimeMillis())
         if (details != null) {
             // Only a panel that actually answered gets to settle this: `details == null` is a network or
             // parse failure, and leaving the row UNKNOWN is the honest record of that.
@@ -434,5 +441,24 @@ internal class XtreamSyncer(
 
     companion object {
         private const val TAG = SyncSupport.TAG
+
+        /**
+         * Fails the sync when the panel answered `user_info.auth: 0`. A panel that refuses the login still
+         * answers every list call — with an error object instead of an array, which reads as a complete,
+         * empty list — so without this the pass "succeeded" with nothing and the playlist was stamped
+         * synced. Shaped as HTTP 401 so the playlist shows the wrong-login message, or the expired-account
+         * one when the panel says the subscription has run out. `null` (no answer) is left alone: that is
+         * a network or parse failure, which the list calls report themselves.
+         * Reference: upstream OwnTV_Core 38f30e67. The message never contains credentials.
+         */
+        internal fun requireAccepted(details: XtreamClient.XtAccountDetails?, nowMs: Long) {
+            if (details == null || details.authenticated != false) return
+            val reason = if (details.refusedAsExpired(nowMs)) {
+                tv.own.owntv.core.util.XTREAM_ACCOUNT_EXPIRED
+            } else {
+                "panel rejected the username or password"
+            }
+            throw HttpClient.HttpStatusException(401, "HTTP 401: $reason")
+        }
     }
 }

@@ -1271,8 +1271,6 @@
 2	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	\0
 1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	$base&$body
 1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	$base?$body
-1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	${g[1]}/streaming/timeshift.php?username=${g[2]}&password=${g[3]}&stream=${g[4]}
-1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	${g[1]}/streaming/timeshift.php?username=${g[2]}&password=${g[3]}&stream=${g[6]}&start=${g[5]}&duration=${g[4]}
 1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	${prefix}archive-$startS-$durationS.ts$query
 1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	${prefix}timeshift_abs-$startS.m3u8$query
 1	app/src/main/java/tv/own/owntv/core/epg/CatchupUrl.kt	&
@@ -1834,13 +1832,8 @@
 2	app/src/main/java/tv/own/owntv/core/parser/XmltvTime.kt	\0
 7	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	\0
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	#EXTM3U
-1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/live/${s.username}/${s.password}/$streamId.m3u8
-1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/live/${s.username}/${s.password}/$streamId.ts
-1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/movie/${s.username}/${s.password}/$streamId.${ext ?: "mp4"}
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/player_api.php?username=$u&password=$p
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/player_api.php?username=$u&password=$p&action=$action$extra
-1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/series/${s.username}/${s.password}/$episodeId.${ext ?: "mp4"}
-1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/timeshift/${s.username}/${s.password}/$durationMinutes/${fmt.format(java.util.Date(startMs))}/$streamId.$ext
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	${base(s)}/xmltv.php?username=$u&password=$p
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	&category_id=$it
 1	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	&series_id=$seriesId
@@ -2824,7 +2817,6 @@
 2	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	timeout
 1	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	token may have expired
 1	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	trust anchor
-1	app/src/main/java/tv/own/owntv/core/util/ErrorMessages.kt	unexpected end of stream
 1	app/src/main/java/tv/own/owntv/core/util/Pin.kt	\0
 1	app/src/main/java/tv/own/owntv/core/util/Pin.kt	${salt.toHex()}:${digest(salt, pin)}
 1	app/src/main/java/tv/own/owntv/core/util/Pin.kt	%02x

@@ -19,6 +19,7 @@ fun FriendlySyncFailure.displayText(): String = when (this) {
     FriendlySyncFailure.PortalHandshakeFailed -> stringResource(R.string.sync_error_portal)
     FriendlySyncFailure.PortalSessionExpired -> stringResource(R.string.sync_error_session)
     FriendlySyncFailure.AuthenticationRejected -> stringResource(R.string.sync_error_auth)
+    FriendlySyncFailure.AccountExpired -> stringResource(R.string.sync_error_account_expired)
     FriendlySyncFailure.NotFound -> stringResource(R.string.sync_error_not_found)
     FriendlySyncFailure.ServerError -> stringResource(R.string.sync_error_server)
     FriendlySyncFailure.SecureConnectionFailed -> stringResource(R.string.sync_error_secure)

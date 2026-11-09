@@ -829,6 +829,9 @@ dependencies {
     // streaming reader is the code android.util.JsonReader was taken from), so the Xtream parsers run
     // on the JVM instead of android.jar's no-op stubs.
     testImplementation(libs.gson)
+    // Test-only, never packaged: kXML2 is the pull parser android.util.Xml returns on devices. It backs the
+    // src/test android.util.Xml shim so XmltvParser's guide parsing runs for real on the JVM.
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
     testImplementation("io.mockk:mockk:1.13.13")
     // Test-only, never packaged: virtual time for the guide details panel's update timing tests.
     testImplementation(libs.kotlinx.coroutines.test)
