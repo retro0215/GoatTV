@@ -96,6 +96,7 @@ fun Onboarding(firstRun: Boolean, onDone: (Long?) -> Unit, onCancel: () -> Unit,
     val importState by vm.state.collectAsStateWithLifecycle()
     val progress by vm.progress.collectAsStateWithLifecycle()
     val epgSync by vm.epgSync.collectAsStateWithLifecycle()
+    val runInBackgroundAvailable by vm.runInBackgroundAvailable.collectAsStateWithLifecycle()
     var existing by remember { mutableStateOf<List<SourceEntity>>(emptyList()) }
     // Where "Try Again" returns to when an import fails (new source vs. linking existing).
     var importOrigin by remember { mutableStateOf(Step.ADD_SOURCE) }
@@ -170,7 +171,8 @@ fun Onboarding(firstRun: Boolean, onDone: (Long?) -> Unit, onCancel: () -> Unit,
                 onContinue = { vm.finish(onDone) }, // playlist + its EPG synced (auto)
                 onRetry = { vm.reset(); step = importOrigin },
                 onCancel = { vm.cancelImport(); step = importOrigin },
-                onBackground = { vm.continueInBackground(onDone) }, // enter the app; sync keeps running
+                // Enter the app; the sync keeps running. Offered only when no guide question is still to come.
+                onBackground = { vm.continueInBackground(onDone) }.takeIf { runInBackgroundAvailable },
             )
             Step.EXISTING -> ExistingSourcesScreen(
                 sources = existing,
@@ -579,12 +581,15 @@ private fun ImportProgressScreen(
     onContinue: () -> Unit,
     onRetry: () -> Unit,
     onCancel: () -> Unit,
-    onBackground: () -> Unit,
+    // Null while a new playlist imports: its TV Guide question comes when the import is done, and leaving
+    // before it skipped the question for good. See importBackgroundAllowed.
+    onBackground: (() -> Unit)?,
 ) {
     val colors = OwnTVTheme.colors
     val fr = remember { FocusRequester() }
     val bgFr = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { bgFr.requestFocus() } }
+    val cancelFr = remember { FocusRequester() }
+    LaunchedEffect(onBackground != null) { runCatching { (if (onBackground != null) bgFr else cancelFr).requestFocus() } }
     LaunchedEffect(state) {
         if (state is SetupViewModel.ImportState.Success || state is SetupViewModel.ImportState.Failed) runCatching { fr.requestFocus() }
     }
@@ -613,15 +618,19 @@ private fun ImportProgressScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     // Enter the app right away; the import keeps running (VM is activity-scoped) and
                     // content appears as it lands — no need to sit through a big movies/series sync.
-                    OwnTVButton(stringResource(R.string.setup_run_in_background), onClick = onBackground, icon = OwnTVIcon.PLAY, modifier = Modifier.focusRequester(bgFr))
-                    OwnTVButton(stringResource(R.string.common_cancel), onClick = onCancel, style = OwnTVButtonStyle.SECONDARY)
+                    if (onBackground != null) {
+                        OwnTVButton(stringResource(R.string.setup_run_in_background), onClick = onBackground, icon = OwnTVIcon.PLAY, modifier = Modifier.focusRequester(bgFr))
+                    }
+                    OwnTVButton(stringResource(R.string.common_cancel), onClick = onCancel, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.focusRequester(cancelFr))
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(R.string.setup_watching_during_import),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                )
+                if (onBackground != null) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        stringResource(R.string.setup_watching_during_import),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
             }
             is SetupViewModel.ImportState.Success -> {
                 Text(stringResource(R.string.setup_all_set), style = MaterialTheme.typography.headlineLarge, color = colors.onSurface)

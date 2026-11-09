@@ -79,16 +79,32 @@ class SetupViewModel(
     // Semi-auto EPG: after the first playlist imports, offer a one-tap guide sync (with a live count) if it
     // has a guide feed.
     private var pendingEpgSource: SourceEntity? = null
-    // Set when the user leaves the wizard with "Run in background". A late Success must not raise
-    // the EPG Ask prompt into the dead wizard UI, and a late failure must not silently DELETE the
-    // source the user thinks they added — keep it (credentials intact) and only wipe partial content.
+    private var epgJob: Job? = null
+    // Set when the user leaves the wizard with "Run in background" (re-syncing linked playlists only, see
+    // [importBackgroundAllowed]). A late failure must not silently DELETE a source the user thinks they
+    // added — keep it (credentials intact) and only wipe partial content.
     private var backgroundHandoff = false
+
+    /** What the import screen is running: a new playlist (asks about its guide) or linked existing ones. */
+    enum class ImportKind { NEW_PLAYLIST, EXISTING_PLAYLISTS }
+
+    private var importKind: ImportKind? = null
+    private val _runInBackgroundAvailable = MutableStateFlow(false)
+
+    /** Whether the import screen offers "Run in background" — see [importBackgroundAllowed]. */
+    val runInBackgroundAvailable: StateFlow<Boolean> = _runInBackgroundAvailable.asStateFlow()
+
+    private fun startImportOf(kind: ImportKind) {
+        importKind = kind
+        _runInBackgroundAvailable.value = importBackgroundAllowed(kind)
+    }
     private val _epgSync = MutableStateFlow<tv.own.owntv.features.settings.EpgSyncUi>(tv.own.owntv.features.settings.EpgSyncUi.Hidden)
     val epgSync: StateFlow<tv.own.owntv.features.settings.EpgSyncUi> = _epgSync.asStateFlow()
 
     fun syncPendingEpg() {
         val src = pendingEpgSource ?: return
-        viewModelScope.launch {
+        if (epgJob?.isActive == true) return // a second tap must not start a second download
+        epgJob = viewModelScope.launch {
             tv.own.owntv.features.settings.runSemiAutoEpgSync(src, epgRepository, epgSourceStore) { _epgSync.value = it }
         }
     }
@@ -265,6 +281,11 @@ class SetupViewModel(
         addSource: suspend (Long) -> SourceEntity,
     ) {
         importJob?.cancel()
+        // A new playlist: its guide question comes once it has imported, so "Run in background" waits
+        // until then. A retry starts clean — no leftover hand-off or guide question from the last attempt.
+        startImportOf(ImportKind.NEW_PLAYLIST)
+        backgroundHandoff = false
+        dismissPendingEpg()
         val job = viewModelScope.launch {
             _state.value = ImportState.Running
             _progress.value = null
@@ -353,6 +374,7 @@ class SetupViewModel(
      */
     fun linkExisting(sourceIds: Set<Long>) {
         importJob?.cancel()
+        startImportOf(ImportKind.EXISTING_PLAYLISTS)
         val job = viewModelScope.launch {
             _state.value = ImportState.Running
             _progress.value = null
@@ -462,10 +484,13 @@ class SetupViewModel(
      * activity-scoped, so the in-flight [importJob] survives leaving the wizard — the sync continues
      * exactly as if the user had waited (success still runs ImportFinalizer + the remainder enqueue).
      * Deliberately does NOT cancel: cancelling would run [cleanupFailedAdd] and delete the source.
-     * The semi-auto EPG prompt is skipped (its dialog lives in the wizard); EPG stays user-initiated
-     * from Settings → EPG Sources, matching the app's EPG opt-in policy.
+     *
+     * Refused while a new playlist imports ([importBackgroundAllowed]): leaving then used to skip its
+     * guide question for good and the TV Guide stayed empty. That playlist's "Run in background" is the
+     * guide dialog's, once the question has been answered.
      */
     fun continueInBackground(onDone: (Long?) -> Unit = {}) {
+        if (!importBackgroundAllowed(importKind)) return
         backgroundHandoff = true
         dismissPendingEpg()
         finish(onDone)
@@ -501,3 +526,14 @@ class SetupViewModel(
         const val STALKER_TEST_SOURCE_ID = -1L
     }
 }
+
+/**
+ * Whether the onboarding import screen may offer "Run in background" while it imports.
+ *
+ * Never for a new playlist: its TV Guide question is asked once the playlist has imported, and leaving
+ * before that skipped the question for good, so the guide stayed empty. After the question the choice
+ * is the guide dialog's ("Run in background" while the guide downloads) or the import is already done
+ * ("Not now" → Continue). Re-syncing playlists a new profile links to asks no guide question, so it may.
+ */
+internal fun importBackgroundAllowed(kind: SetupViewModel.ImportKind?): Boolean =
+    kind == SetupViewModel.ImportKind.EXISTING_PLAYLISTS

@@ -30,7 +30,11 @@ suspend fun runSemiAutoEpgSync(
     } catch (c: CancellationException) {
         throw c
     } catch (e: Exception) {
-        store.setSynced(epgSource.id, now, e.message)
+        // A failure must not stamp lastSyncAt: the automatic refresh reads it as the last *successful*
+        // sync, so stamping it made a failed first guide download look fresh and skipped retries for a day.
+        // Interrupted runs (app closed, process killed) leave it unset the same way, so the guide is
+        // fetched by the next automatic check.
+        store.markError(epgSource.id, e.message)
         setState(EpgSyncUi.Failed(classifySyncFailure(e.message, online = true)))
     }
 }
