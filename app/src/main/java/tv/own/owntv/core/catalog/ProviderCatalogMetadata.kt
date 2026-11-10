@@ -15,6 +15,13 @@ data class ProviderCatalogMetadata(
 )
 
 object ProviderCatalogMetadataParser {
+    /**
+     * Version of the rules [parse] applies. Bump it whenever a change here (or in TitleNormalizer) would
+     * give an existing row different derived fields: CatalogTitleBackfill then re-parses every movie and
+     * series row once, writing only the rows whose result changed. Version 1 = the rules since schema v31.
+     */
+    const val RULES_VERSION = 1
+
     fun parse(rawName: String, providerYear: Int?): ProviderCatalogMetadata {
         val normalized = TitleNormalizer.normalize(cleanForTitle(rawName))
         return ProviderCatalogMetadata(
@@ -28,7 +35,7 @@ object ProviderCatalogMetadataParser {
         )
     }
 
-    private fun extractLanguage(raw: String): String? {
+    internal fun extractLanguage(raw: String): String? {
         EXPLICIT_LANGUAGE.find(raw)?.groupValues?.get(1)?.let { return it.uppercase() }
         LEADING_LANGUAGE.find(raw)?.groupValues?.get(1)?.let { return it.uppercase() }
         return TRAILING_LANGUAGE.find(raw)?.groupValues?.get(1)?.uppercase()
@@ -43,7 +50,7 @@ object ProviderCatalogMetadataParser {
         .replace(ALL_CAPABILITY_MARKERS, " ")
         .replace(ALL_AUDIO_MARKERS, " ")
 
-    private fun extractQualityRank(raw: String): Int = when {
+    internal fun extractQualityRank(raw: String): Int = when {
         EIGHT_K.containsMatchIn(raw) -> 5
         UHD.containsMatchIn(raw) -> 4
         FHD.containsMatchIn(raw) -> 3
@@ -52,7 +59,7 @@ object ProviderCatalogMetadataParser {
         else -> 0
     }
 
-    private fun extractCapabilities(raw: String): List<String> = buildList {
+    internal fun extractCapabilities(raw: String): List<String> = buildList {
         when {
             DOLBY_VISION.containsMatchIn(raw) -> add("Dolby Vision")
             HDR10_PLUS.containsMatchIn(raw) -> add("HDR10+")

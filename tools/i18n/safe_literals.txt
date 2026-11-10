@@ -248,6 +248,81 @@
 1	regex	app/src/main/java/tv/own/owntv/core/catalog/ProviderCatalogMetadata.kt	^\\s*($LANGUAGE_CODES)(?=\\s*[|:_-])
 1	technical	app/src/main/java/tv/own/owntv/core/catalog/ProviderCatalogMetadata.kt	__unmatchable_${rawName.hashCode().toUInt().toString(16)}
 1	technical	app/src/main/java/tv/own/owntv/core/catalog/ProviderCatalogMetadata.kt	•
+1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfill.kt	${store.label}: scanned=$scanned written=$written fullPass=$fullPass
+1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfill.kt	CatalogTitleBackfill
+1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfillStores.kt	movies
+1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfillStores.kt	series
+1	regex	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	(?<![\\p{L}\\p{N}])(?:$alternatives)(?![\\p{L}\\p{N}])
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	AR
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	ARABIC
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	DE
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	DUTCH|NEDERLANDS
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	Dolby Vision
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	EN
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	ENGLISH
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	ES
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	FR
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	FRENCH|FRANCAIS|FRANÇAIS
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	GERMAN|DEUTSCH
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	HDR
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	HDR10
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	HDR10+
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	HI
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	HINDI
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	IT
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	ITALIAN|ITALIANO
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	NL
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	PL
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	POLISH|POLSKI
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	PORTUGUESE|PORTUGUES|PORTUGUÊS
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	PT
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	RU
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	RUSSIAN
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	SPANISH|ESPANOL|ESPAÑOL|CASTELLANO
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	TR
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	TURKISH|TURKCE|TÜRKÇE
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	•
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	__unmatchable_
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	a
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	episode
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	episodes
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	film
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	films
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	live
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	movie
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	movies
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	new
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	season
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	series
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	show
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	shows
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	test
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	the
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	trailer
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	trailers
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	tv
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	unknown
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	untitled
+1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	vod
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	FROM movies WHERE id > :after AND titleSignature = '' ORDER BY id LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	FROM movies WHERE id > :after ORDER BY id LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	FROM movies x LEFT JOIN categories c ON c.id = x.categoryId
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	FROM series WHERE id > :after AND titleSignature = '' ORDER BY id LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	FROM series WHERE id > :after ORDER BY id LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	FROM series x LEFT JOIN categories c ON c.id = x.categoryId
+6	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	SELECT
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	SET canonicalTitle = :canonicalTitle, titleSignature = :titleSignature, parsedYear = :parsedYear,
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	UPDATE movies
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	UPDATE series
+2	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	WHERE x.sourceId IN (:sourceIds) AND x.titleSignature = :signature LIMIT :limit
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	advertisedCapabilities = :advertisedCapabilities WHERE id = :id
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	c.remoteId AS categoryRemoteId, x.name AS name, x.remoteId AS remoteId,
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	id, name, year, canonicalTitle, titleSignature, parsedYear, providerLanguage, qualityRank, advertisedCapabilities
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	providerLanguage = :providerLanguage, qualityRank = :qualityRank,
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	x.advertisedCapabilities AS advertisedCapabilities
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	x.id AS id, x.sourceId AS sourceId, x.categoryId AS categoryId, c.name AS categoryName,
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	x.providerLanguage AS providerLanguage, x.qualityRank AS qualityRank,
+1	sql	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionSql.kt	x.titleSignature AS titleSignature, x.parsedYear AS parsedYear,
 1	log	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	Catalog upload skipped: ${tv.own.owntv.core.isolation.IsolatedTestBuild.REFUSED}
 6	log	app/src/main/java/tv/own/owntv/core/channelcatalog/ChannelCatalogRepository.kt	ChannelCatalog
 4	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	\0
@@ -271,6 +346,7 @@
 1	technical	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	owntv-remote-restore
 1	file-path	app/src/main/java/tv/own/owntv/core/companion/CompanionController.kt	remote-backup-export
 3	empty	app/src/main/java/tv/own/owntv/core/companion/CompanionHtml.kt	\0
+1	preference-key	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	$sourceId:${remoteId ?: name}
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId
 3	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE sourceId IN (:sourceIds)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT COALESCE(MAX(id), 0) FROM epg_programmes
@@ -406,6 +482,10 @@
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder snapshot failed sourceId=${source.id}
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	HTTP 401: $reason
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	panel rejected the username or password
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	CatalogTitleBackfill
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	backfill failed; it runs again on the next start
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	catalog-title-backfill
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	done scanned=${report.scanned} written=${report.written} fullPass=${report.fullPass} ms=${SystemClock.elapsedRealtime() - startedAt}
 2	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	EpgAutoRefresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	auto_refresh
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	epg auto-refresh due sourceId=$id trigger=$trigger — enqueuing
@@ -474,6 +554,7 @@
 1	mime	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterScreen.kt	text/plain
 1	log	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterViewModel.kt	diagnostic_resync
 1	locale	app/src/main/java/tv/own/owntv/features/settings/ResourceDiagnosticText.kt	yMMMd
+1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	catalog_title_rules_version
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	onboarding_imported_source_id
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	cold_start
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	resume

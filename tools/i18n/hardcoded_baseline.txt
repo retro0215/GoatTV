@@ -229,8 +229,6 @@
 1	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	${CustomizeKeys.CUSTOM_PREFIX}${UUID.randomUUID()}
 1	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	${c.sourceId}:${c.remoteId ?: c.name}
 1	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	${ch.sourceId}:${ch.remoteId ?: ch.name}
-1	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	${m.sourceId}:${m.remoteId ?: m.name}
-1	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	${s.sourceId}:${s.remoteId ?: s.name}
 2	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	catNames
 2	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	catOrder
 2	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	cust_

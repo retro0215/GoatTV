@@ -108,6 +108,11 @@ class OwnTVApp : Application(), SingletonImageLoader.Factory, androidx.work.Conf
         appScope.launch {
             runCatching { GlobalContext.get().get<tv.own.owntv.core.sync.work.EpgSyncScheduler>().schedulePeriodicCheck() }
         }
+        // Derived movie/series title fields (alternate-version discovery): fill rows that never had them and
+        // re-parse after a rule change. Unique work, waits for any catalogue sync; nearly always a no-op.
+        appScope.launch {
+            runCatching { GlobalContext.get().get<tv.own.owntv.core.sync.work.CatalogSyncScheduler>().enqueueTitleBackfill() }
+        }
         // Seed the one persisted playback quirk (panels whose catch-up archive needs a software
         // decoder) off the main thread. One small DataStore read, fire-and-forget: nothing on the
         // launch path waits for it, and the value is only consulted when an archive is opened.

@@ -55,6 +55,15 @@ class CatalogSyncScheduler(private val context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(workName(sourceId))
     }
 
+    /** The derived-title backfill (CatalogTitleBackfill): once per app start, never two at once. */
+    fun enqueueTitleBackfill() {
+        val request = OneTimeWorkRequestBuilder<CatalogTitleBackfillWorker>()
+            .addTag(CatalogTitleBackfillWorker.TAG)
+            .build()
+        WorkManager.getInstance(context)
+            .enqueueUniqueWork(CatalogTitleBackfillWorker.workName(), ExistingWorkPolicy.KEEP, request)
+    }
+
     fun enqueueContentIndexBuild(reason: String = "fresh_sync") {
         val request = OneTimeWorkRequestBuilder<ContentIndexWorker>()
             .setInputData(workDataOf(ContentIndexWorker.KEY_REASON to reason))

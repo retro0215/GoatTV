@@ -356,4 +356,31 @@ interface SeriesDao {
     /** One-time cleanup of pre-stable-key M3U rows (remoteId was always NULL under clear-then-insert). */
     @Query("DELETE FROM series WHERE sourceId = :sourceId AND remoteId IS NULL")
     suspend fun deleteNullRemoteIds(sourceId: Long)
+
+    // ---- Alternate versions (4.6.1): candidates by title signature, and the derived-title backfill ----
+
+    /** Series rows sharing [signature] in [sourceIds] — see [tv.own.owntv.core.catalog.versions.VersionSql.SERIES_CANDIDATES]. */
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.SERIES_CANDIDATES)
+    suspend fun versionCandidates(
+        sourceIds: List<Long>,
+        signature: String,
+        limit: Int,
+    ): List<tv.own.owntv.core.catalog.versions.VersionCandidateRow>
+
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.SERIES_TITLE_PAGE)
+    suspend fun titlePage(after: Long, limit: Int): List<tv.own.owntv.core.catalog.versions.TitleRow>
+
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.SERIES_TITLE_MISSING_PAGE)
+    suspend fun titleMissingPage(after: Long, limit: Int): List<tv.own.owntv.core.catalog.versions.TitleRow>
+
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.SERIES_UPDATE_DERIVED)
+    suspend fun updateDerivedTitle(
+        id: Long,
+        canonicalTitle: String,
+        titleSignature: String,
+        parsedYear: Int?,
+        providerLanguage: String?,
+        qualityRank: Int,
+        advertisedCapabilities: String?,
+    )
 }

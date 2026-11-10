@@ -282,4 +282,31 @@ interface MovieDao {
             "WHERE m.sourceId IN (:sourceIds) AND h.itemId IS NULL ORDER BY f.addedAt DESC LIMIT :limit",
     )
     suspend fun unwatchedFavorites(profileId: Long, sourceIds: List<Long>, limit: Int): List<MovieEntity>
+
+    // ---- Alternate versions (4.6.1): candidates by title signature, and the derived-title backfill ----
+
+    /** Movie rows sharing [signature] in [sourceIds] — see [tv.own.owntv.core.catalog.versions.VersionSql.MOVIE_CANDIDATES]. */
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.MOVIE_CANDIDATES)
+    suspend fun versionCandidates(
+        sourceIds: List<Long>,
+        signature: String,
+        limit: Int,
+    ): List<tv.own.owntv.core.catalog.versions.VersionCandidateRow>
+
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.MOVIE_TITLE_PAGE)
+    suspend fun titlePage(after: Long, limit: Int): List<tv.own.owntv.core.catalog.versions.TitleRow>
+
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.MOVIE_TITLE_MISSING_PAGE)
+    suspend fun titleMissingPage(after: Long, limit: Int): List<tv.own.owntv.core.catalog.versions.TitleRow>
+
+    @Query(tv.own.owntv.core.catalog.versions.VersionSql.MOVIE_UPDATE_DERIVED)
+    suspend fun updateDerivedTitle(
+        id: Long,
+        canonicalTitle: String,
+        titleSignature: String,
+        parsedYear: Int?,
+        providerLanguage: String?,
+        qualityRank: Int,
+        advertisedCapabilities: String?,
+    )
 }

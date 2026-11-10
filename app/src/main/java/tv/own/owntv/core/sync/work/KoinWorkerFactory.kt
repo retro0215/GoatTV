@@ -43,6 +43,11 @@ class KoinWorkerFactory : WorkerFactory() {
                 koin.get(),
                 koin.get(),
             )
+            CatalogTitleBackfillWorker::class.java.name -> CatalogTitleBackfillWorker(
+                appContext,
+                workerParameters,
+                koin.get(),
+            )
             ContentIndexWorker::class.java.name -> ContentIndexWorker(
                 appContext,
                 workerParameters,

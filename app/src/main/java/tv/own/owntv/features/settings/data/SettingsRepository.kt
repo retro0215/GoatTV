@@ -171,6 +171,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val AVATAR_ID = intPreferencesKey("avatar_id")
         val ACTIVE_PROFILE = longPreferencesKey("active_profile_id")
         val ONBOARDING_IMPORTED_SOURCE = longPreferencesKey("onboarding_imported_source_id")
+        val CATALOG_TITLE_RULES_VERSION = intPreferencesKey("catalog_title_rules_version")
         val DEFAULT_SOURCE = longPreferencesKey("default_source_id")
         val DOWNLOAD_ROOT = stringPreferencesKey("download_root")
         val REFRESH_SOURCE_IDS = stringSetPreferencesKey("refresh_source_ids")
@@ -1742,6 +1743,17 @@ class SettingsRepository(private val context: Context, private val localeStore: 
 
     suspend fun setOnboardingImportedSource(id: Long) {
         context.dataStore.edit { if (id < 0L) it.remove(Keys.ONBOARDING_IMPORTED_SOURCE) else it[Keys.ONBOARDING_IMPORTED_SOURCE] = id }
+    }
+
+    /**
+     * The parse-rule version the stored derived title fields of movies and series were written with (see
+     * CatalogTitleBackfill). Device-only, not in any backup list: it describes this device's database.
+     */
+    suspend fun catalogTitleRulesVersion(default: Int): Int =
+        context.dataStore.data.first()[Keys.CATALOG_TITLE_RULES_VERSION] ?: default
+
+    suspend fun setCatalogTitleRulesVersion(version: Int) {
+        context.dataStore.edit { it[Keys.CATALOG_TITLE_RULES_VERSION] = version }
     }
 
     // --- Global proxy (Approach 1 — one app-wide HTTP proxy) ---
