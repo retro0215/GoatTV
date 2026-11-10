@@ -95,7 +95,7 @@ class SetupFirstLoginSyncTest {
         every { epgRepository.guideUrl(any()) } returns guideUrl
         coEvery { epgStore.getAll() } returns emptyList()
         coEvery { epgStore.add(any(), any(), any()) } returns guideSource
-        coEvery { epgRepository.refreshUrl(any(), any(), any(), any()) } coAnswers { guideDownload.await() }
+        coEvery { epgRepository.refreshUrl(any(), any(), any(), any(), any()) } coAnswers { guideDownload.await().also { arg<suspend (Int) -> Unit>(4).invoke(it) } }
 
         vm = SetupViewModel(
             profileDao, sourceDao, sourceRepository, mockk(relaxed = true), settings, connectivity, finalizer,
@@ -164,7 +164,7 @@ class SetupFirstLoginSyncTest {
         guideDownload.complete(5_000)
         advanceUntilIdle()
         assertEquals(EpgSyncUi.Done, vm.epgSync.value)
-        coVerify(exactly = 1) { epgRepository.refreshUrl(guideSource.id, guideUrl, any(), any()) }
+        coVerify(exactly = 1) { epgRepository.refreshUrl(guideSource.id, guideUrl, any(), any(), any()) }
         coVerify { epgStore.setSynced(guideSource.id, any(), null) }
     }
 
@@ -178,7 +178,7 @@ class SetupFirstLoginSyncTest {
         advanceUntilIdle()
         guideDownload.complete(10)
         advanceUntilIdle()
-        coVerify(exactly = 1) { epgRepository.refreshUrl(any(), any(), any(), any()) }
+        coVerify(exactly = 1) { epgRepository.refreshUrl(any(), any(), any(), any(), any()) }
         coVerify(exactly = 1) { epgStore.add(any(), any(), any()) }
     }
 
@@ -192,7 +192,7 @@ class SetupFirstLoginSyncTest {
         advanceUntilIdle()
         assertEquals(EpgSyncUi.Hidden, vm.epgSync.value)
         coVerify(exactly = 0) { epgStore.add(any(), any(), any()) }
-        coVerify(exactly = 0) { epgRepository.refreshUrl(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { epgRepository.refreshUrl(any(), any(), any(), any(), any()) }
 
         // Continue enters the app; the playlist stays, nothing was cleaned up.
         val entered = Entered()

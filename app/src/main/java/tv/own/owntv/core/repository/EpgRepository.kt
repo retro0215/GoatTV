@@ -149,14 +149,16 @@ class EpgRepository(
     /**
      * Download [url] (XMLTV, gzip-aware) into the guide tables keyed by [storeId], keeping only the
      * rolling window. Used for standalone EPG sources (negative ids). Throws on network/parse failure.
-     * Waits for any import already running.
+     * Waits for any import already running. [onSuccess] (programmes written) runs before the next import
+     * may start — record the guide as synced there, see [tv.own.owntv.core.epg.EpgImportGate].
      */
     suspend fun refreshUrl(
         storeId: Long,
         url: String,
         userAgent: String?,
         onProgress: (channels: Int, programmes: Int) -> Unit = { _, _ -> },
-    ): Int = importGate.exclusive { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
+        onSuccess: suspend (programmes: Int) -> Unit = {},
+    ): Int = importGate.exclusive(onSuccess) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
 
     /**
      * [refreshUrl] for automatic runs: once it has its turn, [stillNeeded] decides whether the import is
@@ -168,7 +170,8 @@ class EpgRepository(
         userAgent: String?,
         stillNeeded: suspend () -> Boolean,
         onProgress: (channels: Int, programmes: Int) -> Unit = { _, _ -> },
-    ): Int? = importGate.exclusiveIfStillNeeded(stillNeeded) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
+        onSuccess: suspend (programmes: Int) -> Unit = {},
+    ): Int? = importGate.exclusiveIfStillNeeded(stillNeeded, onSuccess) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
 
     private suspend fun refreshUrlExclusive(
         storeId: Long,

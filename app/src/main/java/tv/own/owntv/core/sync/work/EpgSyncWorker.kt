@@ -43,6 +43,9 @@ class EpgSyncWorker(
 
         try {
             val onProgress: (Int, Int) -> Unit = { channels, count -> progress.publish(channels, count) }
+            // Recorded inside the import lock with the completion time, so a job waiting behind this one
+            // sees the fresh guide when it gets its turn (see EpgImportGate).
+            val recordSynced: suspend (Int) -> Unit = { store.setSynced(source.id, System.currentTimeMillis(), null) }
             val programmes = if (reason in AUTOMATIC_REASONS) {
                 // Only one guide import runs at a time; an automatic one that waited behind another import of
                 // this source (onboarding, a manual re-sync) has nothing left to do.
@@ -53,15 +56,15 @@ class EpgSyncWorker(
                         EpgAutoRefreshPolicy.stillNeeded(lastSyncAt, System.currentTimeMillis())
                     },
                     onProgress = onProgress,
+                    onSuccess = recordSynced,
                 ) ?: run {
                     Log.i(TAG, "EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile")
                     return Result.success()
                 }
             } else {
-                epgRepository.refreshUrl(source.id, source.url, source.userAgent, onProgress)
+                epgRepository.refreshUrl(source.id, source.url, source.userAgent, onProgress, onSuccess = recordSynced)
             }
             progress.flush()
-            store.setSynced(source.id, System.currentTimeMillis(), null)
             Log.i(
                 TAG,
                 "EPG sync finished sourceId=${source.id} reason=$reason programmes=$programmes ms=${SystemClock.elapsedRealtime() - startedAt}",

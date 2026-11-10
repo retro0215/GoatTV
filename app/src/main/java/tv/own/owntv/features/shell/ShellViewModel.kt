@@ -188,7 +188,7 @@ class ShellViewModel(
                 val sources = sourceRepository.observeSources(pid).first()
                 sources.forEach { source ->
                     val mode = playlistModes[source.id] ?: PlaylistAutoRefresh.OFF
-                    if (shouldRefresh(mode, source.lastSyncAt, nowMs, includeStartup)) {
+                    if (tv.own.owntv.core.sync.PlaylistAutoRefreshPolicy.isDue(mode, source.lastSyncAt, nowMs, includeStartup)) {
                         val counts = importFinalizer.contentCounts(source.id)
                         Log.d(TAG, "checkAutoRefresh playlist sourceId=${source.id} mode=$mode — enqueuing")
                         catalogSyncScheduler.enqueueSync(
@@ -198,6 +198,9 @@ class ShellViewModel(
                             baseItemCount = counts.channels + counts.movies + counts.series,
                             policy = ExistingWorkPolicy.KEEP,
                         )
+                    } else if (mode == PlaylistAutoRefresh.STARTUP && includeStartup) {
+                        // First login: the setup wizard's import finished moments ago in this same session.
+                        Log.d(TAG, "checkAutoRefresh playlist sourceId=${source.id} mode=$mode — synced moments ago, skipping")
                     }
                 }
             }
@@ -242,22 +245,6 @@ class ShellViewModel(
         // Marked regardless: a failed check must not retry on every launch forever, and a failed
         // *sync* is already retried by the scheduler's own policy.
         settings.markEpgRefillChecked()
-    }
-
-    /**
-     * Whether a playlist source should auto-refresh now. OFF never; STARTUP only on cold start
-     * ([includeStartup]); interval modes when `now - lastSyncAt >= threshold` (a null lastSyncAt — never
-     * successfully synced — counts as infinitely stale so recovery happens).
-     */
-    private fun shouldRefresh(
-        mode: PlaylistAutoRefresh,
-        lastSyncAt: Long?,
-        now: Long,
-        includeStartup: Boolean,
-    ): Boolean = when (mode) {
-        PlaylistAutoRefresh.OFF -> false
-        PlaylistAutoRefresh.STARTUP -> includeStartup
-        else -> (now - (lastSyncAt ?: 0L)) >= (mode.thresholdMs ?: Long.MAX_VALUE)
     }
 
     val themeMode: StateFlow<ThemeMode> = settings.themeMode

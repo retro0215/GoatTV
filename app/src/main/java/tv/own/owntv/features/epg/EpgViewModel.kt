@@ -591,7 +591,11 @@ class EpgViewModel(
     private suspend fun refreshAllEpgFromNetwork() {
         val pid = settings.activeProfileId.first()
         if (pid >= 0) sourceRepository.observeSources(pid).first().forEach { runCatching { epgRepository.refresh(it) } }
-        epgSourceStore.getAll().forEach { runCatching { epgRepository.refreshUrl(it.id, it.url, it.userAgent) } }
+        epgSourceStore.getAll().forEach { src ->
+            runCatching {
+                epgRepository.refreshUrl(src.id, src.url, src.userAgent, onSuccess = { epgSourceStore.setSynced(src.id, System.currentTimeMillis(), null) })
+            }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+        }
     }
 
     // ---- Smart EPG matching (#13): scan channels with no working guide and match them by name ----

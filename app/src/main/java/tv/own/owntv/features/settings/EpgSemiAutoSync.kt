@@ -22,10 +22,14 @@ suspend fun runSemiAutoEpgSync(
     setState(EpgSyncUi.Syncing(0))
     // Show up in Settings → EPG like any other feed (so the user can re-sync / delete it there).
     val epgSource = store.getAll().firstOrNull { it.url == url } ?: store.add(source.name, url, source.userAgent)
-    val now = System.currentTimeMillis()
     try {
-        epgRepository.refreshUrl(epgSource.id, epgSource.url, epgSource.userAgent) { _, count -> setState(EpgSyncUi.Syncing(count)) }
-        store.setSynced(epgSource.id, now, null)
+        epgRepository.refreshUrl(
+            epgSource.id, epgSource.url, epgSource.userAgent,
+            onProgress = { _, count -> setState(EpgSyncUi.Syncing(count)) },
+            // Inside the import lock, with the completion time: an automatic refresh that queued meanwhile
+            // (Home's start-up check on first login) then sees a fresh guide and skips.
+            onSuccess = { store.setSynced(epgSource.id, System.currentTimeMillis(), null) },
+        )
         setState(EpgSyncUi.Done)
     } catch (c: CancellationException) {
         throw c

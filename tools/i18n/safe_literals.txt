@@ -570,6 +570,7 @@
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	movie_version_choices
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	onboarding_imported_source_id
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	series_version_choices
+1	log	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	checkAutoRefresh playlist sourceId=${source.id} mode=$mode — synced moments ago, skipping
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	cold_start
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	resume
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	boxing

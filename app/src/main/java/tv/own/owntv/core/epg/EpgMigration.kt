@@ -24,10 +24,11 @@ class EpgMigration(
                 // Keep the provider/source name as the persisted label; translated suffixes would
                 // freeze the migration language and become stale on a later locale switch.
                 val epg = store.add(src.name, url, src.userAgent)
-                val now = System.currentTimeMillis()
-                runCatching { epgRepository.refreshUrl(epg.id, epg.url, epg.userAgent) }
-                    .onSuccess { store.setSynced(epg.id, now, null) }
-                    .onFailure { store.setSynced(epg.id, now, it.message) }
+                runCatching {
+                    epgRepository.refreshUrl(epg.id, epg.url, epg.userAgent, onSuccess = { store.setSynced(epg.id, System.currentTimeMillis(), null) })
+                }
+                    // A failure keeps lastSyncAt unset, so the automatic refresh retries it.
+                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; store.markError(epg.id, it.message) }
             }
         }
         store.markMigrated() // mark regardless, so a transient failure doesn't re-run forever

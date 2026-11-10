@@ -35,7 +35,7 @@ object EpgAutoRefreshPolicy {
      * An automatic refresh that finds the source refreshed this recently does nothing: another import of
      * the same feed (onboarding, a manual re-sync) finished while it was waiting its turn.
      */
-    const val RECENTLY_SYNCED_MS: Long = 15L * 60 * 1000
+    const val RECENTLY_SYNCED_MS: Long = tv.own.owntv.core.sync.SyncFreshness.RECENTLY_SYNCED_MS
 
     fun effective(stored: Map<Long, EpgAutoRefresh>, sourceId: Long): EpgAutoRefresh = stored[sourceId] ?: DEFAULT
 
@@ -45,7 +45,7 @@ object EpgAutoRefreshPolicy {
      */
     fun isDue(mode: EpgAutoRefresh, lastSyncAt: Long?, nowMs: Long, coldStart: Boolean): Boolean = when (mode) {
         EpgAutoRefresh.OFF -> false
-        EpgAutoRefresh.STARTUP -> coldStart
+        EpgAutoRefresh.STARTUP -> coldStart && !tv.own.owntv.core.sync.SyncFreshness.recentlySynced(lastSyncAt, nowMs)
         else -> (nowMs - (lastSyncAt ?: 0L)) >= (mode.thresholdMs ?: Long.MAX_VALUE)
     }
 
@@ -76,7 +76,7 @@ object EpgAutoRefreshPolicy {
 
     /** For an automatic run that has just got its turn: false when the source was refreshed meanwhile. */
     fun stillNeeded(lastSyncAt: Long?, nowMs: Long): Boolean =
-        lastSyncAt == null || nowMs - lastSyncAt >= RECENTLY_SYNCED_MS
+        !tv.own.owntv.core.sync.SyncFreshness.recentlySynced(lastSyncAt, nowMs)
 
     /** Spaces out automatic attempts per source within one app process (monotonic clock). */
     class AttemptSpacing(private val spacingMs: Long = ATTEMPT_SPACING_MS) {
