@@ -107,6 +107,11 @@ class SeriesRepository(
         providerMetadataDao.upsertMetadata(entity)
     }
 
+    /** [series]' cached info block (plot, trailer, cast), read from the database only: no provider call. */
+    suspend fun cachedInfo(series: SeriesEntity): XtProviderMetadata? = withContext(Dispatchers.IO) {
+        providerMetadataDao.getMetadata(getCacheKey(series))?.toXtProviderMetadata()
+    }
+
     fun getCacheKey(series: SeriesEntity): String =
         "series:${series.sourceId}:${series.remoteId ?: series.name}"
 

@@ -49,6 +49,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -134,12 +137,14 @@ fun SeriesScreen(
 ) {
     val vm: SeriesViewModel = koinViewModel()
     val openedSeries by vm.openedSeries.collectAsStateWithLifecycle()
+    // Back from a series page: the catalog puts focus on that show's card (see [SeriesGridReturn]).
+    var returningFromDetails by remember { mutableStateOf(false) }
 
     if (openedSeries != null) {
         SeriesDetailsPage(
             series = openedSeries!!,
             vm = vm,
-            onBack = vm::closeSeries,
+            onBack = { returningFromDetails = true; vm.closeSeries() },
             onFullscreen = onFullscreen,
         )
     } else {
@@ -147,8 +152,9 @@ fun SeriesScreen(
             vm = vm,
             onFullscreen = onFullscreen,
             onChildFocused = onChildFocused,
-            restoreFocus = restoreFocus,
-            onRestored = onRestored,
+            restoreFocus = restoreFocus || returningFromDetails,
+            returningFromDetails = returningFromDetails,
+            onRestored = { returningFromDetails = false; onRestored() },
             onContentScrolled = onContentScrolled,
             modifier = modifier,
         )
@@ -161,6 +167,7 @@ private fun SeriesGrid(
     onFullscreen: () -> Unit,
     onChildFocused: () -> Unit,
     restoreFocus: Boolean,
+    returningFromDetails: Boolean,
     onRestored: () -> Unit,
     onContentScrolled: (Boolean) -> Unit,
     modifier: Modifier,
@@ -247,6 +254,16 @@ private fun SeriesGrid(
             }
             delay(60)
             runCatching { selFocus.requestFocus() }
+        } else if (returningFromDetails) {
+            // The show is not in this list (opened from Home or another category): the first card,
+            // rather than letting focus fall to the top bar.
+            val first = SeriesGridReturn.target(idx)
+            runCatching {
+                if (viewMode == SettingsRepository.VodViewMode.LIST) effectiveListState.scrollToItem(first)
+                else effectiveGridState.scrollToItem(first)
+            }
+            delay(60)
+            runCatching { firstItemFocus.requestFocus() }
         }
         onRestored()
     }
@@ -607,11 +624,23 @@ private fun SeriesDetailsPage(
     }
 
     BackHandler { onBack() }
-    
+
+    // Play takes focus once it appears, unless the customer has pressed a key first (see [PlayFocusOnArrival]).
+    val playFocus = remember(series.id) { PlayFocusOnArrival() }
     LaunchedEffect(series.id) {
+        // However the show was opened (catalog, Search, Keep Watching, the launcher): its versions and
+        // cached info. Nothing is fetched twice and the provider is not asked.
+        vm.ensureSeriesDetails(series)
         vm.onSeriesFocused(series)
         delay(100)
         runCatching { focus.requestFocus() }
+    }
+    val playShown = nextUpId != null && episodes.any { it.id == nextUpId }
+    LaunchedEffect(series.id, playShown) {
+        if (!playShown) return@LaunchedEffect
+        delay(100) // not before the page's own first request
+        withFrameNanos { } // the Play button is laid out
+        if (playFocus.takePlayFocus(playShown)) runCatching { focus.requestFocus() }
     }
 
     val backdropUrl = openedMeta?.backdropUrls?.firstOrNull()?.takeIf { it.isNotBlank() }
@@ -629,7 +658,10 @@ private fun SeriesDetailsPage(
         if (seriesOrder.episodesDescending) it.sortedByDescending { e -> e.episodeNumber } else it.sortedBy { e -> e.episodeNumber }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(colors.background)
+            .onPreviewKeyEvent { if (it.type == KeyEventType.KeyDown) playFocus.onUserKey(); false },
+    ) {
         val episodeMeta by vm.seasonEpisodeMeta.collectAsStateWithLifecycle()
 
         LazyVerticalGrid(

@@ -292,6 +292,8 @@ class SeriesViewModel(
      */
     private val _openedSeriesMeta = MutableStateFlow<tv.own.owntv.core.parser.XtProviderMetadata?>(null)
     val openedSeriesMeta: StateFlow<tv.own.owntv.core.parser.XtProviderMetadata?> = _openedSeriesMeta.asStateFlow()
+    /** The show [openedSeriesMeta] was loaded (or is loading) for; null when nothing has asked yet. */
+    private var openedMetaSeriesId: Long? = null
 
     // The series whose episode queue is currently playing — drives the player HUD's favorite toggle
     // (distinct from _openedSeries, which tracks the browse/detail selection).
@@ -755,6 +757,7 @@ class SeriesViewModel(
         _selectedSeason.value = 1 // reset season when opening a different show
         _lastPlayedEpisodeId.value = null
         _openedSeriesMeta.value = null
+        openedMetaSeriesId = s.id
         Log.d(TAG, "openSeries seriesId=${s.id} profile=${ctx.value.profileId}")
         viewModelScope.launch {
             _episodesLoading.value = true
@@ -793,11 +796,38 @@ class SeriesViewModel(
         if (episode.seriesId != show.id) return false
         val pid = currentProfileId() ?: return false
         if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, show.categoryId, profileDao, categoryDao)) return false
-        seriesRepository.loadEpisodes(show)
+        // The same call the catalog path makes; its info block (plot, trailer, cast) was dropped here
+        // before RC4, so a show opened from Keep Watching had no plot or trailer.
+        val info = seriesRepository.loadEpisodesWithInfo(show)
         val queue = seriesDao.episodesBySeries(show.id).first()
         if (queue.isEmpty()) return false
+        // A fresh look-up, as opening the show from the catalog does (RC4: Keep Watching never looked).
+        loadSeriesVersions(show)
         playEpisodeQueue(show, queue, episode, startPositionMs)
+        _openedSeriesMeta.value = info
+        openedMetaSeriesId = show.id
         return true
+    }
+
+    /**
+     * Fill in what the series page needs however the show was opened (catalog, Search, Keep Watching,
+     * the launcher): its versions and its cached info block. Each is fetched only when nothing has
+     * already asked for it for this show, and the info comes from the cache alone, never the provider.
+     */
+    fun ensureSeriesDetails(show: SeriesEntity) {
+        if (_openedSeries.value?.id != show.id) return
+        if (_seriesVersions.value?.itemId != show.id) loadSeriesVersions(show)
+        if (openedMetaSeriesId == show.id) return
+        openedMetaSeriesId = show.id
+        viewModelScope.launch {
+            val info = runCatching { seriesRepository.cachedInfo(show) }
+                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "cached series info failed seriesId=${show.id}", it) }
+                .getOrNull()
+            // Only if the show is still open and nothing newer filled it in meanwhile.
+            if (info != null && _openedSeries.value?.id == show.id && openedMetaSeriesId == show.id && _openedSeriesMeta.value == null) {
+                _openedSeriesMeta.value = info
+            }
+        }
     }
 
     fun closeSeries() {
@@ -943,6 +973,7 @@ class SeriesViewModel(
         closeEpisodeVersions()
         _openedSeries.value = target
         _openedSeriesMeta.value = info
+        openedMetaSeriesId = target.id
         _selectedSeason.value = season
         _lastPlayedEpisodeId.value = focusEpisodeId
         _selectedEpisode.value = null
@@ -1143,6 +1174,13 @@ class SeriesViewModel(
     }
 
     fun playEpisodeQueue(show: SeriesEntity, queue: List<EpisodeEntity>, episode: EpisodeEntity, startPositionMs: Long = 0) {
+        if (_openedSeries.value?.id != show.id) {
+            // Another show: drop the previous one's info and pickers so its plot never shows here.
+            switchingVersion?.cancel()
+            closeEpisodeVersions()
+            _openedSeriesMeta.value = null
+            openedMetaSeriesId = null
+        }
         _openedSeries.value = show
         _playingSeries.value = show
         _lastPlayedEpisodeId.value = episode.id

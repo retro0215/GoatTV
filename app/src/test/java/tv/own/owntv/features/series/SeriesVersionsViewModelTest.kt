@@ -10,6 +10,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
@@ -99,6 +100,7 @@ class SeriesVersionsViewModelTest {
         every { settings.defaultSourceId } returns flowOf(-1L)
         every { settings.vodEnginePreference } returns flowOf(EnginePreference.MPV_FIRST)
         every { settings.rememberCategorySeries } returns flowOf(false)
+        every { settings.externalPlayerSeries } returns flowOf(false)
         coEvery { settings.versionChoice(any(), any(), any()) } returns null
         every { sourceDao.observeForProfile(any()) } returns flowOf(emptyList())
         coEvery { sourceDao.getById(1) } returns SourceEntity(id = 1, name = "Main", type = SourceType.XTREAM, url = "")
@@ -295,5 +297,102 @@ class SeriesVersionsViewModelTest {
         vm.chooseEpisodeVersion(ui, ui.options[0]) { _, _, _ -> planned = true }
         settle()
         assertFalse(planned)
+    }
+
+    // ---- 4.6.1 RC4: every way into a show fills the page the same way ----
+
+    private val hdInfo = tv.own.owntv.core.parser.XtProviderMetadata(
+        title = "Severance", plot = "Work-life balance, surgically.", rating = null, releaseDate = null, year = 2022,
+        genre = null, durationSecs = null, director = null, actors = null, trailer = "xyz", backdropUrls = emptyList(),
+        posterUrl = null, tmdbId = null,
+    )
+
+    /** Keep Watching on Home: straight into an episode, then back to the page. */
+    private fun fromKeepWatching(vm: SeriesViewModel, episodeId: Long = 102): Boolean {
+        var played = false
+        scope.launch { played = vm.playFromHomeAsync(10, episodeId, 60_000) }
+        settle()
+        return played
+    }
+
+    @Test fun `from the catalog or Search the page has its versions and info, and the page asks for nothing more`() {
+        coEvery { seriesRepository.loadEpisodesWithInfo(hd, any()) } returns hdInfo
+        val vm = vm()
+        vm.openSeries(hd) // the catalog card, a Search result and Trending all open this way
+        vm.ensureSeriesDetails(hd) // the page, as it appears
+        settle()
+        assertTrue(vm.seriesVersions.value!!.hasChoice)
+        assertEquals("Work-life balance, surgically.", vm.openedSeriesMeta.value?.plot)
+        coVerify(exactly = 1) { versionRepository.seriesVersions(any()) }
+        coVerify(exactly = 1) { seriesRepository.loadEpisodesWithInfo(any(), any()) }
+        coVerify(exactly = 0) { seriesRepository.cachedInfo(any()) }
+    }
+
+    @Test fun `from Keep Watching the page has its versions and info too, with one lookup and one load`() {
+        coEvery { seriesRepository.loadEpisodesWithInfo(hd, any()) } returns hdInfo
+        val vm = vm()
+        assertTrue(fromKeepWatching(vm))
+        assertEquals(10L, vm.openedSeries.value?.id)
+        assertEquals(102L, vm.lastPlayedEpisodeId.value) // the episode resumed stays the page's place
+        vm.ensureSeriesDetails(hd) // back from the player: the page appears
+        settle()
+        val ui = vm.seriesVersions.value!!
+        assertTrue(ui.ready)
+        assertTrue(ui.hasChoice) // RC3: no Versions button on this path
+        assertEquals("xyz", vm.openedSeriesMeta.value?.trailer) // RC3: no plot or trailer either
+        coVerify(exactly = 1) { versionRepository.seriesVersions(any()) }
+        coVerify(exactly = 1) { seriesRepository.loadEpisodesWithInfo(any(), any()) }
+        coVerify(exactly = 0) { seriesRepository.cachedInfo(any()) }
+        coVerify(exactly = 1) { player.playEpisodes(any(), 1, 60_000, any()) } // playback routing unchanged
+    }
+
+    @Test fun `a page opened without either, as from the launcher, fills them from the cache alone`() {
+        coEvery { seriesRepository.cachedInfo(hd) } returns hdInfo
+        val vm = vm()
+        vm.playEpisodeQueue(hd, hdEpisodes, hdEpisodes[0]) // a launcher "continue" row
+        vm.ensureSeriesDetails(hd)
+        vm.ensureSeriesDetails(hd) // recomposed: still one of each
+        settle()
+        assertTrue(vm.seriesVersions.value!!.hasChoice)
+        assertEquals("xyz", vm.openedSeriesMeta.value?.trailer)
+        coVerify(exactly = 1) { versionRepository.seriesVersions(any()) }
+        coVerify(exactly = 1) { seriesRepository.cachedInfo(hd) }
+        coVerify(exactly = 0) { seriesRepository.loadEpisodesWithInfo(any(), any()) } // no episode refresh for info
+    }
+
+    @Test fun `another show played from Keep Watching never shows the last one's plot`() {
+        coEvery { seriesRepository.loadEpisodesWithInfo(hd, any()) } returns hdInfo
+        coEvery { seriesRepository.cachedInfo(uhd) } returns null
+        val vm = vm()
+        vm.openSeries(hd)
+        settle()
+        assertEquals("xyz", vm.openedSeriesMeta.value?.trailer)
+        vm.playEpisodeQueue(uhd, uhdEpisodes, uhdEpisodes[0])
+        assertNull(vm.openedSeriesMeta.value)
+        vm.ensureSeriesDetails(uhd)
+        settle()
+        assertNull(vm.openedSeriesMeta.value)
+        assertEquals(20L, vm.seriesVersions.value?.itemId)
+    }
+
+    @Test fun `a page for a show that is no longer open asks for nothing`() {
+        val vm = vm()
+        vm.ensureSeriesDetails(hd)
+        settle()
+        assertNull(vm.seriesVersions.value)
+        coVerify(exactly = 0) { versionRepository.seriesVersions(any()) }
+        coVerify(exactly = 0) { seriesRepository.cachedInfo(any()) }
+    }
+
+    @Test fun `a Kids profile cannot reach an adult-category show from Keep Watching, and nothing is looked up`() {
+        kids = true
+        val vm = vm()
+        var played = true
+        scope.launch { played = vm.playFromHomeAsync(20, 201, 0) }
+        settle()
+        assertFalse(played)
+        assertNull(vm.openedSeries.value)
+        coVerify(exactly = 0) { versionRepository.seriesVersions(any()) }
+        coVerify(exactly = 0) { seriesRepository.loadEpisodesWithInfo(any(), any()) }
     }
 }
