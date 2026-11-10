@@ -504,21 +504,12 @@ class OwnTVPlayer(
     // silent reload from the current position before an error is shown. Without it the picture simply
     // froze and nothing ever said why.
     private var triedMidStreamReload = false
-    // Snapshot of a non-live item taken when the app backgrounds (screensaver / Home), so it can be restored
-    // paused at its position on return — otherwise the stream is freed and Play does nothing until a reload.
-    /** A URL and a position are not enough to reopen an item: the request identity ([userAgent],
-     *  [httpHeaders]) and, for an expiring-URL source, its [reconnectProvider] have to come back with it,
-     *  or the restore 403s a movie that had just been playing. */
-    private data class BackgroundRestore(
-        val url: String,
-        val meta: MediaMeta,
-        val positionMs: Long,
-        val wasPlaying: Boolean,
-        val userAgent: String?,
-        val httpHeaders: String?,
-        val reconnectProvider: tv.own.owntv.core.stalker.ReconnectUrlProvider?,
-    )
-    @Volatile private var backgroundRestore: BackgroundRestore? = null
+    // What was playing when the app went to the background (Home / screensaver / TV off), reopened on return
+    // — a film paused or playing at its position, a live channel at the live edge. See PlayerBackgroundRestore.
+    private val backgroundRestore = BackgroundRestoreSlot()
+    // The mute state set by setMuted / play, so a live channel restored after the background comes back the
+    // way it was (the Live TV preview can be mpv, muted).
+    @Volatile private var mutedNow = false
     private var playlist: List<PlaylistItem> = emptyList()
     private var playlistIndex = 0
     // mpv's android video output needs a surface at loadfile time, or it deselects video (audio-only).
@@ -2509,6 +2500,7 @@ class OwnTVPlayer(
         // item left behind; live keeps the field as-is when none is passed, because LiveViewModel
         // installs the live provider on BOTH engines just before calling this.
         if (reconnectProvider != null || !isLive) reconnectUrlProvider = reconnectProvider
+        mutedNow = muted
         currentHeaders = StreamHeaders.decode(httpHeaders)
         currentDrm = tv.own.owntv.core.drm.DrmConfig.decode(drmConfig)
         // The channel's own UA wins over the playlist-wide one (F16): a playlist sets one UA for the
@@ -3206,6 +3198,7 @@ class OwnTVPlayer(
 
     /** Mute/unmute without reloading — lets preview → fullscreen reuse the same stream connection. */
     fun setMuted(muted: Boolean) {
+        mutedNow = muted
         if (initialized) mpvAsync { setPropertyBoolean("mute", muted) }
     }
 
@@ -3571,47 +3564,70 @@ class OwnTVPlayer(
     fun onAppBackgrounded() {
         val url = currentUrl ?: pendingUrl
         if (url != null) {
-            // Remember a non-live item so the screensaver/Home → return can restore it paused at its
-            // position. (Live just re-tunes; the archive/VOD stream is freed for memory while invisible.)
-            backgroundRestore = if (!isLiveContent) {
-                BackgroundRestore(
-                    url, currentMetaSnapshot(), vodSession.resumePositionMs(_position.value), _isPlaying.value,
-                    tunedUserAgent, tunedHttpHeaders, reconnectUrlProvider,
-                )
-            } else null
+            // Remember what was loaded so the screensaver / Home / TV-off -> return can reopen it: a film
+            // paused at its position, a live channel re-tuned. A live channel used to be dropped here, so
+            // a channel on mpv came back black while Live TV still showed it playing on mpv.
+            PlayerBackgroundRestore.capture(
+                url = url,
+                isLive = isLiveContent,
+                meta = currentMetaSnapshot(),
+                positionMs = { vodSession.resumePositionMs(_position.value) },
+                isPlaying = _isPlaying.value,
+                muted = mutedNow,
+                prerollSecs = prerollOverrideSecs,
+                userAgent = tunedUserAgent,
+                httpHeaders = tunedHttpHeaders,
+                reconnectProvider = reconnectUrlProvider,
+            )?.let(backgroundRestore::remember)
             stop()
         }
     }
 
-    /** Paired with [onAppBackgrounded]: restore a VOD that was freed while the app was in the background
-     *  (e.g. the TV screensaver), so pressing Play just works instead of doing nothing on a freed stream. */
+    /** Paired with [onAppBackgrounded]: reopen what was freed while the app was in the background, so the
+     *  screen is not left black (live) and Play is not a no-op on a freed stream (film). Nothing comes back
+     *  when something else is already playing — that newer choice wins and no second stream opens. */
     fun onAppForegrounded() {
-        val r = backgroundRestore ?: return
-        backgroundRestore = null
-        if (currentUrl != null) return // already playing something else
-        play(
-            r.url,
-            title = r.meta.title,
-            subtitle = r.meta.subtitle,
-            year = r.meta.year,
-            logoUrl = r.meta.logoUrl,
-            isLive = false,
-            startPositionMs = r.positionMs,
-            startPaused = !r.wasPlaying,
-            userAgent = r.userAgent,
-            httpHeaders = r.httpHeaders,
-            contentKey = r.meta.contentKey,
-            seasonNumber = r.meta.seasonNumber,
-            episodeNumber = r.meta.episodeNumber,
-            rewindStartMs = r.meta.rewindStartMs,
-            // Stalker VOD: without its provider the restore replays a create_link URL that has very
-            // likely expired, with no way to mint a fresh one.
-            reconnectProvider = r.reconnectProvider,
-        )
+        when (val r = backgroundRestore.take(somethingPlaying = currentUrl != null || pendingUrl != null)) {
+            null -> return
+            is PlayerBackgroundRestore.Vod -> play(
+                r.url,
+                title = r.meta.title,
+                subtitle = r.meta.subtitle,
+                year = r.meta.year,
+                logoUrl = r.meta.logoUrl,
+                isLive = false,
+                startPositionMs = r.positionMs,
+                startPaused = !r.wasPlaying,
+                userAgent = r.userAgent,
+                httpHeaders = r.httpHeaders,
+                contentKey = r.meta.contentKey,
+                seasonNumber = r.meta.seasonNumber,
+                episodeNumber = r.meta.episodeNumber,
+                rewindStartMs = r.meta.rewindStartMs,
+                // Stalker VOD: without its provider the restore replays a create_link URL that has very
+                // likely expired, with no way to mint a fresh one.
+                reconnectProvider = r.reconnectProvider,
+            )
+            // The same channel on the same engine Live TV left it on: no ownership changes hands. Its
+            // reconnect provider comes back with it so a Stalker channel can mint a fresh link.
+            is PlayerBackgroundRestore.Live -> play(
+                r.url,
+                title = r.meta.title,
+                subtitle = r.meta.subtitle,
+                logoUrl = r.meta.logoUrl,
+                isLive = true,
+                muted = r.muted,
+                userAgent = r.userAgent,
+                httpHeaders = r.httpHeaders,
+                contentKey = r.meta.contentKey,
+                livePrerollSecsOverride = r.prerollSecs,
+                reconnectProvider = r.reconnectProvider,
+            )
+        }
     }
 
     /** Drop any pending restore (e.g. on profile switch — don't bring back the previous user's item). */
-    fun discardBackgroundRestore() { backgroundRestore = null }
+    fun discardBackgroundRestore() = backgroundRestore.discard()
 
     /**
      * The OS signaled serious memory pressure while we're alive: yield before the kernel takes.
