@@ -896,7 +896,7 @@
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no picture or sound within ${budgetMs / 1000}s
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	none
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	pending=${pendingUrl != null} pendingExo=$pendingExoStart token=${_surfaceResetToken.value}
-1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	prevHeight=$lastVideoHeightPx gen=$loadGeneration
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	prevHeight=$lastVideoHeightPx heavyHere=${heavySurface.heavyOnAttachedSurface()} gen=$loadGeneration
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	queue item resolve failed
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start budget: engine handover, deadline ${before / 1000}s → ${deadline.deadlineMs / 1000}s
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start timeout

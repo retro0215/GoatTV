@@ -183,7 +183,10 @@ class OwnTVPlayer(
         /**
          * Whether an mpv load waits for a freshly recreated SurfaceView instead of reusing the attached one.
          *
-         * - After a >1080p item, or when an engine handover left the surface dirty ([forceReset]).
+         * - After a >1080p item decoded on this very surface ([heavyOnThisSurface], see
+         *   [HeavySurfaceTracker]), or when an engine handover left the surface dirty ([forceReset]). A
+         *   surface created since that item ended is already clean: rebuilding it anyway parked the second
+         *   4K film on the onn until the 10 s watchdog (4.6.1 RC5).
          * - After a live channel of 30 fps or less that mpv was still playing ([mpvHadFile]), when this load
          *   is live too: zapped straight on from it on the same surface, a 50 fps channel presented at about
          *   37 fps on Realtek (TCL) panels until the surface was recreated (upstream OwnTV_Core 1de78b1e).
@@ -192,7 +195,7 @@ class OwnTVPlayer(
          * Never without an attached surface: there is nothing to recreate.
          */
         fun needsFreshMpvSurface(
-            previousHeightPx: Int,
+            heavyOnThisSurface: Boolean,
             forceReset: Boolean,
             isLive: Boolean,
             mpvHadFile: Boolean,
@@ -202,7 +205,7 @@ class OwnTVPlayer(
             if (!surfaceAttached) return false
             val afterLowFrameRateLive = isLive && mpvHadFile && previousFps != null && previousFps > 0f &&
                 previousFps <= LOW_FPS_SURFACE_RESET
-            return previousHeightPx > 1080 || forceReset || afterLowFrameRateLive
+            return heavyOnThisSurface || forceReset || afterLowFrameRateLive
         }
 
         // mpv's stock subtitle values, restored verbatim for every option of the custom look (#96)
@@ -530,6 +533,9 @@ class OwnTVPlayer(
     // fails before any frame: a stream we know is >1080p must NOT fall back to software decode (the guard
     // would just kill it) — we retry the hardware decoder instead, which is what a manual Retry does.
     @Volatile private var lastVideoHeightPx = 0
+    // Which attached surface the last >1080p video decoded on: only that one needs rebuilding before the
+    // next load (see needsFreshMpvSurface). Holds numbers, never a Surface.
+    private val heavySurface = HeavySurfaceTracker()
 
     // --- Render path -------------------------------------------------------------------------
     // Always direct (vo=mediacodec_embed + hwdec=mediacodec): zero CPU copies, no GL shader work, the
@@ -623,7 +629,7 @@ class OwnTVPlayer(
     private fun surfaceState(): String =
         "attached=$surfaceAttached surface=${attachedSurface?.let { System.identityHashCode(it) }} " +
             "pending=${pendingUrl != null} pendingExo=$pendingExoStart token=${_surfaceResetToken.value} " +
-            "prevHeight=$lastVideoHeightPx gen=$loadGeneration"
+            "prevHeight=$lastVideoHeightPx heavyHere=${heavySurface.heavyOnAttachedSurface()} gen=$loadGeneration"
 
     /** Refresh rate Android reports for the default display right now, e.g. "30.000002Hz@modeId=2". */
     private fun androidDisplayHz(): String = runCatching {
@@ -1512,6 +1518,7 @@ class OwnTVPlayer(
             // Remember heaviness like the mpv path does, so the NEXT load (autoplay/toggle back to mpv)
             // knows a >1080p decoder session just ran on this surface and recreates it first.
             if (height > 0) lastVideoHeightPx = height
+            heavySurface.onDecoded(height) // ExoPlayer draws on the same attached surface
             updateAspect()
             _videoRes.value = resolutionLabel(height, width)
             updateStreamChips() // onVideoFps may never fire; don't wait on it for resolution/measured fps
@@ -2800,7 +2807,7 @@ class OwnTVPlayer(
         val forceSurfaceReset = forceSurfaceResetNextLoad
         forceSurfaceResetNextLoad = false
         val needsFreshSurface = needsFreshMpvSurface(
-            previousHeightPx = lastVideoHeightPx,
+            heavyOnThisSurface = heavySurface.heavyOnAttachedSurface(),
             forceReset = forceSurfaceReset,
             isLive = isLive,
             mpvHadFile = mpvHasActiveFile.get(),
@@ -3549,6 +3556,8 @@ class OwnTVPlayer(
         mpv = null
         initialized = false
         surfaceAttached = false
+        // The surface is recreated below; whatever attaches next is a new one.
+        heavySurface.onDetach()
         loadGeneration++
         pendingUrl = null
         // The core about to be destroyed owes these END_FILEs; the fresh one must not inherit them, or
@@ -3700,6 +3709,7 @@ class OwnTVPlayer(
         ensureInit()
         attachedSurface = surface
         surfaceAttached = true
+        heavySurface.onAttach()
         // ExoPlayer owns playback right now (image-sub handoff) → give it the (re)created surface.
         if (exoActive) { exoEngine?.setSurface(surface); return }
         // An ExoPlayer-preferred VOD load was waiting for this surface (first open) — start it there.
@@ -3745,6 +3755,7 @@ class OwnTVPlayer(
         assertMainThread("detachSurface")
         surfaceAttached = false
         attachedSurface = null
+        heavySurface.onDetach()
         if (exoActive) { exoEngine?.setSurface(null); return }
         if (!initialized) return
         mpv?.setPropertyString("vo", "null")
@@ -4138,6 +4149,7 @@ class OwnTVPlayer(
                 currentHeightPx = value.toInt()
                 if (value > 0) {
                     lastVideoHeightPx = value.toInt() // remember for recovery decisions on a later failed load
+                    heavySurface.onDecoded(value.toInt())
                     videoCheckJob?.cancel() // video is decoding → watchdog not needed
                     // A real frame decoded → playback genuinely works. Dismiss any error the watchdog raised
                     // prematurely while a slow hardware decoder (e.g. Realtek setPortMode negotiation) was
