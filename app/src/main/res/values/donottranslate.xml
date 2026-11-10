@@ -18,4 +18,14 @@
     <string name="settings_font_poppins" translatable="false">Poppins</string>
     <!-- Debug-build marker when Video Tutorials read the staging catalog; never shown in release. -->
     <string name="tutorials_staging_marker" translatable="false">STAGING</string>
+    <!-- Video quality and picture-format labels as providers write them; the same in every language. -->
+    <string name="content_version_quality_8k" translatable="false">8K</string>
+    <string name="content_version_quality_4k" translatable="false">4K</string>
+    <string name="content_version_quality_1080p" translatable="false">1080p</string>
+    <string name="content_version_quality_720p" translatable="false">720p</string>
+    <string name="content_version_quality_sd" translatable="false">SD</string>
+    <string name="content_version_picture_dolby_vision" translatable="false">Dolby Vision</string>
+    <string name="content_version_picture_hdr10_plus" translatable="false">HDR10+</string>
+    <string name="content_version_picture_hdr10" translatable="false">HDR10</string>
+    <string name="content_version_picture_hdr" translatable="false">HDR</string>
 </resources>

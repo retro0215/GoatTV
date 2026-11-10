@@ -676,7 +676,21 @@ class HomeViewModel(
                     }
                 }
                 .filterNot { isContinuationHidden(it, hidden) }
-            val movies = items.filter { it.kind == LauncherContinuationKind.MOVIE }
+            // One card per film: when two versions of a title (1080p and 4K, say) are both part-way, only the
+            // one watched last stays. Folded only when certainly the same title (same signature and year).
+            val movies = items.filter { it.kind == LauncherContinuationKind.MOVIE }.let { continuing ->
+                if (continuing.size < 2) return@let continuing
+                val rows = movieDao.getByIds(continuing.map { it.sourceItemId }.distinct()).associateBy { it.id }
+                tv.own.owntv.core.catalog.versions.VersionMatcher.withoutRepeatedVersions(
+                    continuing,
+                    lastUsedOf = { it.lastEngagementAt },
+                    groupKeyOf = { item ->
+                        rows[item.sourceItemId]?.let {
+                            tv.own.owntv.core.catalog.versions.VersionMatcher.certainGroupKey(it.titleSignature, it.parsedYear)
+                        }
+                    },
+                )
+            }
             val series = items.filter { it.kind == LauncherContinuationKind.EPISODE }
             val liveWithTs = recentlyWatchedLive(profileId, liveIds, filtering = true, RECENT_LIVE_ROW_LIMIT)
                 .filterNot { isChannelHidden(it.channel, hidden) }

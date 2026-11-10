@@ -708,4 +708,20 @@
     <string name="content_reminder_keep">Keep reminder</string>
     <string name="content_epg_offset_use_global">Use global</string>
     <string name="content_preview_single_stream">Preview off — your provider allows one stream at a time</string>
+    <!-- Translators: Button on a film's details page opening the list of its other versions (1080p, 4K, Dolby Vision...). %1$d is how many versions there are. -->
+    <string name="content_versions_button">Versions (<xliff:g id="count">%1$d</xliff:g>)</string>
+    <!-- Translators: Title of the dialog listing the versions of one film. -->
+    <string name="content_versions_title">Choose a version</string>
+    <!-- Translators: Note under the version list title: the quality labels are the provider's own, not checked by the app. -->
+    <string name="content_versions_as_listed">Quality labels are as listed by your provider.</string>
+    <!-- Translators: A version with no quality label. %1$d is its place in the list. -->
+    <string name="content_version_unlabelled">Version <xliff:g id="number">%1$d</xliff:g></string>
+    <!-- Translators: A version already watched to the end. -->
+    <string name="content_version_watched">Watched</string>
+    <!-- Translators: Note on a version labelled Dolby Vision when this TV is not known to show Dolby Vision. -->
+    <string name="content_version_may_lack_dolby_vision">This TV may not show it in Dolby Vision</string>
+    <!-- Translators: Note on a version labelled HDR when this TV is not known to show HDR. -->
+    <string name="content_version_may_lack_hdr">This TV may not show it in HDR</string>
+    <!-- Translators: Note on a version labelled 4K when this TV is not known to play 4K. -->
+    <string name="content_version_may_lack_4k">This TV may not play it in 4K</string>
 </resources>

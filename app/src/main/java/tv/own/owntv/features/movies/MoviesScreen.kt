@@ -695,14 +695,22 @@ private fun MovieDetailsPage(
     val metadataMode by vm.metadataMode.collectAsStateWithLifecycle()
     val favoriteIds by vm.favoriteIds.collectAsStateWithLifecycle()
     val selectedProgress by vm.selectedProgress.collectAsStateWithLifecycle()
-    
+    val versionsUi by vm.versions.collectAsStateWithLifecycle()
+    // Two or more versions of this film (1080p / 4K / Dolby Vision / another language); empty otherwise.
+    val versions = versionsUi?.takeIf { it.movieId == movie.id }
+    val hasVersions = (versions?.options?.size ?: 0) > 1
+    var showVersions by remember(movie.id) { mutableStateOf(false) }
+    // Another version was left part-way and this one is the same length: ask before resuming there.
+    var crossResume by remember(movie.id) { mutableStateOf<Pair<MovieEntity, Long>?>(null) }
+
     val colors = OwnTVTheme.colors
     val focus = remember { FocusRequester() }
-    
-    BackHandler { onBack() }
-    
+
+    BackHandler(enabled = !showVersions && crossResume == null) { onBack() }
+
     LaunchedEffect(movie.id) {
         vm.onMovieFocused(movie)
+        vm.loadVersions(movie)
         delay(100)
         runCatching { focus.requestFocus() }
     }
@@ -714,12 +722,45 @@ private fun MovieDetailsPage(
             providerMeta = providerMeta?.takeIf { it.remoteId == movie.remoteId },
             tmdbWins = metadataMode.tmdbWins,
             resumePositionMs = selectedProgress?.takeIf { !vm.isMovieCompleted(it) }?.positionMs?.takeIf { it > 0 },
-            onWatchNow = { vm.play(movie, selectedProgress?.positionMs ?: 0); onFullscreen() },
+            // One version: exactly as before. Several: Watch asks which one.
+            onWatchNow = {
+                if (hasVersions) showVersions = true
+                else { vm.play(movie, selectedProgress?.positionMs ?: 0); onFullscreen() }
+            },
             onPlayTrailer = onPlayTrailer,
             onToggleFavorite = { vm.toggleFavorite(movie) },
             isFavorite = favoriteIds.contains(movie.id),
             fullPage = true,
             focusRequester = focus,
+            versionCount = if (hasVersions) versions?.options?.size ?: 0 else 0,
+            onVersions = { showVersions = true },
+        )
+    }
+    if (showVersions && versions != null) {
+        tv.own.owntv.features.movies.versions.MovieVersionPicker(
+            options = versions.options,
+            initialIndex = versions.initialIndex,
+            onChoose = { option ->
+                showVersions = false
+                vm.chooseVersion(versions, option) { chosen, plan ->
+                    val offer = plan.offerResumeFromMs
+                    if (offer != null) {
+                        crossResume = chosen to offer
+                    } else {
+                        vm.play(chosen, plan.startPositionMs)
+                        onFullscreen()
+                    }
+                }
+            },
+            onDismiss = { showVersions = false; runCatching { focus.requestFocus() } },
+        )
+    }
+    crossResume?.let { (chosen, position) ->
+        ResumeDialog(
+            positionMs = position,
+            onResume = { crossResume = null; vm.play(chosen, position); onFullscreen() },
+            onStartOver = { crossResume = null; vm.play(chosen, 0); onFullscreen() },
+            onDismiss = { crossResume = null; runCatching { focus.requestFocus() } },
         )
     }
 }
@@ -738,6 +779,9 @@ private fun MovieDetailsPane(
     isFavorite: Boolean,
     fullPage: Boolean = false,
     focusRequester: FocusRequester? = null,
+    /** How many versions the film has; the Versions button shows from two. */
+    versionCount: Int = 0,
+    onVersions: (() -> Unit)? = null,
 ) {
     val colors = OwnTVTheme.colors
     if (movie == null) {
@@ -784,6 +828,9 @@ private fun MovieDetailsPane(
                     onClick = onWatchNow, icon = OwnTVIcon.PLAY, style = OwnTVButtonStyle.PRIMARY,
                     modifier = Modifier.then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
                 )
+                if (versionCount > 1 && onVersions != null) {
+                    OwnTVButton(label = stringResource(R.string.content_versions_button, versionCount), onClick = onVersions, style = OwnTVButtonStyle.SECONDARY)
+                }
                 if (!trailerKey.isNullOrBlank()) {
                     OwnTVButton(label = stringResource(R.string.content_play_trailer), onClick = { onPlayTrailer(trailerKey) }, icon = OwnTVIcon.PLAY, style = OwnTVButtonStyle.SECONDARY)
                 }

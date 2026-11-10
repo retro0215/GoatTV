@@ -3045,7 +3045,6 @@
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	tuneByNumber($number) failed
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	tuneByNumber: zap rebuild failed
 1	app/src/main/java/tv/own/owntv/features/live/LiveViewModel.kt	user chose compatibility mode
-2	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	\0
 1	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	${StorageAccess.sanitize(movie.name)}.${movie.containerExt ?: StorageAccess.extOf(movie.streamUrl)}
 1	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	MOVIE
 1	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	Movies
@@ -3165,11 +3164,9 @@
 1	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	s${item.series.id}
 3	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	\0
 1	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	$it*
-1	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	MOVIE
 1	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	OwnTVHome
 1	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	\\s+
 1	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	record history failed profile=$pid type=$type itemId=$itemId
-1	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	stalker resolve failed movieId=${movie.id}
 6	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	\0
 1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	$episodeNumber
 1	app/src/main/java/tv/own/owntv/features/series/SeriesScreen.kt	(?i)^(Episode|Ep)\\s*\\d+\\s*[-·•:_]\\s*

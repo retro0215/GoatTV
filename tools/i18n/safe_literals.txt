@@ -282,6 +282,7 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	TR
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	TURKISH|TURKCE|TÜRKÇE
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	•
+1	technical	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	$signature|$year
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	__unmatchable_
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	a
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionMatcher.kt	episode
@@ -473,6 +474,11 @@
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	Expired
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	auth
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	status
+1	compiler	app/src/main/java/tv/own/owntv/core/player/DeviceVideoCapabilities.kt	DEPRECATION
+1	protocol	app/src/main/java/tv/own/owntv/core/player/DeviceVideoCapabilities.kt	c2.android.
+1	protocol	app/src/main/java/tv/own/owntv/core/player/DeviceVideoCapabilities.kt	omx.google.
+1	mime	app/src/main/java/tv/own/owntv/core/player/DeviceVideoCapabilities.kt	video/dolby-vision
+1	mime	app/src/main/java/tv/own/owntv/core/player/DeviceVideoCapabilities.kt	video/hevc
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title
 1	log	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	accepted=$processedCount written=$writtenCount incomplete=${incomplete != null}
@@ -544,6 +550,11 @@
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	guide open requested
 1	compiler	app/src/main/java/tv/own/owntv/features/epg/GuideMemoryPressure.kt	DEPRECATION
 1	empty	app/src/main/java/tv/own/owntv/features/epg/GuideNav.kt	\0
+4	empty	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	${anchor.titleSignature}|${year ?: ""}
+1	log	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	version lookup failed movieId=${movie.id}
+1	preference-key	app/src/main/java/tv/own/owntv/features/movies/versions/MovieVersionChoice.kt	$profileId|$titleKey
+2	technical	app/src/main/java/tv/own/owntv/features/movies/versions/MovieVersionPicker.kt	·
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_RESUMED channelId=$id name=${channelNames[id]}
@@ -555,6 +566,7 @@
 1	log	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterViewModel.kt	diagnostic_resync
 1	locale	app/src/main/java/tv/own/owntv/features/settings/ResourceDiagnosticText.kt	yMMMd
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	catalog_title_rules_version
+1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	movie_version_choices
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	onboarding_imported_source_id
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	cold_start
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	resume

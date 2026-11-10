@@ -88,6 +88,9 @@ fun SearchScreen(
      *  channel gets the same Prefer HLS handling, ExoPlayer→mpv ladder, per-channel engine pin and
      *  external-player routing however the user reached it. */
     onPlayChannel: (ChannelEntity) -> Unit,
+    /** Required: a film found here plays through the Movies path (MovieViewModel) — its saved position,
+     *  progress saving, history and Stalker reconnect — like one started from Movies. */
+    playMovie: (MovieEntity) -> Unit,
     vm: SearchViewModel = koinViewModel(),
     returnToHomeOnBack: Boolean = false,
     onReturnToHome: () -> Unit = {},
@@ -162,7 +165,7 @@ fun SearchScreen(
                     onPlayChannel(ch)
                 },
                 onToggleFavorite = { vm.toggleFavoriteChannel(it) },
-                onPlayMovie = { vm.playMovie(it); if (!vm.externalPlayerOn.value) onFullscreen() },
+                onPlayMovie = { playMovie(it); vm.rememberCurrentQuery(); if (!vm.externalPlayerOn.value) onFullscreen() },
                 onOpenSeries = { vm.rememberCurrentQuery(); onOpenSeries(it) },
             )
         }

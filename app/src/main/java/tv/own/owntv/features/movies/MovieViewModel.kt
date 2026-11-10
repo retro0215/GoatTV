@@ -90,6 +90,8 @@ class MovieViewModel(
     private val externalPlayerLauncher: tv.own.owntv.core.player.ExternalPlayerLauncher,
     private val streamUrlResolver: tv.own.owntv.core.stalker.StreamUrlResolver,
     private val subtitleController: tv.own.owntv.core.subtitles.SubtitleController,
+    private val versionRepository: tv.own.owntv.core.catalog.versions.VersionRepository,
+    private val deviceVideo: tv.own.owntv.core.player.DeviceVideoCapabilities,
 ) : ViewModel() {
 
     data class MovieMoveState(val items: List<MovieEntity>, val activeIndex: Int, val contextKey: String)
@@ -603,6 +605,113 @@ class MovieViewModel(
         val movie = movieDao.getById(movieId) ?: return false
         play(movie, startPositionMs)
         return true
+    }
+
+    // ---- Alternate versions (4.6.1): the same film as 1080p / 4K / Dolby Vision / another language ----
+
+    /** The versions of the film whose details are open. [options] holds two or more, or is empty. */
+    data class MovieVersionsUi(
+        val movieId: Long,
+        val titleKey: String,
+        val options: List<tv.own.owntv.features.movies.versions.MovieVersionOption>,
+        val initialIndex: Int,
+    )
+
+    private val _versions = MutableStateFlow<MovieVersionsUi?>(null)
+    val versions: StateFlow<MovieVersionsUi?> = _versions.asStateFlow()
+    private var versionsJob: kotlinx.coroutines.Job? = null
+    private var choosingVersion: kotlinx.coroutines.Job? = null
+
+    /**
+     * Look up [movie]'s versions for the details page (one indexed query, profile-scoped — see
+     * VersionRepository). A film with one version gets an empty list and Watch plays it exactly as before.
+     */
+    fun loadVersions(movie: MovieEntity) {
+        versionsJob?.cancel()
+        _versions.value = null
+        versionsJob = viewModelScope.launch {
+            val found = runCatching { versionRepository.movieVersions(movie) }
+                .onFailure { Log.w(TAG, "version lookup failed movieId=${movie.id}", it) }
+                .getOrDefault(emptyList())
+            if (found.size < 2) {
+                _versions.value = MovieVersionsUi(movie.id, "", emptyList(), 0)
+                return@launch
+            }
+            val pid = currentProfileId()
+            val caps = deviceVideo.caps
+            val filmsOnExo = settings.vodEnginePreference.first() == tv.own.owntv.player.EnginePreference.EXO_FIRST
+            val favorites = favoriteIds.value
+            val playlistNames = found.map { it.row.sourceId }.distinct().associateWith { sourceDao.getById(it)?.name }
+            val options = found.map { v ->
+                val row = v.row
+                val progress = pid?.let { progressDao.get(it, MediaType.MOVIE, row.id) }
+                tv.own.owntv.features.movies.versions.MovieVersionOption(
+                    movieId = row.id,
+                    key = CustomizeKeys.item(row.sourceId, row.remoteId, row.name),
+                    qualityRank = v.label.qualityRank,
+                    picture = v.label.advertisedPicture,
+                    language = v.label.language,
+                    playlistName = playlistNames[row.sourceId],
+                    categoryName = row.categoryName,
+                    positionMs = progress?.positionMs ?: 0,
+                    durationMs = progress?.durationMs ?: 0,
+                    completed = progress?.let { isMovieCompleted(it) } == true,
+                    progressUpdatedAt = progress?.updatedAt ?: 0,
+                    isFavorite = row.id in favorites,
+                    isAnchor = v.isAnchor,
+                    confirmed = tv.own.owntv.features.movies.versions.MovieVersionChoice.confirmedPlayable(
+                        v.label.qualityRank, v.label.advertisedPicture, caps, filmsOnExo,
+                    ),
+                    pictureMayFallBack = tv.own.owntv.features.movies.versions.MovieVersionChoice.pictureMayFallBack(
+                        v.label.advertisedPicture, caps,
+                    ),
+                )
+            }
+            // One title, one remembered choice: the shared signature plus the one year the group agrees on.
+            val anchor = found.first { it.isAnchor }.row
+            val year = found.mapNotNull { it.row.parsedYear }.toSet().singleOrNull()
+            val titleKey = "${anchor.titleSignature}|${year ?: ""}"
+            val remembered = pid?.let { settings.movieVersionChoice(it, titleKey) }
+            _versions.value = MovieVersionsUi(
+                movieId = movie.id,
+                titleKey = titleKey,
+                options = options,
+                initialIndex = tv.own.owntv.features.movies.versions.MovieVersionChoice.initialIndex(options, remembered),
+            )
+        }
+    }
+
+    /**
+     * The customer picked [option] in the version picker. Remembers it for this profile and title, then
+     * hands [onPlan] the film and where it starts ([MovieVersionChoice.startPlan]); the screen plays it
+     * through [play] — the one movie playback path. A second call while one is being prepared is ignored,
+     * so a double OK never starts two sessions.
+     */
+    fun chooseVersion(
+        ui: MovieVersionsUi,
+        option: tv.own.owntv.features.movies.versions.MovieVersionOption,
+        onPlan: (MovieEntity, tv.own.owntv.features.movies.versions.MovieVersionChoice.StartPlan) -> Unit,
+    ) {
+        if (choosingVersion?.isActive == true) return
+        choosingVersion = viewModelScope.launch {
+            val movie = movieDao.getById(option.movieId) ?: return@launch
+            currentProfileId()?.let { pid -> runCatching { settings.setMovieVersionChoice(pid, ui.titleKey, option.key) } }
+            val durationMs = option.durationMs.takeIf { it > 0 } ?: movie.durationSecs?.takeIf { it > 0 }?.let { it * 1000L }
+            onPlan(movie, tv.own.owntv.features.movies.versions.MovieVersionChoice.startPlan(option, durationMs, ui.options))
+        }
+    }
+
+    /**
+     * Play [movie] from its own saved position (unless finished) through [play] — what Search uses, so
+     * a film started there saves progress, keeps history and reconnects exactly like one started here.
+     */
+    fun playWithSavedPosition(movie: MovieEntity) {
+        viewModelScope.launch {
+            val pid = currentProfileId()
+            val progress = pid?.let { progressDao.get(it, MediaType.MOVIE, movie.id) }
+            val start = progress?.takeIf { !isMovieCompleted(it) }?.positionMs ?: 0L
+            play(movie, start)
+        }
     }
 
     /** Download states for the currently visible movies, keyed by movie id. */

@@ -172,6 +172,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val ACTIVE_PROFILE = longPreferencesKey("active_profile_id")
         val ONBOARDING_IMPORTED_SOURCE = longPreferencesKey("onboarding_imported_source_id")
         val CATALOG_TITLE_RULES_VERSION = intPreferencesKey("catalog_title_rules_version")
+        val MOVIE_VERSION_CHOICES = stringPreferencesKey("movie_version_choices")
         val DEFAULT_SOURCE = longPreferencesKey("default_source_id")
         val DOWNLOAD_ROOT = stringPreferencesKey("download_root")
         val REFRESH_SOURCE_IDS = stringSetPreferencesKey("refresh_source_ids")
@@ -1754,6 +1755,20 @@ class SettingsRepository(private val context: Context, private val localeStore: 
 
     suspend fun setCatalogTitleRulesVersion(version: Int) {
         context.dataStore.edit { it[Keys.CATALOG_TITLE_RULES_VERSION] = version }
+    }
+
+    /** The film version [profileId] chose last for [titleKey] — see VersionChoiceStore. Device-only. */
+    suspend fun movieVersionChoice(profileId: Long, titleKey: String): String? =
+        tv.own.owntv.features.movies.versions.VersionChoiceStore.read(
+            context.dataStore.data.first()[Keys.MOVIE_VERSION_CHOICES], profileId, titleKey,
+        )
+
+    suspend fun setMovieVersionChoice(profileId: Long, titleKey: String, versionKey: String) {
+        context.dataStore.edit {
+            it[Keys.MOVIE_VERSION_CHOICES] = tv.own.owntv.features.movies.versions.VersionChoiceStore.write(
+                it[Keys.MOVIE_VERSION_CHOICES], profileId, titleKey, versionKey,
+            )
+        }
     }
 
     // --- Global proxy (Approach 1 — one app-wide HTTP proxy) ---

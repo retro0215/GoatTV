@@ -750,6 +750,7 @@ fun OwnTVShell(
                             vm = searchVm, onFullscreen = { openFullscreen() },
                             onOpenSeries = { series -> trendingSearchActive = false; seriesVm.openSeries(series); onSelectSection(MainSection.SERIES) },
                             onPlayChannel = { ch -> restoreFocus = false; liveVm.watchFromGuide(ch); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI && !liveVm.externalPlayerOn.value) playerMode = PlayerMode.FULLSCREEN },
+                            playMovie = { movie -> movieVm.playWithSavedPosition(movie) },
                             onChildFocused = { focusedLayer = ShellLayer.CONTENT }, returnToHomeOnBack = trendingSearchActive,
                             onReturnToHome = { trendingSearchActive = false; restoreTrendingSearchFocus = true; onSelectSection(MainSection.HOME) },
                             modifier = Modifier.fillMaxSize(),

@@ -233,6 +233,7 @@ val dataModule = module {
     // Alternate-version discovery (4.6.1 stage 1): movieDao, seriesDao, sourceDao, settings, customize, profileDao
     single { tv.own.owntv.core.catalog.versions.VersionRepository(get(), get(), get(), get(), get(), get()) }
     single { tv.own.owntv.core.catalog.versions.catalogTitleBackfill(get(), get(), get(), get()) }
+    single { tv.own.owntv.core.player.DeviceVideoCapabilities(androidContext()) }
     single { tv.own.owntv.core.repository.MovieRepository(get(), get(), get(), get()) }
     // sourceDao, movieDao, seriesDao, progressDao
     single { LauncherRecommendationPlanner(get(), get(), get(), get(), get(), get()) }

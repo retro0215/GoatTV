@@ -73,6 +73,30 @@ object VersionMatcher {
     }
 
     /**
+     * A key two rows share only when [versionsOf] would certainly group them: the same groupable signature
+     * and the same explicit year (a short or numeric title needs exactly that too). Null when that is not
+     * certain — such a row is never folded into another. For folding lists such as Continue Watching,
+     * where the rows are already the profile's own.
+     */
+    fun certainGroupKey(signature: String, year: Int?): String? =
+        if (year != null && isGroupable(signature)) "$signature|$year" else null
+
+    /**
+     * [items] with every version but the most recently used one of each title dropped, in their original
+     * order. Items with no certain group key ([certainGroupKey] null) all stay — nothing is folded unless
+     * it is certainly the same title.
+     */
+    fun <T> withoutRepeatedVersions(items: List<T>, lastUsedOf: (T) -> Long, groupKeyOf: (T) -> String?): List<T> {
+        val newestPerTitle = HashMap<String, T>()
+        for (item in items) {
+            val key = groupKeyOf(item) ?: continue
+            val kept = newestPerTitle[key]
+            if (kept == null || lastUsedOf(item) > lastUsedOf(kept)) newestPerTitle[key] = item
+        }
+        return items.filter { item -> groupKeyOf(item)?.let { newestPerTitle[it] === item } ?: true }
+    }
+
+    /**
      * Order for presenting versions: best advertised quality first, then a stated picture format, then by
      * playlist and row, so the order never changes between two looks at the same catalogue.
      */
