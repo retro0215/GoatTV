@@ -13,7 +13,6 @@
 1	app/src/main/java/tv/own/owntv/core/backup/BackupManager.kt	sort
 3	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	ctx
 2	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	kind
-8	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	member
 1	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	name
 1	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	oid
 2	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	p
@@ -676,19 +675,14 @@
 1	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	WHERE h.profileId = :profileId AND h.mediaType = 'LIVE' AND c.sourceId IN (:sourceIds)
 2	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	WHERE h.profileId = :profileId ORDER BY h.watchedAt DESC LIMIT :limit
 1	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	WHERE sourceId = :sourceId AND epgChannelId IS NOT NULL AND TRIM(epgChannelId) != ''
-1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	(:type = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
-1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	(:type = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR
-1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	(:type = 'SERIES' AND itemId NOT IN (SELECT id FROM series))
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	(mediaType = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	(mediaType = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	(mediaType = 'SERIES' AND itemId NOT IN (SELECT id FROM series))
-1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	)
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	COALESCE(c.name, m.name, s.name) AS name
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	COALESCE(c.remoteId, m.remoteId, s.remoteId) AS remoteId,
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	COALESCE(c.sourceId, m.sourceId, s.sourceId) AS sourceId,
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	DELETE FROM content_order WHERE
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	DELETE FROM content_order WHERE profileId = :profileId AND mediaType = :type AND contextKey = :contextKey
-1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	DELETE FROM content_order WHERE profileId = :profileId AND mediaType = :type AND itemId = :itemId AND (
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	FROM content_order o
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	LEFT JOIN channels c ON o.mediaType = 'LIVE' AND o.itemId = c.id
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	LEFT JOIN movies m ON o.mediaType = 'MOVIE' AND o.itemId = m.id
@@ -699,15 +693,11 @@
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	WHERE c.sourceId = :sourceId OR m.sourceId = :sourceId OR s.sourceId = :sourceId
 1	app/src/main/java/tv/own/owntv/core/database/dao/ContentOrderDao.kt	o.contextKey AS contextKey, o.position AS position,
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(:type = 'LIVE' AND itemId IN (SELECT id FROM channels WHERE sourceId IN (:sourceIds))) OR
-1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(:type = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(:type = 'MOVIE' AND itemId IN (SELECT id FROM movies WHERE sourceId IN (:sourceIds))) OR
-1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(:type = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(:type = 'SERIES' AND itemId IN (SELECT id FROM series WHERE sourceId IN (:sourceIds)))
-1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(:type = 'SERIES' AND itemId NOT IN (SELECT id FROM series))
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(mediaType = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(mediaType = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	(mediaType = 'SERIES' AND itemId NOT IN (SELECT id FROM series))
-1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	)
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	) GROUP BY contextKey
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	AND COALESCE(c.sourceId, mv.sourceId, s.sourceId) IN (:sourceIds)
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	COALESCE(c.name, mv.name, s.name) AS name
@@ -716,7 +706,6 @@
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	DELETE FROM custom_category_members WHERE
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	DELETE FROM custom_category_members WHERE profileId = :profileId AND mediaType = :type AND contextKey = :contextKey
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	DELETE FROM custom_category_members WHERE profileId = :profileId AND mediaType = :type AND contextKey = :contextKey AND itemId = :itemId
-1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	DELETE FROM custom_category_members WHERE profileId = :profileId AND mediaType = :type AND itemId = :itemId AND (
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	FROM custom_category_members m
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	FROM custom_category_members m INNER JOIN channels c ON m.mediaType = 'LIVE' AND m.itemId = c.id
 1	app/src/main/java/tv/own/owntv/core/database/dao/CustomCategoryDao.kt	FROM custom_category_members m INNER JOIN movies mv ON m.mediaType = 'MOVIE' AND m.itemId = mv.id

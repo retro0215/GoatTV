@@ -204,9 +204,10 @@
 8	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	fav
 8	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	his
 10	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	kind
+9	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	member
 9	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	name
 5	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	oid
-8	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	order
+9	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	order
 1	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	owntv_pending_userdata
 10	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	p
 6	json	app/src/main/java/tv/own/owntv/core/backup/UserDataResolver.kt	pos
@@ -296,6 +297,13 @@
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	UPDATE reminders SET profileId = :profileId WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(:type = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(:type = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(:type = 'SERIES' AND itemId NOT IN (SELECT id FROM series))
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	)
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	DELETE FROM content_order WHERE profileId = :profileId AND mediaType = :type AND itemId IN (:itemIds) AND
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	DELETE FROM custom_category_members WHERE profileId = :profileId AND mediaType = :type AND itemId IN (:itemIds) AND
 1	log	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	Diagnostics
 1	compiler	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	InlinedApi
 1	protocol	app/src/main/java/tv/own/owntv/core/diagnostics/AndroidDiagnosticProbes.kt	Range

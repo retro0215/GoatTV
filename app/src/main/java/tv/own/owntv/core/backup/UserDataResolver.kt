@@ -181,18 +181,27 @@ class UserDataResolver(
         length() > 0 && (0 until length()).all { getJSONObject(it).has("oid") }
 
     private suspend fun purgeSnapshotOrphans(snapshot: JSONArray) = db.withTransaction {
+        val rows = ArrayList<SnapshotRow>(snapshot.length())
         for (i in 0 until snapshot.length()) {
             val e = snapshot.getJSONObject(i)
             val type = runCatching { MediaType.valueOf(e.getString("t")) }.getOrNull() ?: continue
-            val profileId = e.getLong("p")
-            val itemId = e.getLong("oid")
-            when (e.optString("kind")) {
-                "fav" -> favoriteDao.purgeSnapshotOrphan(profileId, type, itemId)
-                "his" -> historyDao.purgeSnapshotOrphan(profileId, type, itemId)
-                "prog" -> progressDao.purgeSnapshotOrphan(profileId, type, itemId)
-                "order" -> contentOrderDao.purgeSnapshotOrphan(profileId, type, itemId)
-                "member" -> customCategoryDao.purgeSnapshotOrphan(profileId, type, itemId)
-                "sort" -> seriesSortOrderDao.purgeSnapshotOrphan(profileId, itemId)
+            rows += SnapshotRow(e.optString("kind"), e.getLong("p"), type, e.getLong("oid"))
+        }
+        // These tables have a unique (profileId, mediaType, itemId) index: one indexed delete per row.
+        for (row in rows) {
+            when (row.kind) {
+                "fav" -> favoriteDao.purgeSnapshotOrphan(row.profileId, row.type, row.itemId)
+                "his" -> historyDao.purgeSnapshotOrphan(row.profileId, row.type, row.itemId)
+                "prog" -> progressDao.purgeSnapshotOrphan(row.profileId, row.type, row.itemId)
+                "sort" -> seriesSortOrderDao.purgeSnapshotOrphan(row.profileId, row.itemId)
+            }
+        }
+        // These two are keyed by folder first, so a one-row delete scanned every row of the profile —
+        // minutes to hours under the writer lock with tens of thousands of custom-category members.
+        for (batch in snapshotPurgeBatches(rows, SET_PURGE_KINDS)) {
+            when (batch.kind) {
+                "order" -> contentOrderDao.purgeSnapshotOrphans(batch.profileId, batch.type, batch.itemIds)
+                "member" -> customCategoryDao.purgeSnapshotOrphans(batch.profileId, batch.type, batch.itemIds)
             }
         }
     }
@@ -333,3 +342,27 @@ class UserDataResolver(
         const val RESOLVE_CHUNK = 500
     }
 }
+
+/** Snapshot kinds purged as sets of ids ([snapshotPurgeBatches]) instead of one row at a time. */
+private val SET_PURGE_KINDS = setOf("order", "member")
+
+/** One row of a re-sync snapshot, as the orphan purge needs it. */
+internal data class SnapshotRow(val kind: String, val profileId: Long, val type: MediaType, val itemId: Long)
+
+/** Ids of one kind, profile and type, deleted in one statement. */
+internal data class SnapshotPurgeBatch(val kind: String, val profileId: Long, val type: MediaType, val itemIds: List<Long>)
+
+/**
+ * [rows] of [kinds], grouped by kind, profile and type, each id once, at most [chunk] ids a batch.
+ * Reference: upstream OwnTV_Core 1de78b1e.
+ */
+internal fun snapshotPurgeBatches(
+    rows: List<SnapshotRow>,
+    kinds: Set<String>,
+    chunk: Int = tv.own.owntv.core.database.dao.SnapshotPurgeSql.CHUNK,
+): List<SnapshotPurgeBatch> =
+    rows.filter { it.kind in kinds }
+        .groupBy { Triple(it.kind, it.profileId, it.type) }
+        .flatMap { (key, group) ->
+            group.map { it.itemId }.distinct().chunked(chunk).map { SnapshotPurgeBatch(key.first, key.second, key.third, it) }
+        }
