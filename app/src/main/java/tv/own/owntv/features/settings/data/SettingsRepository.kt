@@ -170,6 +170,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val FOCUS_HIGHLIGHT_WIDTH = intPreferencesKey("focus_highlight_width")
         val AVATAR_ID = intPreferencesKey("avatar_id")
         val ACTIVE_PROFILE = longPreferencesKey("active_profile_id")
+        val ONBOARDING_IMPORTED_SOURCE = longPreferencesKey("onboarding_imported_source_id")
         val DEFAULT_SOURCE = longPreferencesKey("default_source_id")
         val DOWNLOAD_ROOT = stringPreferencesKey("download_root")
         val REFRESH_SOURCE_IDS = stringSetPreferencesKey("refresh_source_ids")
@@ -1730,6 +1731,17 @@ class SettingsRepository(private val context: Context, private val localeStore: 
 
     suspend fun setActiveProfile(id: Long) {
         context.dataStore.edit { it[Keys.ACTIVE_PROFILE] = id }
+    }
+
+    /**
+     * First-run setup: the playlist whose first import finished while setup was still open (-1 = none).
+     * Lets a setup interrupted at the TV Guide question resume there instead of importing again.
+     * Device-only (not in any backup list) and cleared when setup finishes.
+     */
+    val onboardingImportedSourceId: Flow<Long> = prefsFlow { it[Keys.ONBOARDING_IMPORTED_SOURCE] ?: -1L }
+
+    suspend fun setOnboardingImportedSource(id: Long) {
+        context.dataStore.edit { if (id < 0L) it.remove(Keys.ONBOARDING_IMPORTED_SOURCE) else it[Keys.ONBOARDING_IMPORTED_SOURCE] = id }
     }
 
     // --- Global proxy (Approach 1 — one app-wide HTTP proxy) ---

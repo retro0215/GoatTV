@@ -204,6 +204,10 @@ class EpgRepository(
         var updated = 0
         var skipped = 0
         var parseCompleted = false
+        // Set when the download or parse stopped part-way. The rows read so far are kept, but the import
+        // is NOT reported as a success: it is rethrown at the end, so callers never stamp lastSyncAt
+        // (which would make a half guide look fresh and skip retries for a day).
+        var incomplete: Exception? = null
         var removedProgrammes = 0
         var removedChannels = 0
 
@@ -337,6 +341,7 @@ class EpgRepository(
                 )
             }
             Log.w("EpgRepository", "EPG sync incomplete — keeping partial (written=$writtenCount accepted=$processedCount inserted=$inserted updated=$updated skipped=$skipped)", e)
+            incomplete = e
         } finally {
             // The rows already written stay (a partial guide still beats none) — only the *cache file*
             // is held to a completeness bar, because unlike the rows it gets re-read later as if it were
@@ -366,8 +371,10 @@ class EpgRepository(
         Log.i(
             "EpgRepository",
             "EPG incremental sync sourceId=$storeId inserted=$inserted updated=$updated skipped=$skipped removedProgrammes=$removedProgrammes removedChannels=$removedChannels " +
-                "accepted=$processedCount written=$writtenCount ms=${SystemClock.elapsedRealtime() - startedAt}",
+                "accepted=$processedCount written=$writtenCount incomplete=${incomplete != null} " +
+                "ms=${SystemClock.elapsedRealtime() - startedAt}",
         )
+        incomplete?.let { throw it }
         writtenCount
     }
 

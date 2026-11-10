@@ -391,6 +391,8 @@
 1	json	app/src/main/java/tv/own/owntv/core/parser/XtreamClient.kt	status
 1	technical	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	$title · $subtitle
 1	protocol	app/src/main/java/tv/own/owntv/core/player/ExternalPlayerLauncher.kt	title
+1	log	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	accepted=$processedCount written=$writtenCount incomplete=${incomplete != null}
+1	log	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	ms=${SystemClock.elapsedRealtime() - startedAt}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink failed sourceId=${source.id}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink sourceId=${source.id} ${it.values.groupingBy { o -> o }.eachCount()}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder snapshot failed sourceId=${source.id}
@@ -464,6 +466,7 @@
 1	mime	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterScreen.kt	text/plain
 1	log	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterViewModel.kt	diagnostic_resync
 1	locale	app/src/main/java/tv/own/owntv/features/settings/ResourceDiagnosticText.kt	yMMMd
+1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	onboarding_imported_source_id
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	cold_start
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	resume
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	boxing

@@ -103,6 +103,17 @@ fun Onboarding(firstRun: Boolean, onDone: (Long?) -> Unit, onCancel: () -> Unit,
     // Where Back from the backup-restore picker returns to (first-run choice vs. add-content step).
     var backupOrigin by remember { mutableStateOf(Step.ADD_CONTENT) }
 
+    // An interrupted first run (app killed before setup finished) resumes with the profile and playlist
+    // it already made, instead of starting over and creating both a second time.
+    LaunchedEffect(firstRun) {
+        if (!firstRun) return@LaunchedEffect
+        val interrupted = runCatching { vm.findInterruptedSetup() }.getOrNull() ?: return@LaunchedEffect
+        step = when (vm.resumeInterruptedSetup(interrupted)) {
+            SetupViewModel.ResumePoint.IMPORT -> { importOrigin = Step.ADD_SOURCE; Step.IMPORTING }
+            SetupViewModel.ResumePoint.ADD_PLAYLIST -> Step.ADD_SOURCE
+        }
+    }
+
     // Refresh the "existing playlists" availability whenever we land on the add-content step.
     LaunchedEffect(step) { if (step == Step.ADD_CONTENT) existing = runCatching { vm.availableExistingSources() }.getOrDefault(emptyList()) }
 

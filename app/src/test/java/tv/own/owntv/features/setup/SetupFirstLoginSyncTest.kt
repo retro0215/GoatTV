@@ -7,7 +7,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -22,6 +22,8 @@ import org.junit.Before
 import org.junit.Test
 import tv.own.owntv.core.database.dao.ProfileDao
 import tv.own.owntv.core.database.dao.SourceDao
+import tv.own.owntv.core.database.entity.ProfileEntity
+import tv.own.owntv.core.database.entity.ProfileSourceCrossRef
 import tv.own.owntv.core.database.entity.SourceEntity
 import tv.own.owntv.core.epg.EpgSource
 import tv.own.owntv.core.epg.EpgSourceStore
@@ -68,6 +70,10 @@ class SetupFirstLoginSyncTest {
     /** The guide download, held open until a test completes it. */
     private var guideDownload = CompletableDeferred<Int>()
 
+    /** The persisted active profile (-1 = setup never finished) and the first-run import marker. */
+    private val activeProfile = MutableStateFlow(-1L)
+    private val importedMarker = MutableStateFlow(-1L)
+
     private lateinit var vm: SetupViewModel
 
     @Before
@@ -75,7 +81,10 @@ class SetupFirstLoginSyncTest {
         Dispatchers.setMain(dispatcher)
         every { connectivity.isOnlineNow() } returns true
         coEvery { profileDao.insert(any()) } returns 1L
-        every { settings.activeProfileId } returns flowOf(1L)
+        every { settings.activeProfileId } returns activeProfile
+        coEvery { settings.setActiveProfile(any()) } answers { activeProfile.value = firstArg() }
+        every { settings.onboardingImportedSourceId } returns importedMarker
+        coEvery { settings.setOnboardingImportedSource(any()) } answers { importedMarker.value = firstArg() }
         coEvery {
             sourceRepository.addXtreamSource(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } returns source
@@ -280,6 +289,134 @@ class SetupFirstLoginSyncTest {
         advanceUntilIdle()
         assertTrue(vm.state.value is ImportState.Success)
         assertEquals("linked playlists ask no guide question", EpgSyncUi.Hidden, vm.epgSync.value)
+    }
+
+    // ---- Interrupted first run: the app killed after the profile / playlist existed, before setup finished ----
+
+    private val leftProfile = ProfileEntity(id = 1, name = "Synthetic Profile", avatarColor = 0)
+
+    /** What a killed first run leaves in the database: [profile], linked to [left] when given. */
+    private fun leftBehind(profile: ProfileEntity = leftProfile, left: SourceEntity? = source) {
+        coEvery { profileDao.getAllOnce() } returns listOf(profile)
+        coEvery { sourceDao.allLinks() } returns listOfNotNull(left?.let { ProfileSourceCrossRef(profileId = profile.id, sourceId = it.id) })
+        coEvery { sourceDao.getAllOnce() } returns listOfNotNull(left)
+    }
+
+    @Test
+    fun `a finished import marks itself and finishing setup clears the mark`() = runTest(dispatcher) {
+        importPlaylist()
+        assertEquals(source.id, importedMarker.value)
+        vm.dismissPendingEpg()
+        vm.finish()
+        advanceUntilIdle()
+        assertEquals(-1L, importedMarker.value)
+        assertEquals(1L, activeProfile.value)
+    }
+
+    @Test
+    fun `killed at the guide question, the restart resumes there with the same profile and playlist`() = runTest(dispatcher) {
+        leftBehind()
+        importedMarker.value = source.id
+        val setup = vm.findInterruptedSetup()!!
+        assertTrue(setup.importFinished)
+        assertEquals(SetupViewModel.ResumePoint.IMPORT, vm.resumeInterruptedSetup(setup))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value is ImportState.Success)
+        assertEquals(EpgSyncUi.Ask("Synthetic Playlist"), vm.epgSync.value)
+        assertFalse("still no Run in background before the answer", vm.runInBackgroundAvailable.value)
+        // Nothing created or downloaded a second time, nothing removed.
+        coVerify(exactly = 0) { profileDao.insert(any()) }
+        coVerify(exactly = 0) { sourceRepository.addXtreamSource(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { sourceRepository.sync(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { sourceRepository.clearSourceContent(any()) }
+        coVerify(exactly = 0) { sourceRepository.deleteSource(any()) }
+
+        vm.syncPendingEpg()
+        advanceUntilIdle()
+        guideDownload.complete(100)
+        advanceUntilIdle()
+        val entered = Entered()
+        vm.finish(entered.callback())
+        advanceUntilIdle()
+        assertEquals(1L, entered.profile)
+        assertEquals(1L, activeProfile.value)
+    }
+
+    @Test
+    fun `a guide already accepted before the interruption is not asked again`() = runTest(dispatcher) {
+        leftBehind()
+        importedMarker.value = source.id
+        coEvery { epgStore.getAll() } returns listOf(guideSource) // registered; the automatic refresh fetches it
+        vm.resumeInterruptedSetup(vm.findInterruptedSetup()!!)
+        advanceUntilIdle()
+        assertTrue(vm.state.value is ImportState.Success)
+        assertEquals(EpgSyncUi.Hidden, vm.epgSync.value)
+    }
+
+    @Test
+    fun `killed mid-import, the restart imports the same playlist again from a clean slate`() = runTest(dispatcher) {
+        leftBehind()
+        val setup = vm.findInterruptedSetup()!!
+        assertFalse(setup.importFinished)
+        assertEquals(SetupViewModel.ResumePoint.IMPORT, vm.resumeInterruptedSetup(setup))
+        advanceUntilIdle()
+        assertEquals(ImportState.Running, vm.state.value)
+        assertFalse(vm.runInBackgroundAvailable.value)
+        coVerify { sourceRepository.clearSourceContent(source.id) } // partial rows from the killed run
+        coVerify(exactly = 0) { sourceRepository.addXtreamSource(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { profileDao.insert(any()) }
+        coVerify(exactly = 0) { settings.setPlaylistAutoRefresh(any(), any()) } // the playlist keeps its own choice
+
+        playlistSync.complete(SyncResult.Success())
+        advanceUntilIdle()
+        assertTrue(vm.state.value is ImportState.Success)
+        assertEquals(EpgSyncUi.Ask("Synthetic Playlist"), vm.epgSync.value)
+        coVerify(exactly = 1) { sourceRepository.sync(source, any(), any(), any()) }
+    }
+
+    @Test
+    fun `killed before any playlist, the restart keeps the profile and asks for a playlist`() = runTest(dispatcher) {
+        leftBehind(left = null)
+        assertEquals(SetupViewModel.ResumePoint.ADD_PLAYLIST, vm.resumeInterruptedSetup(vm.findInterruptedSetup()!!))
+        startPlaylist()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { profileDao.insert(any()) }
+        coVerify { sourceRepository.addXtreamSource(leftProfile.id, any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `a resumed PIN-locked profile still asks for its PIN`() = runTest(dispatcher) {
+        leftBehind(profile = leftProfile.copy(pinHash = "synthetic-hash"))
+        importedMarker.value = source.id
+        vm.resumeInterruptedSetup(vm.findInterruptedSetup()!!)
+        advanceUntilIdle()
+        vm.dismissPendingEpg()
+        val entered = Entered()
+        vm.finish(entered.callback())
+        advanceUntilIdle()
+        assertEquals(1, entered.calls)
+        assertEquals("no id: the profile gate asks for the PIN", null, entered.profile)
+        assertEquals(1L, activeProfile.value)
+    }
+
+    @Test
+    fun `nothing is resumed when setup finished, never started, or is still running here`() = runTest(dispatcher) {
+        // A profile is active: setup finished long ago.
+        leftBehind()
+        activeProfile.value = 1L
+        assertEquals(null, vm.findInterruptedSetup())
+
+        // No profile at all: a genuine first run.
+        activeProfile.value = -1L
+        coEvery { profileDao.getAllOnce() } returns emptyList()
+        assertEquals(null, vm.findInterruptedSetup())
+
+        // This ViewModel is itself mid-setup (a configuration change, not an interruption).
+        leftBehind()
+        vm.createProfile("Synthetic Profile", 0, false, null)
+        advanceUntilIdle()
+        assertEquals(null, vm.findInterruptedSetup())
     }
 
     @Test

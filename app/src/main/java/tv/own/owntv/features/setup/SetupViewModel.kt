@@ -273,7 +273,7 @@ class SetupViewModel(
         }
 
     private fun runImport(
-        autoRefresh: PlaylistAutoRefresh = PlaylistAutoRefresh.OFF,
+        autoRefresh: PlaylistAutoRefresh? = PlaylistAutoRefresh.OFF, // null: keep the playlist's own choice
         contentTypes: SyncContentTypes = SyncContentTypes(),
         enabledScope: SyncContentTypes = SyncContentTypes(),
         enqueueRemainder: Boolean = false,
@@ -303,7 +303,7 @@ class SetupViewModel(
                 } else {
                     SyncContentTypes(live = false, movies = false, series = false)
                 }
-                settings.setPlaylistAutoRefresh(source.id, autoRefresh)
+                autoRefresh?.let { settings.setPlaylistAutoRefresh(source.id, it) }
                 when (val result = sourceRepository.sync(source, onProgress = { _progress.value = it }, contentTypes = contentTypes)) {
                     is SyncResult.Success -> {
                         // Just the playlist content — EPG is added separately (Settings → EPG sources).
@@ -312,6 +312,9 @@ class SetupViewModel(
                         if (enqueueRemainder) enqueueRemainderSync(source, contentTypes, enabledScope)
                         if (freshSync && !remainder.hasAny) catalogSyncScheduler.enqueueContentIndexBuild(reason = "fresh_add")
                         lastFailedSource = null
+                        // Survives the app being killed before setup finishes: the restart then resumes
+                        // at the guide question instead of importing the playlist a second time.
+                        settings.setOnboardingImportedSource(source.id)
                         _state.value = ImportState.Success(
                             counts = counts,
                             warnings = result.warnings,
@@ -500,7 +503,87 @@ class SetupViewModel(
     fun finish(onDone: (Long?) -> Unit = {}) {
         viewModelScope.launch {
             if (createdProfileId > 0) settings.setActiveProfile(createdProfileId)
-            onDone(settings.activeProfileId.first().takeIf { it >= 0L })
+            settings.setOnboardingImportedSource(-1L)
+            // A PIN-locked profile picked up from an interrupted setup was not just created by whoever is
+            // in front of the TV now: pass no id, so the profile gate asks for its PIN.
+            onDone(if (resumedLockedProfile) null else settings.activeProfileId.first().takeIf { it >= 0L })
+        }
+    }
+
+    // ---- Interrupted first run: the app was killed after the profile (and maybe its playlist) existed
+    // but before setup finished. The next launch has no active profile and would start setup from
+    // scratch — a second profile, the same playlist again, and a full re-download. Resume instead. ----
+
+    private var resumedLockedProfile = false
+
+    /** What an interrupted first-run setup left behind. [importFinished]: its first import completed. */
+    data class InterruptedSetup(val profile: ProfileEntity, val source: SourceEntity?, val importFinished: Boolean)
+
+    /** Where the wizard picks up: the import screen (guide question or import), or adding a playlist. */
+    enum class ResumePoint { IMPORT, ADD_PLAYLIST }
+
+    /**
+     * The newest profile left by an interrupted first run, with its newest playlist, or null when there is
+     * nothing to resume: a profile is active, there are no profiles, or this ViewModel is itself in the
+     * middle of setup (a configuration change, not an interruption).
+     */
+    suspend fun findInterruptedSetup(): InterruptedSetup? {
+        if (createdProfileId > 0 || importJob != null || _state.value != ImportState.Idle) return null
+        if (settings.activeProfileId.first() >= 0L) return null
+        val profile = profileDao.getAllOnce().maxByOrNull { it.id } ?: return null
+        val linked = sourceDao.allLinks().filter { it.profileId == profile.id }.mapTo(HashSet()) { it.sourceId }
+        val source = sourceDao.getAllOnce().filter { it.id in linked }.maxByOrNull { it.id }
+        val finished = source != null &&
+            (source.lastSyncAt != null || settings.onboardingImportedSourceId.first() == source.id)
+        return InterruptedSetup(profile, source, finished)
+    }
+
+    /**
+     * Continue [setup] with its own profile and playlist (credentials and catalog kept, nothing added twice).
+     * A finished import goes straight to the guide question (unless the guide was already chosen); an
+     * unfinished one imports the same playlist again from a clean slate.
+     */
+    fun resumeInterruptedSetup(setup: InterruptedSetup): ResumePoint {
+        createdProfileId = setup.profile.id
+        createdProfileName = setup.profile.name
+        resumedLockedProfile = setup.profile.pinHash != null
+        val source = setup.source ?: return ResumePoint.ADD_PLAYLIST
+        if (setup.importFinished) resumeAtGuideQuestion(source) else resumeImport(source)
+        return ResumePoint.IMPORT
+    }
+
+    private fun resumeAtGuideQuestion(source: SourceEntity) {
+        importJob?.cancel()
+        startImportOf(ImportKind.NEW_PLAYLIST)
+        dismissPendingEpg()
+        _state.value = ImportState.Running
+        val job = viewModelScope.launch {
+            val counts = runCatching { importFinalizer.contentCounts(source.id) }.getOrNull()
+            _state.value = ImportState.Success(counts = counts)
+            val url = epgRepository.guideUrl(source)
+            // Already accepted before the interruption: the feed is registered and the automatic refresh
+            // fetches it (it was never synced, so it is due). Asking again would only duplicate it.
+            val alreadyChosen = url != null && runCatching { epgSourceStore.getAll().any { it.url == url } }.getOrDefault(false)
+            if (url != null && !alreadyChosen) {
+                pendingEpgSource = source
+                _epgSync.value = tv.own.owntv.features.settings.EpgSyncUi.Ask(source.name)
+            }
+        }
+        importJob = job
+        job.invokeOnCompletion { if (importJob == job) importJob = null }
+    }
+
+    private fun resumeImport(source: SourceEntity) {
+        val enabled = SyncContentTypes(live = source.syncLive, movies = source.syncMovies, series = source.syncSeries)
+        // Same as a new playlist's default: live channels now, films and series in the background.
+        val priority = if (enabled.live) SyncContentTypes(live = true, movies = false, series = false) else enabled
+        val local = source.type == tv.own.owntv.core.model.SourceType.M3U && source.url.isLocalPlaylistPath()
+        runImport(autoRefresh = null, contentTypes = priority, enabledScope = enabled, enqueueRemainder = true, requiresNetwork = !local) {
+            // The killed import left partial rows, and a never-synced playlist imports through insertFresh,
+            // which assumes empty tables — clear them first or every row would be there twice.
+            catalogSyncScheduler.cancelSync(source.id)
+            sourceRepository.clearSourceContent(source.id)
+            sourceDao.getById(source.id) ?: source
         }
     }
 

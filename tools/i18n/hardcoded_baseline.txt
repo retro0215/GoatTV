@@ -2005,7 +2005,6 @@
 1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	Unable to create EPG guide index
 1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	Unable to read channel EPG ids — using unfiltered guide sync
 1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	Unable to read custom EPG matches — using unfiltered guide sync
-1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	accepted=$processedCount written=$writtenCount ms=${SystemClock.elapsedRealtime() - startedAt}
 1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	cacheFill parse failed storeId=$storeId (other sources unaffected)
 1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	ensureEpgIndexes ms=${SystemClock.elapsedRealtime() - startedAt}
 1	app/src/main/java/tv/own/owntv/core/repository/EpgRepository.kt	epg_$storeId$EPG_CACHE_SUFFIX
