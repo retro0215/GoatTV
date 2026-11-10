@@ -72,6 +72,12 @@ fun SearchBar(
     modifier: Modifier = Modifier,
     placeholder: String? = null,
     surface: GlassSurface? = GlassSurface.CARDS,
+    /**
+     * What Back does while typing, once the keyboard has closed. Null (screens): focus returns to the
+     * search pill and the screen stays. A picker passes its own close, so Back leaves the picker instead
+     * of landing on a pill that then needs a third Back (see [SearchFieldBack]).
+     */
+    closeOnBack: (() -> Unit)? = null,
 ) {
     val colors = OwnTVTheme.colors
     val resolvedPlaceholder = placeholder ?: stringResource(R.string.common_search_hint)
@@ -173,7 +179,10 @@ fun SearchBar(
                                 if (it.type == KeyEventType.KeyUp) {
                                 editing = false
                                 keyboard?.hide()
-                                runCatching { pillFocus.requestFocus() }
+                                when (SearchFieldBack.afterKeyboardClosed(closeOnBack != null)) {
+                                    SearchFieldBack.Action.CLOSE -> closeOnBack?.invoke()
+                                    SearchFieldBack.Action.RETURN_TO_PILL -> runCatching { pillFocus.requestFocus() }
+                                }
                                 }
                                 true
                             } else {
@@ -193,4 +202,17 @@ fun SearchBar(
             }
         }
     }
+}
+
+/**
+ * Back in a search field that is being edited, after the TV keyboard has closed itself (the keyboard
+ * always takes the first Back). On a screen it returns focus to the pill, as before. In a picker it
+ * closes the picker: 4.6.1 RC7 on the onn, the Guide's Category picker needed three Backs (keyboard,
+ * field to pill, then close), so the second one looked dead.
+ */
+internal object SearchFieldBack {
+    enum class Action { CLOSE, RETURN_TO_PILL }
+
+    fun afterKeyboardClosed(hasCloseAction: Boolean): Action =
+        if (hasCloseAction) Action.CLOSE else Action.RETURN_TO_PILL
 }

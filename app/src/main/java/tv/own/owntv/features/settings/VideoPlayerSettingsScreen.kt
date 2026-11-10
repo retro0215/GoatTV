@@ -900,6 +900,8 @@ internal fun PickerDialog(
                     placeholder = stringResource(R.string.common_search_hint),
                     modifier = Modifier.fillMaxWidth().focusRequester(searchFr),
                     surface = GlassSurface.DIALOGS,
+                    // Back while typing closes the picker (its opener gets focus back), not just the field.
+                    closeOnBack = onDismiss,
                 )
                 Spacer(Modifier.height(12.dp))
             }
