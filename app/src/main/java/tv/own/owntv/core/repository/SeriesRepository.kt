@@ -35,9 +35,10 @@ class SeriesRepository(
 
     /**
      * Loads a series' seasons/episodes and its rich metadata (Xtream only).
-     * Returns the rich info block if available.
+     * Returns the rich info block if available. [forceRefresh] asks the provider even when the episode
+     * cache is fresh (a manual refresh).
      */
-    suspend fun loadEpisodesWithInfo(series: SeriesEntity): XtProviderMetadata? = withContext(Dispatchers.IO) {
+    suspend fun loadEpisodesWithInfo(series: SeriesEntity, forceRefresh: Boolean = false): XtProviderMetadata? = withContext(Dispatchers.IO) {
         val cachedCount = seriesDao.episodeCount(series.id)
         val source = sourceDao.getById(series.sourceId) ?: return@withContext null
 
@@ -48,7 +49,20 @@ class SeriesRepository(
 
         // Read the stamp from the database rather than the passed-in entity.
         val syncedAt = seriesDao.getSeriesById(series.id)?.episodesSyncedAt ?: series.episodesSyncedAt
-        val shouldRefresh = shouldRefreshEpisodes(cachedCount, syncedAt, System.currentTimeMillis())
+        val shouldRefresh = forceRefresh || shouldRefreshEpisodes(cachedCount, syncedAt, System.currentTimeMillis())
+
+        // A fresh, populated cache answers without the provider. Before 4.6.1 the provider was asked on
+        // every open and the cache only decided whether the answer was written: a full get_series_info
+        // download per open. The info block comes back from its own cache, written alongside the
+        // episodes; a panel that sends none still gets none. An empty cache, a stamp a sync cleared and
+        // an expired one all still fetch (see [shouldRefreshEpisodes]).
+        if (!shouldRefresh) {
+            return@withContext if (source.type == SourceType.XTREAM) {
+                providerMetadataDao.getMetadata(getCacheKey(series))?.toXtProviderMetadata()
+            } else {
+                null
+            }
+        }
 
         val result = when (source.type) {
             SourceType.XTREAM -> fetchXtreamWithInfo(series, source, remoteId)
@@ -95,6 +109,24 @@ class SeriesRepository(
 
     fun getCacheKey(series: SeriesEntity): String =
         "series:${series.sourceId}:${series.remoteId ?: series.name}"
+
+    /** The cached info block in the shape the series page reads. It shows only the first backdrop,
+     *  which is the one [cacheRichMetadata] keeps. */
+    private fun ProviderMetadataEntity.toXtProviderMetadata() = XtProviderMetadata(
+        title = title,
+        plot = plot,
+        rating = rating,
+        releaseDate = releaseDate,
+        year = year,
+        genre = genre,
+        durationSecs = durationSecs,
+        director = director,
+        actors = actors,
+        trailer = trailer,
+        backdropUrls = listOfNotNull(backdropUrl?.takeIf { it.isNotBlank() }),
+        posterUrl = posterUrl,
+        tmdbId = tmdbId,
+    )
 
     /**
      * Writes a fetched list over the stored one, preserving the row id of every episode that
