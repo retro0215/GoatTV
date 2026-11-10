@@ -902,6 +902,7 @@
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start timeout
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface attach id=${System.identityHashCode(surface)} before: ${surfaceState()}
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface detach id=${System.identityHashCode(surface)} ignored=$ignored before: ${surfaceState()}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface rebuild
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface route load#=$mpvLoadCount $route ${surfaceState()}
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface startLoad queued gen=$gen
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface startLoad running gen=$gen

@@ -208,6 +208,20 @@ class OwnTVPlayer(
             return heavyOnThisSurface || forceReset || afterLowFrameRateLive
         }
 
+        /**
+         * Whether the outgoing item is stopped on the mpv thread before its surface is rebuilt.
+         *
+         * The new item's load waits for the rebuilt surface, so until then the outgoing file stays loaded.
+         * Attaching the new surface sets mpv's `vo` from the main thread (it has to run before the view's
+         * surfaceCreated returns), and on a core that still has a file that rebuilds the whole video chain
+         * for the file being left: on the onn, Next from one 4K episode to the next held the main thread
+         * for ~2.8 s while a new 4K HEVC decoder was set up for the old episode (4.6.1 RC6). Stopped first,
+         * the attach finds an idle core and returns at once. The stop's END_FILE is classified like the
+         * replacement loadfile's would have been, so nothing else sees a difference.
+         */
+        fun stopsOutgoingBeforeRebuild(needsFreshSurface: Boolean, mpvHasFile: Boolean): Boolean =
+            needsFreshSurface && mpvHasFile
+
         // mpv's stock subtitle values, restored verbatim for every option of the custom look (#96)
         // that is left on "Default" — or whenever the master toggle is off.
         private const val MPV_DEFAULT_SUB_COLOR = "#FFFFFFFF"
@@ -2913,6 +2927,11 @@ class OwnTVPlayer(
         val route = if (needsFreshSurface) "fresh" else if (surfaceAttached) "direct" else "wait"
         android.util.Log.i(TAG, "surface route load#=$mpvLoadCount $route ${surfaceState()}")
         if (needsFreshSurface) {
+            // Queued ahead of the surface rebuild, so the mpv thread drops the outgoing file before the
+            // new surface's attach reaches mpv (see stopsOutgoingBeforeRebuild).
+            if (initialized && stopsOutgoingBeforeRebuild(needsFreshSurface, mpvHasActiveFile.get())) {
+                mpvAsync { stopWithStopClassification("surface rebuild") }
+            }
             pendingUrl = url
             _surfaceResetToken.value++
         } else if (surfaceAttached) {
