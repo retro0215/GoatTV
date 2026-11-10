@@ -34,6 +34,16 @@ interface MovieDao {
     suspend fun updateAll(movies: List<MovieEntity>) =
         updateAllNormalized(movies.map(MovieEntity::withProviderCatalogMetadata))
 
+    /** Position-only write for a row the provider moved without changing it — see [SortOrderMove]. */
+    @Query("UPDATE movies SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun updateSortOrder(id: Long, sortOrder: Int)
+
+    /** One transaction for a chunk of [SortOrderMove]s (one commit, not one per row). */
+    @androidx.room.Transaction
+    suspend fun updateSortOrders(moves: List<SortOrderMove>) {
+        moves.forEach { updateSortOrder(it.id, it.sortOrder) }
+    }
+
     @Query("DELETE FROM movies WHERE sourceId = :sourceId")
     suspend fun clearSource(sourceId: Long)
 

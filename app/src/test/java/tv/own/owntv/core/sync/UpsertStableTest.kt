@@ -115,4 +115,69 @@ class UpsertStableTest {
         assertEquals(1, stats.skippedUnchanged)
         assertEquals(setOf(1L, 2L), rec.updated.map { it.id }.toSet())
     }
+
+    // ---- 4.6.1 RC3: a moved-only row writes its position alone ----
+
+    private class MoveRecorder {
+        val updated = ArrayList<Row>()
+        val inserted = ArrayList<Row>()
+        val moves = ArrayList<tv.own.owntv.core.database.dao.SortOrderMove>()
+    }
+
+    private fun positionAwareAdapter(rec: MoveRecorder) = ContentAdapter<Row>(
+        remoteIdOf = { it.remoteId },
+        hashOf = { it.name.hashCode() },
+        sortOrderOf = { it.sortOrder },
+        copyWith = { row, id, hash -> row.copy(id = id ?: 0, hash = hash) },
+        updateAll = { rec.updated.addAll(it) },
+        insertAll = { rec.inserted.addAll(it) },
+        remoteIdsForSource = { emptyList() },
+        deleteByRemoteIds = { _, _ -> },
+        loadHashes = { emptyList() },
+        updateSortOrders = { rec.moves.addAll(it) },
+    )
+
+    @Test
+    fun `a moved-only row writes its new position alone, keeping its local id`() = runBlocking {
+        val rec = MoveRecorder()
+        val stored = mapOf("a" to StoredRow(id = 42L, contentHash = "Alpha".hashCode(), sortOrder = 3))
+        val stats = SyncSupport.upsertStable(listOf(Row("a", "Alpha", 5)), stored, positionAwareAdapter(rec))
+        assertEquals(listOf(tv.own.owntv.core.database.dao.SortOrderMove(42L, 5)), rec.moves)
+        assertTrue(rec.updated.isEmpty())
+        assertEquals(1, stats.updated)
+        assertEquals(1, stats.moved)
+    }
+
+    @Test
+    fun `a provider adding titles at the top shifts every row, and none of them is rewritten in full`() = runBlocking {
+        val rec = MoveRecorder()
+        val stored = (0 until 1_000).associate { i -> "r$i" to StoredRow(id = 10_000L + i, contentHash = "T$i".hashCode(), sortOrder = i) }
+        val incoming = listOf(Row("new1", "New One", 0), Row("new2", "New Two", 1)) +
+            (0 until 1_000).map { i -> Row("r$i", "T$i", i + 2) }
+        val stats = SyncSupport.upsertStable(incoming, stored, positionAwareAdapter(rec))
+        assertEquals(2, rec.inserted.size)
+        assertTrue(rec.updated.isEmpty())
+        assertEquals(1_000, rec.moves.size)
+        assertEquals((0 until 1_000).map { tv.own.owntv.core.database.dao.SortOrderMove(10_000L + it, it + 2) }, rec.moves)
+        assertEquals(1_000, stats.moved)
+    }
+
+    @Test
+    fun `a row whose content changed is still written in full, even if it also moved`() = runBlocking {
+        val rec = MoveRecorder()
+        val stored = mapOf("a" to StoredRow(id = 7L, contentHash = "Old".hashCode(), sortOrder = 1))
+        val stats = SyncSupport.upsertStable(listOf(Row("a", "New title", 9)), stored, positionAwareAdapter(rec))
+        assertEquals(listOf(Row("a", "New title", 9, id = 7L, hash = "New title".hashCode())), rec.updated)
+        assertTrue(rec.moves.isEmpty())
+        assertEquals(0, stats.moved)
+    }
+
+    @Test
+    fun `untouched rows write nothing at all`() = runBlocking {
+        val rec = MoveRecorder()
+        val stored = mapOf("a" to StoredRow(id = 7L, contentHash = "Same".hashCode(), sortOrder = 4))
+        val stats = SyncSupport.upsertStable(listOf(Row("a", "Same", 4)), stored, positionAwareAdapter(rec))
+        assertTrue(rec.updated.isEmpty() && rec.moves.isEmpty() && rec.inserted.isEmpty())
+        assertEquals(1, stats.skippedUnchanged)
+    }
 }

@@ -51,6 +51,7 @@ internal class SyncSupport(
         sortOrderOf = { it.sortOrder },
         copyWith = { row, id, hash -> if (id != null) row.copy(id = id, contentHash = hash) else row.copy(contentHash = hash) },
         updateAll = { channelDao.updateAll(it) },
+        updateSortOrders = { channelDao.updateSortOrders(it) },
         insertAll = { channelDao.insertAll(it) },
         remoteIdsForSource = { channelDao.remoteIdsForSource(it) },
         deleteByRemoteIds = { src, ids -> channelDao.deleteByRemoteIds(src, ids) },
@@ -64,6 +65,7 @@ internal class SyncSupport(
         sortOrderOf = { it.sortOrder },
         copyWith = { row, id, hash -> if (id != null) row.copy(id = id, contentHash = hash) else row.copy(contentHash = hash) },
         updateAll = { movieDao.updateAll(it) },
+        updateSortOrders = { movieDao.updateSortOrders(it) },
         insertAll = { movieDao.insertAll(it) },
         remoteIdsForSource = { movieDao.remoteIdsForSource(it) },
         deleteByRemoteIds = { src, ids -> movieDao.deleteByRemoteIds(src, ids) },
@@ -79,6 +81,7 @@ internal class SyncSupport(
         sortOrderOf = { it.sortOrder },
         copyWith = { row, id, hash -> if (id != null) row.copy(id = id, contentHash = hash) else row.copy(contentHash = hash) },
         updateAll = { seriesDao.updateSeries(it) },
+        updateSortOrders = { seriesDao.updateSortOrders(it) },
         insertAll = { seriesDao.insertSeries(it) },
         remoteIdsForSource = { seriesDao.remoteIdsForSource(it) },
         deleteByRemoteIds = { src, ids -> seriesDao.deleteByRemoteIds(src, ids) },
@@ -417,6 +420,10 @@ internal class SyncSupport(
         ): UpsertStats {
             val inserts = ArrayList<T>()
             val updates = ArrayList<T>()
+            // Moved-only rows: same content, new position. Written as a position-only update when the
+            // adapter supports it — a full-row update rewrote every index entry of ~245k films per refresh
+            // whenever a provider added a few titles near the top of its list (4.6.1 RC2, onn).
+            val moves = ArrayList<tv.own.owntv.core.database.dao.SortOrderMove>()
             var skipped = 0
             var moved = 0
             rows.forEach { row ->
@@ -427,14 +434,19 @@ internal class SyncSupport(
                     hash != existing.contentHash -> updates.add(adapter.copyWith(row, existing.id, hash))
                     adapter.sortOrderOf(row) != existing.sortOrder -> {
                         moved++
-                        updates.add(adapter.copyWith(row, existing.id, hash))
+                        if (adapter.updateSortOrders != null) {
+                            moves.add(tv.own.owntv.core.database.dao.SortOrderMove(existing.id, adapter.sortOrderOf(row)))
+                        } else {
+                            updates.add(adapter.copyWith(row, existing.id, hash))
+                        }
                     }
                     else -> skipped++
                 }
             }
             if (updates.isNotEmpty()) adapter.updateAll(updates)
+            if (moves.isNotEmpty()) adapter.updateSortOrders?.invoke(moves)
             if (inserts.isNotEmpty()) adapter.insertAll(inserts)
-            return UpsertStats(inserted = inserts.size, updated = updates.size, skippedUnchanged = skipped, moved = moved)
+            return UpsertStats(inserted = inserts.size, updated = updates.size + moves.size, skippedUnchanged = skipped, moved = moved)
         }
 
         fun shouldPrune(stored: Int, stale: Int, force: Boolean): Boolean =
@@ -473,6 +485,11 @@ internal class ContentAdapter<T>(
     val remoteIdsForCategory: (suspend (sourceId: Long, categoryId: Long) -> List<String>)? = null,
     /** RemoteIds across a set of categories — the prune scope after a per-category fallback (S2). */
     val remoteIdsInCategories: (suspend (sourceId: Long, categoryIds: List<Long>) -> List<String>)? = null,
+    /**
+     * Position-only write for rows the provider moved without changing (one transaction per chunk).
+     * Null = such rows go through [updateAll] like any other update.
+     */
+    val updateSortOrders: (suspend (List<tv.own.owntv.core.database.dao.SortOrderMove>) -> Unit)? = null,
 )
 
 /** What the DB already holds for one remote id: local row id, content hash, and provider position. */

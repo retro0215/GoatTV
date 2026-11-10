@@ -40,6 +40,16 @@ interface ChannelDao {
     @Update
     suspend fun updateAll(channels: List<ChannelEntity>)
 
+    /** Position-only write for a row the provider moved without changing it — see [SortOrderMove]. */
+    @Query("UPDATE channels SET sortOrder = :sortOrder WHERE id = :id")
+    suspend fun updateSortOrder(id: Long, sortOrder: Int)
+
+    /** One transaction for a chunk of [SortOrderMove]s (one commit, not one per row). */
+    @androidx.room.Transaction
+    suspend fun updateSortOrders(moves: List<SortOrderMove>) {
+        moves.forEach { updateSortOrder(it.id, it.sortOrder) }
+    }
+
     @Query("DELETE FROM channels WHERE sourceId = :sourceId")
     suspend fun clearSource(sourceId: Long)
 

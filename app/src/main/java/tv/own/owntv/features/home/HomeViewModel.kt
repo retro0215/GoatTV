@@ -666,7 +666,7 @@ class HomeViewModel(
             ) { offset, n -> seriesDao.recentlyAdded(seriesIds.toList(), n, offset) }
 
             val allItems = planner.buildContinuationItems(profileId)
-            val items = allItems
+            val visibleItems = allItems
                 .filter { item ->
                     val sid = continuationSourceId(item) ?: return@filter false
                     when (item.kind) {
@@ -676,13 +676,16 @@ class HomeViewModel(
                     }
                 }
                 .filterNot { isContinuationHidden(it, hidden) }
-            // One card per film: when two versions of a title (1080p and 4K, say) are both part-way, only the
-            // one watched last stays. Folded only when certainly the same title (same signature and year).
-            val movies = items.filter { it.kind == LauncherContinuationKind.MOVIE }.let { continuing ->
-                if (continuing.size < 2) return@let continuing
-                val rows = movieDao.getByIds(continuing.map { it.sourceItemId }.distinct()).associateBy { it.id }
-                tv.own.owntv.core.catalog.versions.VersionMatcher.withoutRepeatedVersions(
-                    continuing,
+            // One card per film in EVERY row built from this list (Keep Watching and Continue Watching
+            // Movies): when two versions of a title (1080p and 4K, say) are both part-way, only the one
+            // watched last stays. Folded only when certainly the same title (same signature and year).
+            val items = visibleItems.let { list ->
+                val movieRowIds = list.filter { it.kind == LauncherContinuationKind.MOVIE }.map { it.sourceItemId }.distinct()
+                if (movieRowIds.size < 2) return@let list
+                val rows = movieDao.getByIds(movieRowIds).associateBy { it.id }
+                ContinueWatchingFold.fold(
+                    list,
+                    isMovie = { it.kind == LauncherContinuationKind.MOVIE },
                     lastUsedOf = { it.lastEngagementAt },
                     groupKeyOf = { item ->
                         rows[item.sourceItemId]?.let {
@@ -691,6 +694,7 @@ class HomeViewModel(
                     },
                 )
             }
+            val movies = items.filter { it.kind == LauncherContinuationKind.MOVIE }
             val series = items.filter { it.kind == LauncherContinuationKind.EPISODE }
             val liveWithTs = recentlyWatchedLive(profileId, liveIds, filtering = true, RECENT_LIVE_ROW_LIMIT)
                 .filterNot { isChannelHidden(it.channel, hidden) }

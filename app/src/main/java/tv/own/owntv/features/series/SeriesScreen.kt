@@ -587,6 +587,12 @@ private fun SeriesDetailsPage(
     val episodeVersionsUi by vm.episodeVersions.collectAsStateWithLifecycle()
     val versionNotice by vm.versionNotice.collectAsStateWithLifecycle()
     var showSeriesVersions by remember(series.id) { mutableStateOf(false) }
+    // Where focus goes when a version picker closes: the Versions button, the episode it was opened from,
+    // or Favorite (which stays on the page while a version switch rebuilds the rest of it).
+    val versionsFocus = remember { FocusRequester() }
+    val favoriteFocus = remember { FocusRequester() }
+    val episodeReturn = remember { FocusRequester() }
+    var versionsEpisodeId by remember(series.id) { mutableStateOf<Long?>(null) }
     // An episode chosen in another version that has a place to resume from: ask first.
     var versionResume by remember { mutableStateOf<Triple<SeriesEntity, EpisodeEntity, Long>?>(null) }
     val notInVersionMessage = stringResource(R.string.content_version_not_available)
@@ -676,7 +682,8 @@ private fun SeriesDetailsPage(
                         OwnTVButton(
                             label = if (favoriteIds.contains(series.id)) stringResource(R.string.content_favorited) else stringResource(R.string.content_favorite),
                             onClick = { vm.toggleFavorite(series) }, icon = OwnTVIcon.FAVORITE, style = OwnTVButtonStyle.SECONDARY,
-                            modifier = if (nextUp == null && trailer.isNullOrBlank()) Modifier.focusRequester(focus) else Modifier
+                            modifier = Modifier.focusRequester(favoriteFocus)
+                                .then(if (nextUp == null && trailer.isNullOrBlank()) Modifier.focusRequester(focus) else Modifier)
                         )
                         // Only when the show has two or more versions; otherwise the row is as before.
                         if (versions != null) {
@@ -684,6 +691,7 @@ private fun SeriesDetailsPage(
                                 label = stringResource(R.string.content_versions_button, versions.options.size),
                                 onClick = { showSeriesVersions = true },
                                 style = OwnTVButtonStyle.SECONDARY,
+                                modifier = Modifier.focusRequester(versionsFocus),
                             )
                         }
                     }
@@ -748,7 +756,11 @@ private fun SeriesDetailsPage(
 
             if (!loading && seasons.isNotEmpty()) {
                 gridItems(seasonEpisodes, key = { it.id }, span = { if (episodeViewMode == SettingsRepository.VodViewMode.GRID) GridItemSpan(1) else GridItemSpan(maxCurrentLineSpan) }) { ep ->
-                    Box(modifier = Modifier.padding(horizontal = 48.dp, vertical = 6.dp)) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 48.dp, vertical = 6.dp)
+                            // The episode whose Other versions is open gets focus back when it closes.
+                            .then(if (ep.id == versionsEpisodeId) Modifier.focusRequester(episodeReturn) else Modifier),
+                    ) {
                         if (episodeViewMode == SettingsRepository.VodViewMode.GRID) {
                             EpisodeGridCard(
                                 episode = ep,
@@ -835,7 +847,7 @@ private fun SeriesDetailsPage(
             onToggleWatched = { if (watched) vm.markEpisodeUnwatched(ep) else vm.markEpisodeWatched(ep); contextEpisode = null },
             onDownload = { vm.downloadEpisode(ep); contextEpisode = null },
             onDeleteSubtitles = if (contextEpisodeSubs.isNotEmpty()) ({ showDeleteSubs = true }) else null,
-            onOtherVersions = if (versions != null) ({ contextEpisode = null; vm.loadEpisodeVersions(ep) }) else null,
+            onOtherVersions = if (versions != null) ({ versionsEpisodeId = ep.id; contextEpisode = null; vm.loadEpisodeVersions(ep) }) else null,
             onDismiss = { contextEpisode = null },
         )
     }
@@ -860,24 +872,27 @@ private fun SeriesDetailsPage(
         tv.own.owntv.features.versions.VersionPicker(
             options = versions.options,
             initialIndex = versions.initialIndex,
+            // Back or the open version: the Versions button. Another version: Favorite, which outlives the
+            // switch (the Versions button itself disappears while the new version's list loads).
+            returnFocusFor = { option -> if (option == null || option.isCurrent) versionsFocus else favoriteFocus },
             onChoose = { option ->
                 showSeriesVersions = false
                 // The customer's place: the episode last played (or resumed) here, plus the season on screen.
                 val place = episodes.firstOrNull { it.id == lastEpId }
                 vm.switchSeriesVersion(versions, option, place)
-                runCatching { focus.requestFocus() }
             },
-            onDismiss = { showSeriesVersions = false; runCatching { focus.requestFocus() } },
+            onDismiss = { showSeriesVersions = false },
         )
     }
 
     episodeVersionsUi?.let { ui ->
         when {
             // Looking the episode up in the other versions (cache first): Back cancels it.
-            !ui.ready -> VersionLookupOverlay(onCancel = vm::closeEpisodeVersions)
+            !ui.ready -> VersionLookupOverlay(onCancel = vm::closeEpisodeVersions, returnFocus = episodeReturn)
             ui.hasChoice -> tv.own.owntv.features.versions.VersionPicker(
                 options = ui.options,
                 initialIndex = ui.initialIndex,
+                returnFocusFor = { episodeReturn },
                 onChoose = { option ->
                     vm.chooseEpisodeVersion(ui, option) { show, ep, plan ->
                         val offer = plan.offerResumeFromMs
@@ -894,7 +909,12 @@ private fun SeriesDetailsPage(
                 },
                 onDismiss = vm::closeEpisodeVersions,
             )
-            else -> LaunchedEffect(ui) { vm.closeEpisodeVersions() }
+            // Nothing to choose after all (the lookup failed): close, and put focus back on the episode.
+            else -> LaunchedEffect(ui) {
+                vm.closeEpisodeVersions()
+                androidx.compose.runtime.withFrameNanos { }
+                runCatching { episodeReturn.requestFocus() }
+            }
         }
     }
 
@@ -1416,14 +1436,17 @@ private fun jsonList(json: String?): List<String> {
     }.getOrDefault(emptyList())
 }
 
-/** A modal spinner while an episode is looked up in the other versions; Back cancels the lookup. */
+/** A modal spinner while an episode is looked up in the other versions; Back cancels the lookup and hands focus back to [returnFocus]. */
 @Composable
-private fun VersionLookupOverlay(onCancel: () -> Unit) {
+private fun VersionLookupOverlay(onCancel: () -> Unit, returnFocus: FocusRequester?) {
     val focus = remember { FocusRequester() }
+    val handoff = remember { tv.own.owntv.features.versions.ModalFocusHandoff() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    BackHandler { onCancel() }
+    BackHandler { handoff.handBack(returnFocus); onCancel() }
     Box(
-        modifier = Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
+        modifier = Modifier.fillMaxSize().modalScrim()
+            .focusProperties { onExit = { if (!handoff.released) cancelFocusChange() } }
+            .focusGroup(),
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.focusRequester(focus).focusable()) { OwnTVSpinner() }

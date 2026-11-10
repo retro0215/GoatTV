@@ -40,6 +40,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import tv.own.owntv.ui.components.longPressMenuGuard
 import tv.own.owntv.ui.components.ignoreCanceledKeyReleases
+import tv.own.owntv.features.versions.VersionChoiceKeyGuard
+import tv.own.owntv.features.versions.swallowConfirmKeys
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -597,7 +599,10 @@ fun OwnTVShell(
             .onGloballyPositioned { shellOrigin = it.positionInRoot() }
             // 4.6.0: when the reminder warning's window takes focus mid-press, the release Android sends here
             // is canceled: no button, Guide OK or Multiscreen move acts on it (CanceledKeyRelease).
-            .ignoreCanceledKeyReleases(),
+            .ignoreCanceledKeyReleases()
+            // 4.6.1: a quick second OK just after choosing a film/episode version is dropped, wherever
+            // focus is at that instant (VersionChoiceKeyGuard).
+            .swallowConfirmKeys(VersionChoiceKeyGuard.guard),
     ) {
       
       if (isMultiscreen) {

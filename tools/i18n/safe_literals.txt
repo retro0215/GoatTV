@@ -352,6 +352,7 @@
 1	preference-key	app/src/main/java/tv/own/owntv/core/customize/CustomizationStore.kt	$sourceId:${remoteId ?: name}
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT * FROM channels WHERE sourceId = :sourceId AND remoteId = :remoteId
 3	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE sourceId IN (:sourceIds)
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	UPDATE channels SET sortOrder = :sortOrder WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT COALESCE(MAX(id), 0) FROM epg_programmes
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	) ORDER BY number ASC, name ASC LIMIT :limit
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%')
@@ -368,6 +369,7 @@
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/HistoryDao.kt	SELECT itemId FROM watch_history WHERE profileId = :profileId AND mediaType = :type ORDER BY watchedAt DESC LIMIT 1
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	SELECT * FROM movies WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/MovieDao.kt	UPDATE movies SET sortOrder = :sortOrder WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE channelId = :channelId AND programStartMs = :programStartMs LIMIT 1
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	SELECT * FROM reminders WHERE profileId = :profileId ORDER BY programStartMs ASC
@@ -376,6 +378,7 @@
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ReminderDao.kt	UPDATE reminders SET profileId = :profileId WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) AND rating > 0 ORDER BY rating DESC, addedAt DESC, remoteId DESC LIMIT :limit OFFSET :offset
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	SELECT * FROM series WHERE sourceId IN (:sourceIds) ORDER BY addedAt DESC, sortOrder DESC, id DESC LIMIT :limit OFFSET :offset
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SeriesDao.kt	UPDATE series SET sortOrder = :sortOrder WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(:type = 'LIVE' AND itemId NOT IN (SELECT id FROM channels)) OR
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/SnapshotPurgeSql.kt	(:type = 'MOVIE' AND itemId NOT IN (SELECT id FROM movies)) OR

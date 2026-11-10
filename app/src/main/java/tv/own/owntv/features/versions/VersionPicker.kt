@@ -37,7 +37,7 @@ import tv.own.owntv.ui.components.FocusableSurface
 import tv.own.owntv.ui.components.OwnTVIcon
 import tv.own.owntv.ui.components.dialogPanel
 import tv.own.owntv.ui.components.formatTimestamp
-import tv.own.owntv.ui.components.trapAllFocusExit
+import androidx.compose.ui.focus.focusProperties
 import tv.own.owntv.ui.theme.OwnTVTheme
 
 /**
@@ -46,6 +46,12 @@ import tv.own.owntv.ui.theme.OwnTVTheme
  * where [VersionChoice.initialIndex] says. A version that cannot be chosen here (the episode is not in
  * it) is still listed with the reason, and OK on it does nothing. Same modal pattern as ResumeDialog
  * (non-clickable scrim, focus trapped inside, BackHandler), so Back always reaches it.
+ *
+ * Closing — Back or a choice — first hands focus to [returnFocusFor] (null = Back; else the chosen
+ * option): usually the control that opened the picker, or one that stays on screen when the choice
+ * rebuilds the page. That happens while the picker is still on screen, and only then is it reported. Left to Compose, focus fell to
+ * the first control on screen when the focused row disappeared — the top bar's Search chip — where a
+ * quick second OK opened Search behind the film (4.6.1 RC2, onn).
  */
 @Composable
 fun VersionPicker(
@@ -53,17 +59,29 @@ fun VersionPicker(
     initialIndex: Int,
     onChoose: (VersionOption) -> Unit,
     onDismiss: () -> Unit,
+    returnFocusFor: (chosen: VersionOption?) -> FocusRequester? = { null },
 ) {
     val model = remember(options) { VersionPickerModel(options.size, initialIndex) { options[it].unavailable == null } }
     val requesters = remember(options) { List(options.size) { FocusRequester() } }
+    val handoff = remember { ModalFocusHandoff() }
     LaunchedEffect(options) {
-        delay(50)
-        runCatching { requesters[model.focusedIndex].requestFocus() }
+        // The first frame after composition: as soon as the rows can take focus, so focus never sits
+        // on whatever the screen behind fell back to. A second try covers a slow first layout.
+        androidx.compose.runtime.withFrameNanos { }
+        if (runCatching { requesters[model.focusedIndex].requestFocus() }.isFailure) {
+            delay(50)
+            runCatching { requesters[model.focusedIndex].requestFocus() }
+        }
     }
-    BackHandler { if (model.dismiss()) onDismiss() }
+    BackHandler { if (model.dismiss()) { handoff.handBack(returnFocusFor(null)); onDismiss() } }
     val colors = OwnTVTheme.colors
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)).trapAllFocusExit().focusGroup(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.55f))
+            // As trapAllFocusExit, except once the picker is closing: then focus may leave, to its opener.
+            .focusProperties { onExit = { if (!handoff.released) cancelFocusChange() } }
+            .focusGroup(),
         contentAlignment = Alignment.Center,
     ) {
         Column(Modifier.dialogPanel(width = 640.dp, padding = 28.dp)) {
@@ -83,7 +101,7 @@ fun VersionPicker(
                             .fillMaxWidth()
                             .focusRequester(requesters[index])
                             .onFocusChanged { if (it.isFocused) model.focus(index) },
-                        onClick = { model.choose(index)?.let { onChoose(options[it]) } },
+                        onClick = { model.choose(index)?.let { VersionChoiceKeyGuard.armNow(); handoff.handBack(returnFocusFor(options[it])); onChoose(options[it]) } },
                     )
                 }
             }
@@ -174,4 +192,20 @@ private fun versionNote(option: VersionOption): String? = when {
     option.pictureMayFallBack -> stringResource(R.string.content_version_may_lack_hdr)
     option.qualityRank >= VersionChoice.UHD_RANK && !option.confirmed -> stringResource(R.string.content_version_may_lack_4k)
     else -> null
+}
+
+/**
+ * Focus leaving a modal that traps it. While open, directional moves never leave (as trapAllFocusExit);
+ * on closing, [handBack] lets focus out and puts it on the opener before the modal disappears, so it
+ * never falls to whatever control the screen behind happens to start with.
+ */
+class ModalFocusHandoff {
+    var released: Boolean = false
+        private set
+
+    /** Let focus out and move it to [target] (if any). Returns whether the target was asked to focus. */
+    fun handBack(target: FocusRequester?): Boolean {
+        released = true
+        return target != null && runCatching { target.requestFocus() }.isSuccess
+    }
 }
