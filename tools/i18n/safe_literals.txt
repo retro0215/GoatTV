@@ -878,18 +878,37 @@
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch ok: ${framesNow - handoffFramesAtSwitch} frames since the switch
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch: no new frame for ${SurfaceHandoff.CHECK_MS}ms
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch: picture frozen again - left to the freeze watchdog
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	${it.className.substringAfterLast('.')}.${it.methodName}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	${thread.state} $top
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	<
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	attached=$surfaceAttached surface=${attachedSurface?.let { System.identityHashCode(it) }}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	direct
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: stuck mpv still releasing after ${STUCK_MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exoplayer
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	fresh
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardReset: old mpv instance destroyed — core unblocked (${tookMs}ms)
 6	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv
+2	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv-cmd
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	network-timeout
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no picture or sound within ${budgetMs / 1000}s
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	none
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	pending=${pendingUrl != null} pendingExo=$pendingExoStart token=${_surfaceResetToken.value}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	prevHeight=$lastVideoHeightPx gen=$loadGeneration
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	queue item resolve failed
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start budget: engine handover, deadline ${before / 1000}s → ${deadline.deadlineMs / 1000}s
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	start timeout
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface attach id=${System.identityHashCode(surface)} before: ${surfaceState()}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface detach id=${System.identityHashCode(surface)} ignored=$ignored before: ${surfaceState()}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface route load#=$mpvLoadCount $route ${surfaceState()}
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface startLoad queued gen=$gen
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface startLoad running gen=$gen
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	surface startLoad skipped gen=$gen now=$loadGeneration
+4	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	unknown
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	wait
+1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN state: ${surfaceState()} mpvThread=${mpvThreadTop()}
 1	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	.tutorialtest
 2	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	allaccess
 2	protocol	app/src/main/java/tv/own/owntv/rooms/BrandResolver.kt	fivestar

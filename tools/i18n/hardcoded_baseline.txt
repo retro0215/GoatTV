@@ -4386,7 +4386,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv live open timed out after ${openingMs}ms — surfacing error
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv ready: lowSpec=${budget.lowSpec} direct=${useDirect()} hwdec=${getPropertyString("hwdec")}
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv reported $brokenPtsHits broken video timestamps — switching to free-running video timing
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv-cmd
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv_load live=$isLive url=${HttpClient.redactUrl(url)}
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv_open hls=$effectiveHls live=$isLiveContent probe=full tolerant=$tolerant
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv_open hls=$effectiveHls live=$isLiveContent probe=trimmed tolerant=$tolerant
@@ -4474,7 +4473,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	trimmed probe found no audio — re-probing fully
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	truehd
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ua=${if (currentUserAgent.isNullOrBlank()) "default" else "custom"}
-3	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	unknown
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	unsupported|connection|reset|4\\d\\d|5\\d\\d
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	user-agent
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	vc-1

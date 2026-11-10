@@ -614,6 +614,17 @@ class OwnTVPlayer(
     @Volatile private var mpvLoadCount = 0
     @Volatile private var usedFreshSurface = false
 
+    /**
+     * 4.6.1 RC5 diagnostics for the ~11 s start on a second >1080p item (RC4 on the onn): the load waited
+     * until the T_OPEN watchdog with no network or decoder activity at all. These lines tell which wait it
+     * was — a load parked for a surface that never arrived, or the mpv command thread stuck in a call.
+     * No URL is ever logged here: only whether one is pending.
+     */
+    private fun surfaceState(): String =
+        "attached=$surfaceAttached surface=${attachedSurface?.let { System.identityHashCode(it) }} " +
+            "pending=${pendingUrl != null} pendingExo=$pendingExoStart token=${_surfaceResetToken.value} " +
+            "prevHeight=$lastVideoHeightPx gen=$loadGeneration"
+
     /** Refresh rate Android reports for the default display right now, e.g. "30.000002Hz@modeId=2". */
     private fun androidDisplayHz(): String = runCatching {
         val d = defaultDisplay() ?: return "unknown"
@@ -938,6 +949,14 @@ class OwnTVPlayer(
         val message = "$what must be called on the main thread, was ${Thread.currentThread().name}"
         if (tv.own.owntv.BuildConfig.DEBUG) error(message) else android.util.Log.e(TAG, message)
     }
+
+    /** Where the mpv command thread is right now (top frames, no arguments), for the T_OPEN diagnostics. */
+    private fun mpvThreadTop(): String = runCatching {
+        val (thread, frames) = Thread.getAllStackTraces().entries.firstOrNull { it.key.name == "mpv-cmd" }
+            ?: return "none"
+        val top = frames.take(6).joinToString("<") { "${it.className.substringAfterLast('.')}.${it.methodName}" }
+        "${thread.state} $top"
+    }.getOrDefault("unknown")
 
     private fun mpvAsync(block: MPVLib.() -> Unit) {
         val m = mpv ?: return
@@ -2884,6 +2903,8 @@ class OwnTVPlayer(
         // playback and the first 4K load are untouched.
         mpvLoadCount++
         usedFreshSurface = needsFreshSurface
+        val route = if (needsFreshSurface) "fresh" else if (surfaceAttached) "direct" else "wait"
+        android.util.Log.i(TAG, "surface route load#=$mpvLoadCount $route ${surfaceState()}")
         if (needsFreshSurface) {
             pendingUrl = url
             _surfaceResetToken.value++
@@ -2939,6 +2960,7 @@ class OwnTVPlayer(
                         if (!triedOpenReset) {
                             triedOpenReset = true
                             android.util.Log.w(TAG, "watchdog T_OPEN — no FILE_LOADED after ${elapsed}ms, silent hard-reset + retry")
+                            android.util.Log.w(TAG, "watchdog T_OPEN state: ${surfaceState()} mpvThread=${mpvThreadTop()}")
                             val url = currentUrl
                             val seekMs = pendingSeekMs
                             expectingPlayback = false
@@ -3142,10 +3164,15 @@ class OwnTVPlayer(
     private fun startLoad(url: String) {
         pendingUrl = null
         val gen = loadGeneration
+        android.util.Log.i(TAG, "surface startLoad queued gen=$gen")
         mpvAsync {
             // Superseded by a newer load or a stop while waiting in the queue? Skip the dead load —
             // this keeps fast preview-scrolling from grinding through every channel it passed.
-            if (gen != loadGeneration) return@mpvAsync
+            if (gen != loadGeneration) {
+                android.util.Log.i(TAG, "surface startLoad skipped gen=$gen now=$loadGeneration")
+                return@mpvAsync
+            }
+            android.util.Log.i(TAG, "surface startLoad running gen=$gen")
             // SAFETY: restore the video output before every loadfile. A previous playback's stop/EOF can
             // leave vo="null" (detachSurface, or the end-file handler), and if we loadfile without
             // restoring it, mpv opens audio-only with a blank screen — and EVERY subsequent load inherits
@@ -3669,6 +3696,7 @@ class OwnTVPlayer(
     // --- Surface (driven by the MpvVideoSurface view) ---
     fun attachSurface(surface: Surface) {
         assertMainThread("attachSurface")
+        android.util.Log.i(TAG, "surface attach id=${System.identityHashCode(surface)} before: ${surfaceState()}")
         ensureInit()
         attachedSurface = surface
         surfaceAttached = true
@@ -3707,7 +3735,9 @@ class OwnTVPlayer(
      * the old one's destroy callback can arrive after the new one's create (Phase 4).
      */
     fun detachSurface(surface: Surface) {
-        if (attachedSurface !== surface && attachedSurface != null) return
+        val ignored = attachedSurface !== surface && attachedSurface != null
+        android.util.Log.i(TAG, "surface detach id=${System.identityHashCode(surface)} ignored=$ignored before: ${surfaceState()}")
+        if (ignored) return
         detachSurface()
     }
 
