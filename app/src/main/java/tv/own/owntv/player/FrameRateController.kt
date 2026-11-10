@@ -71,6 +71,16 @@ object FrameRateController {
      */
     private const val MODE_CHANGE_COOLDOWN_MS = 5_000L
 
+    // Android TV's own "Match content frame rate" preference — see [systemMatchPreference]. Restated
+    // rather than referenced so the values are readable below API 31, where the platform constants do
+    // not exist. Values match DisplayManager.MATCH_CONTENT_FRAMERATE_*.
+    internal const val MATCH_NEVER = 0
+    internal const val MATCH_SEAMLESS_ONLY = 1
+    internal const val MATCH_ALWAYS = 2
+
+    /** One display mode, reduced to what the choice needs — so [chooseMode] runs in unit tests. */
+    internal data class ModeSpec(val id: Int, val width: Int, val height: Int, val hz: Float)
+
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var pendingReset: Runnable? = null
     private var pendingApply: Runnable? = null
@@ -106,12 +116,16 @@ object FrameRateController {
             // The pending reset is cancelled only once a mode is actually going to be requested. Cancelling
             // up front killed the restore-to-default even when nothing matched this item's frame rate — so
             // leaving a 24p film for something the panel has no mode for kept the display at 24Hz.
-            val target = pickMode(activity, fps) ?: return
-            cancelPendingReset()
-            if (target.modeId == activity.window.attributes.preferredDisplayModeId) return
+            val target = pickMode(activity, fps)
+            // No match keeps nothing from the last item: a 50p channel after a 30p film on a panel with no
+            // 50 Hz mode used to stay at 30 Hz and lose every other frame. With nothing matching, a mode
+            // this app requested goes back to the default.
+            val targetId = nextModeId(target?.modeId, activity.window.attributes.preferredDisplayModeId)
+            if (target != null || targetId != null) cancelPendingReset()
+            if (targetId == null) return
             val waitMs = MODE_CHANGE_COOLDOWN_MS - (android.os.SystemClock.uptimeMillis() - lastChangeAtMs)
             if (lastChangeAtMs != 0L && waitMs > 0) {
-                Log.i(TAG, "AFR: ${fps}fps -> mode ${target.modeId} deferred ${waitMs}ms (cooldown)")
+                Log.i(TAG, "AFR: ${fps}fps -> mode $targetId deferred ${waitMs}ms (cooldown)")
                 // Re-resolve on the way out rather than capturing `target`: by then the fps may have moved
                 // again, and the newest reading is the one worth acting on.
                 val task = Runnable { pendingApply = null; apply(activity, fps) }
@@ -119,10 +133,24 @@ object FrameRateController {
                 handler.postDelayed(task, waitMs)
                 return
             }
-            activity.window.attributes = activity.window.attributes.apply { preferredDisplayModeId = target.modeId }
+            activity.window.attributes = activity.window.attributes.apply { preferredDisplayModeId = targetId }
             lastChangeAtMs = android.os.SystemClock.uptimeMillis()
-            Log.i(TAG, "AFR: video ${fps}fps -> display mode ${target.modeId} (${target.refreshRate}Hz)")
+            if (target == null) {
+                Log.i(TAG, "AFR: video ${fps}fps matches no mode -> display default")
+            } else {
+                Log.i(TAG, "AFR: video ${fps}fps -> display mode ${target.modeId} (${target.refreshRate}Hz)")
+            }
         }.onFailure { Log.w(TAG, "AFR apply failed: ${it.message}") }
+    }
+
+    /**
+     * The mode id to request next, or null to leave the window alone. [chosenId] is the matching mode
+     * (null when none matches, or the TV is set to never match), [requestedId] what the window asks for
+     * now (0 = the system default). Reference: upstream OwnTV 8f47da68.
+     */
+    internal fun nextModeId(chosenId: Int?, requestedId: Int): Int? {
+        val target = chosenId ?: 0
+        return target.takeIf { it != requestedId }
     }
 
     /**
@@ -143,20 +171,69 @@ object FrameRateController {
     private fun pickMode(activity: Activity, fps: Float): Display.Mode? {
         val display: Display = displayOf(activity) ?: return null
         val current = display.mode ?: return null
-        val wanted = snapFps(fps)
         val seamless = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             current.alternativeRefreshRates.toList()
         } else {
             emptyList()
         }
-        return display.supportedModes
-            ?.filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
-            ?.mapNotNull { mode -> multipleOf(mode.refreshRate, wanted)?.let { mode to it } }
-            ?.minByOrNull { (mode, mult) ->
-                val isSeamless = seamless.any { abs(it - mode.refreshRate) <= TOLERANCE_HZ }
-                (if (isSeamless) 0f else 1_000_000f) + mult * 1000f + abs(mode.refreshRate - mult * wanted)
+        val modes = display.supportedModes?.toList().orEmpty()
+        val chosenId = chooseMode(
+            modes = modes.map { it.spec() },
+            current = current.spec(),
+            seamlessRates = seamless,
+            systemPreference = systemMatchPreference(activity),
+            fps = fps,
+        ) ?: return null
+        return modes.firstOrNull { it.modeId == chosenId }
+    }
+
+    private fun Display.Mode.spec() = ModeSpec(modeId, physicalWidth, physicalHeight, refreshRate)
+
+    /**
+     * The id of the best mode for [fps] among [modes] at the [current] resolution, or null when nothing
+     * matches or the TV's [systemPreference] rules switching out. Pure, so it is unit-tested.
+     *
+     * - [MATCH_NEVER]: the user told Android TV never to match content, so no mode is chosen.
+     * - [MATCH_SEAMLESS_ONLY]: only modes the panel reaches without an HDMI re-sync ([seamlessRates]), or
+     *   staying on the current mode (Android lists only the OTHER rates as a mode's alternatives).
+     * - [MATCH_ALWAYS] (and every Android below 12, which has no such setting): seamless first, then the
+     *   lowest multiple, then the closest rate, as before.
+     */
+    internal fun chooseMode(
+        modes: List<ModeSpec>,
+        current: ModeSpec,
+        seamlessRates: List<Float>,
+        systemPreference: Int,
+        fps: Float,
+    ): Int? {
+        if (systemPreference == MATCH_NEVER) return null
+        val wanted = snapFps(fps)
+        val seamlessOnly = systemPreference == MATCH_SEAMLESS_ONLY
+        fun isSeamless(mode: ModeSpec) = seamlessRates.any { abs(it - mode.hz) <= TOLERANCE_HZ }
+        // Under seamless-only, staying on the current mode counts as seamless too. Under Always the ranking
+        // is exactly the previous one (a true 30 Hz still beats staying at 60 Hz for 30 fps).
+        fun preferred(mode: ModeSpec) = isSeamless(mode) || (seamlessOnly && mode.id == current.id)
+        return modes
+            .filter { it.width == current.width && it.height == current.height }
+            .filter { !seamlessOnly || preferred(it) }
+            .mapNotNull { mode -> multipleOf(mode.hz, wanted)?.let { mode to it } }
+            .minByOrNull { (mode, mult) ->
+                (if (preferred(mode)) 0f else 1_000_000f) + mult * 1000f + abs(mode.hz - mult * wanted)
             }
-            ?.first
+            ?.first?.id
+    }
+
+    /**
+     * Android TV's "Match content frame rate" choice (Display and sound settings, Android 12+): Never,
+     * Seamless only or Always. Below API 31 there is no such setting and the app behaves as before.
+     * Reference: upstream OwnTV 26a1a7e9.
+     */
+    private fun systemMatchPreference(activity: Activity): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return MATCH_ALWAYS
+        return runCatching {
+            activity.getSystemService(android.hardware.display.DisplayManager::class.java)
+                ?.matchContentFrameRateUserPreference ?: MATCH_ALWAYS
+        }.getOrDefault(MATCH_ALWAYS)
     }
 
     /**
@@ -170,7 +247,7 @@ object FrameRateController {
      * A reading that is nowhere near a standard rate is returned untouched — better to let [multipleOf]
      * find no match and leave the display alone than to invent a rate the content isn't at.
      */
-    private fun snapFps(fps: Float): Float {
+    internal fun snapFps(fps: Float): Float {
         val nearest = STANDARD_FPS.minByOrNull { abs(it - fps) } ?: return fps
         return if (abs(nearest - fps) <= SNAP_MAX_DELTA_HZ) nearest else fps
     }

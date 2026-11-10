@@ -3876,7 +3876,6 @@
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	x-vnd.on2.vp9
 1	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR apply failed: ${it.message}
 1	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR reset failed: ${it.message}
-1	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: ${fps}fps -> mode ${target.modeId} deferred ${waitMs}ms (cooldown)
 1	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: display mode released
 1	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: video ${fps}fps -> display mode ${target.modeId} (${target.refreshRate}Hz)
 1	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	DEPRECATION

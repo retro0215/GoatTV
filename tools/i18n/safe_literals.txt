@@ -756,6 +756,8 @@
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	https://www.youtube.com/watch?v=$videoId
 1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	launch refused by ${candidate.packageName ?: "handler"}
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	vnd.youtube:$videoId
+1	log	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: ${fps}fps -> mode $targetId deferred ${waitMs}ms (cooldown)
+1	log	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: video ${fps}fps matches no mode -> display default
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	$why - new decoder on the same stream
 2	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	picture frozen
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface from $role kept off the decoder (owner $surfaceOwner)

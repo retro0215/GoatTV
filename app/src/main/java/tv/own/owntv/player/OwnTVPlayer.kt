@@ -177,6 +177,34 @@ class OwnTVPlayer(
     internal companion object {
         const val TAG = "OwnTVPlayer"
 
+        /** A live channel at or below this frame rate makes the next mpv live load use a fresh surface. */
+        const val LOW_FPS_SURFACE_RESET = 30.5f
+
+        /**
+         * Whether an mpv load waits for a freshly recreated SurfaceView instead of reusing the attached one.
+         *
+         * - After a >1080p item, or when an engine handover left the surface dirty ([forceReset]).
+         * - After a live channel of 30 fps or less that mpv was still playing ([mpvHadFile]), when this load
+         *   is live too: zapped straight on from it on the same surface, a 50 fps channel presented at about
+         *   37 fps on Realtek (TCL) panels until the surface was recreated (upstream OwnTV_Core 1de78b1e).
+         *   A fresh surface costs that one zap about 0.3 s. Films and catch-up are unaffected.
+         *
+         * Never without an attached surface: there is nothing to recreate.
+         */
+        fun needsFreshMpvSurface(
+            previousHeightPx: Int,
+            forceReset: Boolean,
+            isLive: Boolean,
+            mpvHadFile: Boolean,
+            previousFps: Float?,
+            surfaceAttached: Boolean,
+        ): Boolean {
+            if (!surfaceAttached) return false
+            val afterLowFrameRateLive = isLive && mpvHadFile && previousFps != null && previousFps > 0f &&
+                previousFps <= LOW_FPS_SURFACE_RESET
+            return previousHeightPx > 1080 || forceReset || afterLowFrameRateLive
+        }
+
         // mpv's stock subtitle values, restored verbatim for every option of the custom look (#96)
         // that is left on "Default" — or whenever the master toggle is off.
         private const val MPV_DEFAULT_SUB_COLOR = "#FFFFFFFF"
@@ -2681,6 +2709,7 @@ class OwnTVPlayer(
         brokenPtsHits = 0; brokenPtsHandled = false
         diagnostics.markLoad() // scope captured codec/audio errors to this stream
         _videoRes.value = null
+        val previousFps = _videoFps.value // read before the reset: decides the fresh surface below
         _videoFps.value = null
         _audioOnlyMedia.value = false // re-decided per load, once this item's tracks are known
         expectingPlayback = true
@@ -2759,7 +2788,14 @@ class OwnTVPlayer(
         // there, while the Exo load that actually needed one never got it.
         val forceSurfaceReset = forceSurfaceResetNextLoad
         forceSurfaceResetNextLoad = false
-        val needsFreshSurface = (lastVideoHeightPx > 1080 || forceSurfaceReset) && surfaceAttached
+        val needsFreshSurface = needsFreshMpvSurface(
+            previousHeightPx = lastVideoHeightPx,
+            forceReset = forceSurfaceReset,
+            isLive = isLive,
+            mpvHadFile = mpvHasActiveFile.get(),
+            previousFps = previousFps,
+            surfaceAttached = surfaceAttached,
+        )
         // P6 — read the stable key first, then the legacy URL key that older builds wrote; a legacy
         // hit is rewritten under the stable key so it survives the next re-sync/Stalker resolve.
         //
