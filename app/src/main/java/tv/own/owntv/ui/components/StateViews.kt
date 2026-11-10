@@ -1,10 +1,5 @@
 package tv.own.owntv.ui.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,7 +9,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -29,27 +26,36 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import tv.own.owntv.R
 import tv.own.owntv.ui.theme.OwnTVTheme
+import kotlinx.coroutines.delay
 
-/** Lightweight indeterminate spinner drawn with Canvas (no Material dependency). */
+/**
+ * Lightweight indeterminate spinner drawn with Canvas (no Material dependency).
+ *
+ * It turns in [SPINNER_STEPS] steps rather than every frame. On a TV each frame redraws the whole window,
+ * so a spinner animated per frame kept the render thread busy for as long as it showed — about a quarter
+ * of the app's CPU during a catalogue import, which is also when the sync pill's spinner runs. Only the
+ * draw phase reads the step, so a step costs one redraw and no recomposition. Same 0.9 s per turn.
+ * Reference: upstream OwnTV 55678114 (render thread 25.6 % -> 13.6 % during a large import).
+ */
 @Composable
 fun OwnTVSpinner(
     modifier: Modifier = Modifier,
     sizeDp: Int = 44,
     color: Color = OwnTVTheme.colors.accent,
 ) {
-    val transition = rememberInfiniteTransition(label = "spinner")
-    val angle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
-        label = "spinnerAngle",
-    )
+    val step = remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(SPINNER_STEP_MS)
+            step.intValue = nextSpinnerStep(step.intValue)
+        }
+    }
     Canvas(modifier = modifier.size(sizeDp.dp)) {
         val d = size.minDimension
         val stroke = d * 0.11f
         drawArc(
             color = color,
-            startAngle = angle,
+            startAngle = spinnerAngle(step.intValue),
             sweepAngle = 270f,
             useCenter = false,
             topLeft = Offset(stroke / 2f, stroke / 2f),
@@ -58,6 +64,21 @@ fun OwnTVSpinner(
         )
     }
 }
+
+/** One turn of [OwnTVSpinner], as before it was stepped. */
+internal const val SPINNER_TURN_MS = 900L
+
+/** Positions per turn: 16 is about 18 redraws a second instead of the display's 60. */
+internal const val SPINNER_STEPS = 16
+
+/** Time between two spinner positions. */
+internal const val SPINNER_STEP_MS = SPINNER_TURN_MS / SPINNER_STEPS
+
+/** The spinner position after [step]; wraps after one turn. */
+internal fun nextSpinnerStep(step: Int): Int = (step + 1) % SPINNER_STEPS
+
+/** Start angle of the arc at [step]. */
+internal fun spinnerAngle(step: Int): Float = step * (360f / SPINNER_STEPS)
 
 /** Centered loading state: spinner + message (e.g. "Importing channels…"). */
 @Composable
