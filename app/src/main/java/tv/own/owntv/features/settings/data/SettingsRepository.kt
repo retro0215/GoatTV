@@ -173,6 +173,7 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         val ONBOARDING_IMPORTED_SOURCE = longPreferencesKey("onboarding_imported_source_id")
         val CATALOG_TITLE_RULES_VERSION = intPreferencesKey("catalog_title_rules_version")
         val MOVIE_VERSION_CHOICES = stringPreferencesKey("movie_version_choices")
+        val SERIES_VERSION_CHOICES = stringPreferencesKey("series_version_choices")
         val DEFAULT_SOURCE = longPreferencesKey("default_source_id")
         val DOWNLOAD_ROOT = stringPreferencesKey("download_root")
         val REFRESH_SOURCE_IDS = stringSetPreferencesKey("refresh_source_ids")
@@ -1757,19 +1758,23 @@ class SettingsRepository(private val context: Context, private val localeStore: 
         context.dataStore.edit { it[Keys.CATALOG_TITLE_RULES_VERSION] = version }
     }
 
-    /** The film version [profileId] chose last for [titleKey] — see VersionChoiceStore. Device-only. */
-    suspend fun movieVersionChoice(profileId: Long, titleKey: String): String? =
-        tv.own.owntv.features.movies.versions.VersionChoiceStore.read(
-            context.dataStore.data.first()[Keys.MOVIE_VERSION_CHOICES], profileId, titleKey,
+    /**
+     * The version of a film ([series] false) or a series [profileId] chose last for [titleKey] — see
+     * VersionChoiceStore. Films and series are kept apart. Device-only, in no backup list.
+     */
+    suspend fun versionChoice(profileId: Long, titleKey: String, series: Boolean = false): String? =
+        tv.own.owntv.features.versions.VersionChoiceStore.read(
+            context.dataStore.data.first()[versionChoicesKey(series)], profileId, titleKey,
         )
 
-    suspend fun setMovieVersionChoice(profileId: Long, titleKey: String, versionKey: String) {
+    suspend fun setVersionChoice(profileId: Long, titleKey: String, versionKey: String, series: Boolean = false) {
+        val key = versionChoicesKey(series)
         context.dataStore.edit {
-            it[Keys.MOVIE_VERSION_CHOICES] = tv.own.owntv.features.movies.versions.VersionChoiceStore.write(
-                it[Keys.MOVIE_VERSION_CHOICES], profileId, titleKey, versionKey,
-            )
+            it[key] = tv.own.owntv.features.versions.VersionChoiceStore.write(it[key], profileId, titleKey, versionKey)
         }
     }
+
+    private fun versionChoicesKey(series: Boolean) = if (series) Keys.SERIES_VERSION_CHOICES else Keys.MOVIE_VERSION_CHOICES
 
     // --- Global proxy (Approach 1 — one app-wide HTTP proxy) ---
     // Covers all OkHttp traffic (playlist/API/EPG/images/downloads/updates/weather + ExoPlayer) and mpv

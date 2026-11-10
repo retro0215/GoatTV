@@ -3,6 +3,7 @@ package tv.own.owntv.features.series
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -580,6 +581,25 @@ private fun SeriesDetailsPage(
     var resumePrompt by remember { mutableStateOf<Pair<EpisodeEntity, Long>?>(null) }
     val toast = rememberInAppToast()
 
+    // Alternate versions (1080p / 4K / Dolby Vision / another language) of this show and its episodes.
+    val versionsUi by vm.seriesVersions.collectAsStateWithLifecycle()
+    val versions = versionsUi?.takeIf { it.itemId == series.id && it.hasChoice }
+    val episodeVersionsUi by vm.episodeVersions.collectAsStateWithLifecycle()
+    val versionNotice by vm.versionNotice.collectAsStateWithLifecycle()
+    var showSeriesVersions by remember(series.id) { mutableStateOf(false) }
+    // An episode chosen in another version that has a place to resume from: ask first.
+    var versionResume by remember { mutableStateOf<Triple<SeriesEntity, EpisodeEntity, Long>?>(null) }
+    val notInVersionMessage = stringResource(R.string.content_version_not_available)
+    val switchFailedMessage = stringResource(R.string.content_version_switch_failed)
+    LaunchedEffect(versionNotice) {
+        when (versionNotice) {
+            SeriesViewModel.VersionNotice.EPISODE_NOT_IN_VERSION -> toast.show(notInVersionMessage)
+            SeriesViewModel.VersionNotice.SWITCH_FAILED -> toast.show(switchFailedMessage)
+            null -> return@LaunchedEffect
+        }
+        vm.consumeVersionNotice()
+    }
+
     BackHandler { onBack() }
     
     LaunchedEffect(series.id) {
@@ -658,6 +678,14 @@ private fun SeriesDetailsPage(
                             onClick = { vm.toggleFavorite(series) }, icon = OwnTVIcon.FAVORITE, style = OwnTVButtonStyle.SECONDARY,
                             modifier = if (nextUp == null && trailer.isNullOrBlank()) Modifier.focusRequester(focus) else Modifier
                         )
+                        // Only when the show has two or more versions; otherwise the row is as before.
+                        if (versions != null) {
+                            OwnTVButton(
+                                label = stringResource(R.string.content_versions_button, versions.options.size),
+                                onClick = { showSeriesVersions = true },
+                                style = OwnTVButtonStyle.SECONDARY,
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(24.dp))
@@ -807,6 +835,7 @@ private fun SeriesDetailsPage(
             onToggleWatched = { if (watched) vm.markEpisodeUnwatched(ep) else vm.markEpisodeWatched(ep); contextEpisode = null },
             onDownload = { vm.downloadEpisode(ep); contextEpisode = null },
             onDeleteSubtitles = if (contextEpisodeSubs.isNotEmpty()) ({ showDeleteSubs = true }) else null,
+            onOtherVersions = if (versions != null) ({ contextEpisode = null; vm.loadEpisodeVersions(ep) }) else null,
             onDismiss = { contextEpisode = null },
         )
     }
@@ -825,6 +854,57 @@ private fun SeriesDetailsPage(
                 onDismiss = { showDeleteSubs = false },
             )
         }
+    }
+
+    if (showSeriesVersions && versions != null) {
+        tv.own.owntv.features.versions.VersionPicker(
+            options = versions.options,
+            initialIndex = versions.initialIndex,
+            onChoose = { option ->
+                showSeriesVersions = false
+                // The customer's place: the episode last played (or resumed) here, plus the season on screen.
+                val place = episodes.firstOrNull { it.id == lastEpId }
+                vm.switchSeriesVersion(versions, option, place)
+                runCatching { focus.requestFocus() }
+            },
+            onDismiss = { showSeriesVersions = false; runCatching { focus.requestFocus() } },
+        )
+    }
+
+    episodeVersionsUi?.let { ui ->
+        when {
+            // Looking the episode up in the other versions (cache first): Back cancels it.
+            !ui.ready -> VersionLookupOverlay(onCancel = vm::closeEpisodeVersions)
+            ui.hasChoice -> tv.own.owntv.features.versions.VersionPicker(
+                options = ui.options,
+                initialIndex = ui.initialIndex,
+                onChoose = { option ->
+                    vm.chooseEpisodeVersion(ui, option) { show, ep, plan ->
+                        val offer = plan.offerResumeFromMs
+                        val mode = vm.resumeMode.value
+                        when {
+                            offer != null -> versionResume = Triple(show, ep, offer)
+                            plan.startPositionMs > 0 && mode == SettingsRepository.ResumeMode.ASK -> versionResume = Triple(show, ep, plan.startPositionMs)
+                            else -> {
+                                vm.playEpisodeOf(show, ep, if (mode == SettingsRepository.ResumeMode.NEVER) 0 else plan.startPositionMs)
+                                onFullscreen()
+                            }
+                        }
+                    }
+                },
+                onDismiss = vm::closeEpisodeVersions,
+            )
+            else -> LaunchedEffect(ui) { vm.closeEpisodeVersions() }
+        }
+    }
+
+    versionResume?.let { (show, ep, pos) ->
+        ResumeDialog(
+            positionMs = pos,
+            onResume = { versionResume = null; vm.playEpisodeOf(show, ep, pos); onFullscreen() },
+            onStartOver = { versionResume = null; vm.playEpisodeOf(show, ep, 0); onFullscreen() },
+            onDismiss = { versionResume = null },
+        )
     }
 
     resumePrompt?.let { (ep, pos) ->
@@ -1180,7 +1260,10 @@ private fun SeriesSortingDialog(
 private fun EpisodeContextMenu(
     title: String, watched: Boolean, onPlay: () -> Unit, onRestart: () -> Unit,
     onToggleWatched: () -> Unit, onDownload: () -> Unit,
-    onDeleteSubtitles: (() -> Unit)? = null, onDismiss: () -> Unit,
+    onDeleteSubtitles: (() -> Unit)? = null,
+    /** Shown only when the show has other versions: this episode in each of them. */
+    onOtherVersions: (() -> Unit)? = null,
+    onDismiss: () -> Unit,
 ) {
     val colors = OwnTVTheme.colors
     val focus = remember { FocusRequester() }
@@ -1202,6 +1285,9 @@ private fun EpisodeContextMenu(
             OwnTVButton(stringResource(R.string.content_download), onClick = onDownload, style = OwnTVButtonStyle.SECONDARY, icon = OwnTVIcon.DOWNLOADS, modifier = Modifier.fillMaxWidth())
             onDeleteSubtitles?.let {
                 OwnTVButton(stringResource(R.string.content_delete_subtitles), onClick = it, style = OwnTVButtonStyle.SECONDARY, icon = OwnTVIcon.SUBTITLE, modifier = Modifier.fillMaxWidth())
+            }
+            onOtherVersions?.let {
+                OwnTVButton(stringResource(R.string.content_episode_other_versions), onClick = it, style = OwnTVButtonStyle.SECONDARY, modifier = Modifier.fillMaxWidth())
             }
             Spacer(Modifier.height(4.dp))
             OwnTVButton(stringResource(R.string.content_close), onClick = onDismiss, modifier = Modifier.fillMaxWidth())
@@ -1328,4 +1414,18 @@ private fun jsonList(json: String?): List<String> {
         val arr = org.json.JSONArray(json)
         (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }
     }.getOrDefault(emptyList())
+}
+
+/** A modal spinner while an episode is looked up in the other versions; Back cancels the lookup. */
+@Composable
+private fun VersionLookupOverlay(onCancel: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    BackHandler { onCancel() }
+    Box(
+        modifier = Modifier.fillMaxSize().modalScrim().trapAllFocusExit().focusGroup(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.focusRequester(focus).focusable()) { OwnTVSpinner() }
+    }
 }

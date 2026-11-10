@@ -1,4 +1,4 @@
-package tv.own.owntv.features.movies.versions
+package tv.own.owntv.features.search
 
 import org.junit.Assert.assertTrue
 import org.junit.Test

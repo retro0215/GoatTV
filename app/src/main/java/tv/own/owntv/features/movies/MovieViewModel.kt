@@ -609,95 +609,87 @@ class MovieViewModel(
 
     // ---- Alternate versions (4.6.1): the same film as 1080p / 4K / Dolby Vision / another language ----
 
-    /** The versions of the film whose details are open. [options] holds two or more, or is empty. */
-    data class MovieVersionsUi(
-        val movieId: Long,
-        val titleKey: String,
-        val options: List<tv.own.owntv.features.movies.versions.MovieVersionOption>,
-        val initialIndex: Int,
-    )
+    private val _versions = MutableStateFlow<tv.own.owntv.features.versions.VersionsUi?>(null)
 
-    private val _versions = MutableStateFlow<MovieVersionsUi?>(null)
-    val versions: StateFlow<MovieVersionsUi?> = _versions.asStateFlow()
+    /**
+     * The versions of the film whose details are open: loading, then ready (two or more options, or
+     * none for a film with one version). Watch waits while it is loading — see
+     * [tv.own.owntv.features.versions.watchAction] — so a quick OK can never skip the picker.
+     */
+    val versions: StateFlow<tv.own.owntv.features.versions.VersionsUi?> = _versions.asStateFlow()
     private var versionsJob: kotlinx.coroutines.Job? = null
     private var choosingVersion: kotlinx.coroutines.Job? = null
 
     /**
      * Look up [movie]'s versions for the details page (one indexed query, profile-scoped — see
-     * VersionRepository). A film with one version gets an empty list and Watch plays it exactly as before.
+     * VersionRepository). A film with one version ends ready with no options, and Watch plays it exactly
+     * as before. A lookup already running for this film is left alone (no duplicate query); a failed or
+     * slow one ([VERSION_LOOKUP_TIMEOUT_MS]) ends as one version, so Watch is never stuck.
      */
     fun loadVersions(movie: MovieEntity) {
+        if (versionsJob?.isActive == true && _versions.value?.itemId == movie.id) return
         versionsJob?.cancel()
-        _versions.value = null
+        _versions.value = tv.own.owntv.features.versions.VersionsUi.loading(movie.id)
         versionsJob = viewModelScope.launch {
-            val found = runCatching { versionRepository.movieVersions(movie) }
-                .onFailure { Log.w(TAG, "version lookup failed movieId=${movie.id}", it) }
-                .getOrDefault(emptyList())
-            if (found.size < 2) {
-                _versions.value = MovieVersionsUi(movie.id, "", emptyList(), 0)
-                return@launch
+            val ui = kotlinx.coroutines.withTimeoutOrNull(VERSION_LOOKUP_TIMEOUT_MS) {
+                runCatching { buildVersions(movie) }
+                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "version lookup failed movieId=${movie.id}", it) }
+                    .getOrNull()
             }
-            val pid = currentProfileId()
-            val caps = deviceVideo.caps
-            val filmsOnExo = settings.vodEnginePreference.first() == tv.own.owntv.player.EnginePreference.EXO_FIRST
-            val favorites = favoriteIds.value
-            val playlistNames = found.map { it.row.sourceId }.distinct().associateWith { sourceDao.getById(it)?.name }
-            val options = found.map { v ->
-                val row = v.row
-                val progress = pid?.let { progressDao.get(it, MediaType.MOVIE, row.id) }
-                tv.own.owntv.features.movies.versions.MovieVersionOption(
-                    movieId = row.id,
-                    key = CustomizeKeys.item(row.sourceId, row.remoteId, row.name),
-                    qualityRank = v.label.qualityRank,
-                    picture = v.label.advertisedPicture,
-                    language = v.label.language,
-                    playlistName = playlistNames[row.sourceId],
-                    categoryName = row.categoryName,
-                    positionMs = progress?.positionMs ?: 0,
-                    durationMs = progress?.durationMs ?: 0,
-                    completed = progress?.let { isMovieCompleted(it) } == true,
-                    progressUpdatedAt = progress?.updatedAt ?: 0,
-                    isFavorite = row.id in favorites,
-                    isAnchor = v.isAnchor,
-                    confirmed = tv.own.owntv.features.movies.versions.MovieVersionChoice.confirmedPlayable(
-                        v.label.qualityRank, v.label.advertisedPicture, caps, filmsOnExo,
-                    ),
-                    pictureMayFallBack = tv.own.owntv.features.movies.versions.MovieVersionChoice.pictureMayFallBack(
-                        v.label.advertisedPicture, caps,
-                    ),
-                )
-            }
-            // One title, one remembered choice: the shared signature plus the one year the group agrees on.
-            val anchor = found.first { it.isAnchor }.row
-            val year = found.mapNotNull { it.row.parsedYear }.toSet().singleOrNull()
-            val titleKey = "${anchor.titleSignature}|${year ?: ""}"
-            val remembered = pid?.let { settings.movieVersionChoice(it, titleKey) }
-            _versions.value = MovieVersionsUi(
-                movieId = movie.id,
-                titleKey = titleKey,
-                options = options,
-                initialIndex = tv.own.owntv.features.movies.versions.MovieVersionChoice.initialIndex(options, remembered),
+            _versions.value = ui ?: tv.own.owntv.features.versions.VersionsUi.single(movie.id)
+        }
+    }
+
+    private suspend fun buildVersions(movie: MovieEntity): tv.own.owntv.features.versions.VersionsUi {
+        val found = versionRepository.movieVersions(movie)
+        if (found.size < 2) return tv.own.owntv.features.versions.VersionsUi.single(movie.id)
+        val pid = currentProfileId()
+        val caps = deviceVideo.caps
+        val onExo = tv.own.owntv.features.versions.VersionOptions.startsOnExo(settings.vodEnginePreference.first())
+        val favorites = favoriteIds.value
+        val playlistNames = found.map { it.row.sourceId }.distinct().associateWith { sourceDao.getById(it)?.name }
+        val options = found.map { v ->
+            val progress = pid?.let { progressDao.get(it, MediaType.MOVIE, v.row.id) }
+            tv.own.owntv.features.versions.VersionOptions.option(
+                version = v,
+                playlistName = playlistNames[v.row.sourceId],
+                caps = caps,
+                startsOnExo = onExo,
+                positionMs = progress?.positionMs ?: 0,
+                durationMs = progress?.durationMs ?: 0,
+                completed = progress?.let { isMovieCompleted(it) } == true,
+                progressUpdatedAt = progress?.updatedAt ?: 0,
+                isFavorite = v.row.id in favorites,
             )
         }
+        val titleKey = tv.own.owntv.features.versions.VersionOptions.titleKey(found)
+        val remembered = pid?.let { settings.versionChoice(it, titleKey) }
+        return tv.own.owntv.features.versions.VersionsUi(
+            itemId = movie.id,
+            ready = true,
+            titleKey = titleKey,
+            options = options,
+            initialIndex = tv.own.owntv.features.versions.VersionChoice.initialIndex(options, remembered),
+        )
     }
 
     /**
      * The customer picked [option] in the version picker. Remembers it for this profile and title, then
-     * hands [onPlan] the film and where it starts ([MovieVersionChoice.startPlan]); the screen plays it
+     * hands [onPlan] the film and where it starts ([VersionChoice.startPlan]); the screen plays it
      * through [play] — the one movie playback path. A second call while one is being prepared is ignored,
      * so a double OK never starts two sessions.
      */
     fun chooseVersion(
-        ui: MovieVersionsUi,
-        option: tv.own.owntv.features.movies.versions.MovieVersionOption,
-        onPlan: (MovieEntity, tv.own.owntv.features.movies.versions.MovieVersionChoice.StartPlan) -> Unit,
+        ui: tv.own.owntv.features.versions.VersionsUi,
+        option: tv.own.owntv.features.versions.VersionOption,
+        onPlan: (MovieEntity, tv.own.owntv.features.versions.VersionChoice.StartPlan) -> Unit,
     ) {
         if (choosingVersion?.isActive == true) return
         choosingVersion = viewModelScope.launch {
-            val movie = movieDao.getById(option.movieId) ?: return@launch
-            currentProfileId()?.let { pid -> runCatching { settings.setMovieVersionChoice(pid, ui.titleKey, option.key) } }
+            val movie = movieDao.getById(option.itemId) ?: return@launch
+            currentProfileId()?.let { pid -> runCatching { settings.setVersionChoice(pid, ui.titleKey, option.key) } }
             val durationMs = option.durationMs.takeIf { it > 0 } ?: movie.durationSecs?.takeIf { it > 0 }?.let { it * 1000L }
-            onPlan(movie, tv.own.owntv.features.movies.versions.MovieVersionChoice.startPlan(option, durationMs, ui.options))
+            onPlan(movie, tv.own.owntv.features.versions.VersionChoice.startPlan(option, durationMs, ui.options))
         }
     }
 
@@ -989,6 +981,8 @@ class MovieViewModel(
     }
 
     private companion object {
+        /** A version lookup slower than this lets Watch play the opened film directly. */
+        const val VERSION_LOOKUP_TIMEOUT_MS = 3_000L
         const val TAG = "OwnTVHome"
         val defaultRail = listOf(
             LiveRailItem(LiveKey.Favorites, icon = OwnTVIcon.FAVORITE),

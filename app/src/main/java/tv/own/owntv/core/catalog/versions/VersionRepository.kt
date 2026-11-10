@@ -26,7 +26,7 @@ data class ContentVersion(val row: VersionCandidateRow, val label: VersionLabel,
  * catalogue scan when a details page opens. The profile's restrictions ([VersionScope]) apply before the
  * matcher ([VersionMatcher]) decides which candidates are really the same title.
  *
- * Foundation only (4.6.1 stage 1): nothing in the UI calls this yet.
+ * Used by the Movies and Series version selectors (4.6.1 stages 2 and 3).
  */
 class VersionRepository(
     private val movieDao: MovieDao,

@@ -1,4 +1,4 @@
-package tv.own.owntv.features.movies.versions
+package tv.own.owntv.features.versions
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -41,19 +41,20 @@ import tv.own.owntv.ui.components.trapAllFocusExit
 import tv.own.owntv.ui.theme.OwnTVTheme
 
 /**
- * The version picker a film's Watch opens when it has more than one version: one row per version, best
- * first, Up/Down to move, OK to play, Back to close without playing. Focus starts where
- * [MovieVersionChoice.initialIndex] says. Same modal pattern as ResumeDialog (non-clickable scrim, focus
- * trapped inside, BackHandler), so Back always reaches it.
+ * The version picker (a film's Watch, a series' Versions button, an episode's Other versions): one row
+ * per version, best first, Up/Down to move, OK to choose, Back to close without choosing. Focus starts
+ * where [VersionChoice.initialIndex] says. A version that cannot be chosen here (the episode is not in
+ * it) is still listed with the reason, and OK on it does nothing. Same modal pattern as ResumeDialog
+ * (non-clickable scrim, focus trapped inside, BackHandler), so Back always reaches it.
  */
 @Composable
-fun MovieVersionPicker(
-    options: List<MovieVersionOption>,
+fun VersionPicker(
+    options: List<VersionOption>,
     initialIndex: Int,
-    onChoose: (MovieVersionOption) -> Unit,
+    onChoose: (VersionOption) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val model = remember(options) { VersionPickerModel(options.size, initialIndex) }
+    val model = remember(options) { VersionPickerModel(options.size, initialIndex) { options[it].unavailable == null } }
     val requesters = remember(options) { List(options.size) { FocusRequester() } }
     LaunchedEffect(options) {
         delay(50)
@@ -91,7 +92,7 @@ fun MovieVersionPicker(
 }
 
 @Composable
-private fun VersionRow(option: MovieVersionOption, number: Int, modifier: Modifier, onClick: () -> Unit) {
+private fun VersionRow(option: VersionOption, number: Int, modifier: Modifier, onClick: () -> Unit) {
     val colors = OwnTVTheme.colors
     FocusableSurface(onClick = onClick, modifier = modifier) { focused ->
         Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -99,7 +100,11 @@ private fun VersionRow(option: MovieVersionOption, number: Int, modifier: Modifi
                 Text(
                     versionTitle(option, number),
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (focused) colors.primary else colors.onSurface,
+                    color = when {
+                        option.unavailable != null -> colors.onSurfaceVariant
+                        focused -> colors.primary
+                        else -> colors.onSurface
+                    },
                 )
                 val where = listOfNotNull(option.playlistName, option.categoryName).distinct().joinToString(" · ")
                 if (where.isNotBlank()) {
@@ -113,6 +118,8 @@ private fun VersionRow(option: MovieVersionOption, number: Int, modifier: Modifi
             }
             Spacer(Modifier.width(12.dp))
             when {
+                option.isCurrent -> Text(stringResource(R.string.content_version_current), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                option.unavailable != null -> Unit
                 option.completed -> Text(stringResource(R.string.content_version_watched), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
                 option.positionMs > 0 -> Text(
                     stringResource(R.string.content_resume_at, formatTimestamp(option.positionMs)),
@@ -130,7 +137,7 @@ private fun VersionRow(option: MovieVersionOption, number: Int, modifier: Modifi
 
 /** "4K · Dolby Vision · EN", "1080p", or "Version 2" when the provider labels nothing. */
 @Composable
-private fun versionTitle(option: MovieVersionOption, number: Int): String {
+private fun versionTitle(option: VersionOption, number: Int): String {
     val parts = listOfNotNull(
         qualityLabel(option.qualityRank),
         option.picture?.let { pictureLabel(it) },
@@ -159,9 +166,12 @@ private fun pictureLabel(picture: AdvertisedPicture): String = when (picture) {
 
 /** Why a version may not look as labelled on this TV, or null when nothing is in doubt. */
 @Composable
-private fun versionNote(option: MovieVersionOption): String? = when {
+private fun versionNote(option: VersionOption): String? = when {
+    option.unavailable == VersionOption.Unavailable.MISSING -> stringResource(R.string.content_version_not_available)
+    option.unavailable == VersionOption.Unavailable.UNMATCHED -> stringResource(R.string.content_version_not_matched)
+    option.unavailable == VersionOption.Unavailable.NOT_LOADED -> stringResource(R.string.content_version_not_loaded)
     option.pictureMayFallBack && option.picture == AdvertisedPicture.DOLBY_VISION -> stringResource(R.string.content_version_may_lack_dolby_vision)
     option.pictureMayFallBack -> stringResource(R.string.content_version_may_lack_hdr)
-    option.qualityRank >= MovieVersionChoice.UHD_RANK && !option.confirmed -> stringResource(R.string.content_version_may_lack_4k)
+    option.qualityRank >= VersionChoice.UHD_RANK && !option.confirmed -> stringResource(R.string.content_version_may_lack_4k)
     else -> null
 }

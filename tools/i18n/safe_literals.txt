@@ -252,6 +252,8 @@
 1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfill.kt	CatalogTitleBackfill
 1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfillStores.kt	movies
 1	log	app/src/main/java/tv/own/owntv/core/catalog/versions/CatalogTitleBackfillStores.kt	series
+1	regex	app/src/main/java/tv/own/owntv/core/catalog/versions/EpisodeMatcher.kt	(?i)\\b(\\d{1,2})x(\\d{1,4})\\b
+1	regex	app/src/main/java/tv/own/owntv/core/catalog/versions/EpisodeMatcher.kt	(?i)\\bS(\\d{1,2})\\s*[._ -]?\\s*E(\\d{1,4})\\b
 1	regex	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	(?<![\\p{L}\\p{N}])(?:$alternatives)(?![\\p{L}\\p{N}])
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	AR
 1	protocol	app/src/main/java/tv/own/owntv/core/catalog/versions/VersionLabels.kt	ARABIC
@@ -550,17 +552,16 @@
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	guide open requested
 1	compiler	app/src/main/java/tv/own/owntv/features/epg/GuideMemoryPressure.kt	DEPRECATION
 1	empty	app/src/main/java/tv/own/owntv/features/epg/GuideNav.kt	\0
-4	empty	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	\0
-1	technical	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	${anchor.titleSignature}|${year ?: ""}
+2	empty	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	\0
 1	log	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	version lookup failed movieId=${movie.id}
-1	preference-key	app/src/main/java/tv/own/owntv/features/movies/versions/MovieVersionChoice.kt	$profileId|$titleKey
-2	technical	app/src/main/java/tv/own/owntv/features/movies/versions/MovieVersionPicker.kt	·
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_PARKED channelId=$id name=${channelNames[id]}
 1	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	TILE_RESUMED channelId=$id name=${channelNames[id]}
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	CHAT
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	LIVE
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Viewer
+1	log	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	episode version lookup failed episodeId=${episode.id}
+1	log	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	series version lookup failed seriesId=${show.id}
 1	uri	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterScreen.kt	package
 1	mime	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterScreen.kt	text/plain
 1	log	app/src/main/java/tv/own/owntv/features/settings/DiagnosticCenterViewModel.kt	diagnostic_resync
@@ -568,6 +569,7 @@
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	catalog_title_rules_version
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	movie_version_choices
 1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	onboarding_imported_source_id
+1	preference-key	app/src/main/java/tv/own/owntv/features/settings/data/SettingsRepository.kt	series_version_choices
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	cold_start
 1	protocol	app/src/main/java/tv/own/owntv/features/shell/ShellViewModel.kt	resume
 1	protocol	app/src/main/java/tv/own/owntv/features/sports/SportsScreen.kt	boxing
@@ -857,6 +859,11 @@
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	https://www.youtube.com/watch?v=$videoId
 1	log	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	launch refused by ${candidate.packageName ?: "handler"}
 1	url	app/src/main/java/tv/own/owntv/features/tutorials/YouTubeLauncher.kt	vnd.youtube:$videoId
+1	empty	app/src/main/java/tv/own/owntv/features/versions/VersionChoice.kt	\0
+1	preference-key	app/src/main/java/tv/own/owntv/features/versions/VersionChoice.kt	$profileId|$titleKey
+1	empty	app/src/main/java/tv/own/owntv/features/versions/VersionOptions.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/features/versions/VersionOptions.kt	${anchor.titleSignature}|${year ?: ""}
+2	technical	app/src/main/java/tv/own/owntv/features/versions/VersionPicker.kt	·
 1	log	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: ${fps}fps -> mode $targetId deferred ${waitMs}ms (cooldown)
 1	log	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: video ${fps}fps matches no mode -> display default
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	$why - new decoder on the same stream

@@ -697,16 +697,18 @@ private fun MovieDetailsPage(
     val selectedProgress by vm.selectedProgress.collectAsStateWithLifecycle()
     val versionsUi by vm.versions.collectAsStateWithLifecycle()
     // Two or more versions of this film (1080p / 4K / Dolby Vision / another language); empty otherwise.
-    val versions = versionsUi?.takeIf { it.movieId == movie.id }
-    val hasVersions = (versions?.options?.size ?: 0) > 1
+    val versions = versionsUi?.takeIf { it.itemId == movie.id }
+    val hasVersions = versions?.hasChoice == true
     var showVersions by remember(movie.id) { mutableStateOf(false) }
+    // Watch pressed while the version lookup is still running is held and acted on once it is ready.
+    val watchGate = remember(movie.id) { tv.own.owntv.features.versions.WatchGate(movie.id) }
     // Another version was left part-way and this one is the same length: ask before resuming there.
     var crossResume by remember(movie.id) { mutableStateOf<Pair<MovieEntity, Long>?>(null) }
 
     val colors = OwnTVTheme.colors
     val focus = remember { FocusRequester() }
 
-    BackHandler(enabled = !showVersions && crossResume == null) { onBack() }
+    BackHandler(enabled = !showVersions && crossResume == null) { watchGate.cancel(); onBack() }
 
     LaunchedEffect(movie.id) {
         vm.onMovieFocused(movie)
@@ -722,10 +724,13 @@ private fun MovieDetailsPage(
             providerMeta = providerMeta?.takeIf { it.remoteId == movie.remoteId },
             tmdbWins = metadataMode.tmdbWins,
             resumePositionMs = selectedProgress?.takeIf { !vm.isMovieCompleted(it) }?.positionMs?.takeIf { it > 0 },
-            // One version: exactly as before. Several: Watch asks which one.
+            // One version: exactly as before. Several: Watch asks which one. Still looking: wait.
             onWatchNow = {
-                if (hasVersions) showVersions = true
-                else { vm.play(movie, selectedProgress?.positionMs ?: 0); onFullscreen() }
+                when (watchGate.press(versions)) {
+                    tv.own.owntv.features.versions.WatchAction.CHOOSE -> showVersions = true
+                    tv.own.owntv.features.versions.WatchAction.PLAY_DIRECT -> { vm.play(movie, selectedProgress?.positionMs ?: 0); onFullscreen() }
+                    tv.own.owntv.features.versions.WatchAction.WAIT, null -> Unit
+                }
             },
             onPlayTrailer = onPlayTrailer,
             onToggleFavorite = { vm.toggleFavorite(movie) },
@@ -736,8 +741,15 @@ private fun MovieDetailsPage(
             onVersions = { showVersions = true },
         )
     }
+    LaunchedEffect(versions) {
+        when (watchGate.onVersions(versions)) {
+            tv.own.owntv.features.versions.WatchAction.CHOOSE -> showVersions = true
+            tv.own.owntv.features.versions.WatchAction.PLAY_DIRECT -> { vm.play(movie, selectedProgress?.positionMs ?: 0); onFullscreen() }
+            tv.own.owntv.features.versions.WatchAction.WAIT, null -> Unit
+        }
+    }
     if (showVersions && versions != null) {
-        tv.own.owntv.features.movies.versions.MovieVersionPicker(
+        tv.own.owntv.features.versions.VersionPicker(
             options = versions.options,
             initialIndex = versions.initialIndex,
             onChoose = { option ->

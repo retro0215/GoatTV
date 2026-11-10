@@ -724,4 +724,16 @@
     <string name="content_version_may_lack_hdr">This TV may not show it in HDR</string>
     <!-- Translators: Note on a version labelled 4K when this TV is not known to play 4K. -->
     <string name="content_version_may_lack_4k">This TV may not play it in 4K</string>
+    <!-- Translators: Marks the version of a series already open on screen, in the list of its versions. -->
+    <string name="content_version_current">Current</string>
+    <!-- Translators: Note on a version of a series that does not have this episode. -->
+    <string name="content_version_not_available">Not available in this version.</string>
+    <!-- Translators: Note on a version of a series whose episode numbering differs, so the same episode cannot be found automatically. -->
+    <string name="content_version_not_matched">Episode numbering differs in this version.</string>
+    <!-- Translators: Note on a version of a series whose episode list could not be loaded from the provider. -->
+    <string name="content_version_not_loaded">This version\'s episodes could not be loaded.</string>
+    <!-- Translators: Item in an episode's long-press menu: open the list of the same episode in the series' other versions (1080p, 4K...). -->
+    <string name="content_episode_other_versions">Other versions</string>
+    <!-- Translators: Message shown after switching a series to another version when that version's episodes could not be loaded; the previous version stays open. -->
+    <string name="content_version_switch_failed">Couldn\'t load that version. Try again later.</string>
 </resources>

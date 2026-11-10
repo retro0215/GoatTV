@@ -1,4 +1,4 @@
-package tv.own.owntv.features.movies.versions
+package tv.own.owntv.features.versions
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,7 +8,7 @@ import org.junit.Test
 import tv.own.owntv.core.catalog.versions.AdvertisedPicture
 import tv.own.owntv.core.player.DeviceVideoCaps
 
-class MovieVersionChoiceTest {
+class VersionChoiceTest {
 
     private val hdTv = DeviceVideoCaps(uhdOutput = false, hevcUhdHardware = true, hdrDisplay = false, dolbyVisionDisplay = false, dolbyVisionDecoder = false)
     private val uhdHdrTv = DeviceVideoCaps(uhdOutput = true, hevcUhdHardware = true, hdrDisplay = true, dolbyVisionDisplay = false, dolbyVisionDecoder = false)
@@ -24,8 +24,8 @@ class MovieVersionChoiceTest {
         updatedAt: Long = 0,
         anchor: Boolean = false,
         confirmed: Boolean = true,
-    ) = MovieVersionOption(
-        movieId = id, key = "1:r$id", qualityRank = rank, picture = picture, language = null,
+    ) = VersionOption(
+        itemId = id, key = "1:r$id", qualityRank = rank, picture = picture, language = null,
         playlistName = "P", categoryName = null, positionMs = positionMs, durationMs = durationMs,
         completed = completed, progressUpdatedAt = updatedAt, isFavorite = false, isAnchor = anchor,
         confirmed = confirmed, pictureMayFallBack = false,
@@ -34,40 +34,40 @@ class MovieVersionChoiceTest {
     // ---- Device compatibility ----
 
     @Test fun `1080p and unlabelled versions are always confirmed`() {
-        assertTrue(MovieVersionChoice.confirmedPlayable(3, null, DeviceVideoCaps.UNKNOWN, filmsStartOnExo = false))
-        assertTrue(MovieVersionChoice.confirmedPlayable(0, null, DeviceVideoCaps.UNKNOWN, filmsStartOnExo = false))
+        assertTrue(VersionChoice.confirmedPlayable(3, null, DeviceVideoCaps.UNKNOWN, filmsStartOnExo = false))
+        assertTrue(VersionChoice.confirmedPlayable(0, null, DeviceVideoCaps.UNKNOWN, filmsStartOnExo = false))
     }
 
     @Test fun `4K needs a 4K output and a hardware HEVC decoder`() {
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, null, hdTv, true))
-        assertTrue(MovieVersionChoice.confirmedPlayable(4, null, uhdHdrTv, true))
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, null, uhdHdrTv.copy(hevcUhdHardware = false), true))
+        assertFalse(VersionChoice.confirmedPlayable(4, null, hdTv, true))
+        assertTrue(VersionChoice.confirmedPlayable(4, null, uhdHdrTv, true))
+        assertFalse(VersionChoice.confirmedPlayable(4, null, uhdHdrTv.copy(hevcUhdHardware = false), true))
     }
 
     @Test fun `unknown capabilities are never treated as yes`() {
         val unknown = DeviceVideoCaps.UNKNOWN
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, null, unknown, true))
-        assertFalse(MovieVersionChoice.confirmedPlayable(3, AdvertisedPicture.HDR10, unknown, true))
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, unknown, true))
-        assertTrue(MovieVersionChoice.pictureMayFallBack(AdvertisedPicture.HDR, unknown))
-        assertTrue(MovieVersionChoice.pictureMayFallBack(AdvertisedPicture.DOLBY_VISION, unknown))
+        assertFalse(VersionChoice.confirmedPlayable(4, null, unknown, true))
+        assertFalse(VersionChoice.confirmedPlayable(3, AdvertisedPicture.HDR10, unknown, true))
+        assertFalse(VersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, unknown, true))
+        assertTrue(VersionChoice.pictureMayFallBack(AdvertisedPicture.HDR, unknown))
+        assertTrue(VersionChoice.pictureMayFallBack(AdvertisedPicture.DOLBY_VISION, unknown))
     }
 
     @Test fun `HDR needs an HDR display`() {
-        assertFalse(MovieVersionChoice.confirmedPlayable(3, AdvertisedPicture.HDR10, hdTv, true))
-        assertTrue(MovieVersionChoice.confirmedPlayable(3, AdvertisedPicture.HDR10_PLUS, uhdHdrTv, true))
-        assertFalse(MovieVersionChoice.pictureMayFallBack(AdvertisedPicture.HDR10, uhdHdrTv))
+        assertFalse(VersionChoice.confirmedPlayable(3, AdvertisedPicture.HDR10, hdTv, true))
+        assertTrue(VersionChoice.confirmedPlayable(3, AdvertisedPicture.HDR10_PLUS, uhdHdrTv, true))
+        assertFalse(VersionChoice.pictureMayFallBack(AdvertisedPicture.HDR10, uhdHdrTv))
     }
 
     @Test fun `Dolby Vision needs display, decoder and ExoPlayer first - never steered to mpv`() {
-        assertTrue(MovieVersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, dvTv, filmsStartOnExo = true))
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, dvTv, filmsStartOnExo = false))
+        assertTrue(VersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, dvTv, filmsStartOnExo = true))
+        assertFalse(VersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, dvTv, filmsStartOnExo = false))
         // An HDR10 TV is not a Dolby Vision TV.
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, uhdHdrTv, true))
-        assertTrue(MovieVersionChoice.pictureMayFallBack(AdvertisedPicture.DOLBY_VISION, uhdHdrTv))
-        assertFalse(MovieVersionChoice.pictureMayFallBack(AdvertisedPicture.DOLBY_VISION, dvTv))
+        assertFalse(VersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, uhdHdrTv, true))
+        assertTrue(VersionChoice.pictureMayFallBack(AdvertisedPicture.DOLBY_VISION, uhdHdrTv))
+        assertFalse(VersionChoice.pictureMayFallBack(AdvertisedPicture.DOLBY_VISION, dvTv))
         // No decoder: the display alone does not count.
-        assertFalse(MovieVersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, dvTv.copy(dolbyVisionDecoder = null), true))
+        assertFalse(VersionChoice.confirmedPlayable(4, AdvertisedPicture.DOLBY_VISION, dvTv.copy(dolbyVisionDecoder = null), true))
     }
 
     // ---- Initial focus ----
@@ -78,48 +78,48 @@ class MovieVersionChoiceTest {
             option(2, rank = 4, confirmed = false),
             option(3, rank = 3, anchor = true),
         )
-        assertEquals(2, MovieVersionChoice.initialIndex(options, null))
+        assertEquals(2, VersionChoice.initialIndex(options, null))
         assertEquals(3, options.size)
     }
 
     @Test fun `remembered choice wins, even an unconfirmed one the customer picked`() {
         val options = listOf(option(1, rank = 4, confirmed = false), option(2, rank = 3))
-        assertEquals(0, MovieVersionChoice.initialIndex(options, "1:r1"))
+        assertEquals(0, VersionChoice.initialIndex(options, "1:r1"))
     }
 
     @Test fun `a remembered version that is gone falls back`() {
         val options = listOf(option(1, rank = 4), option(2, rank = 3))
-        assertEquals(0, MovieVersionChoice.initialIndex(options, "1:r99"))
+        assertEquals(0, VersionChoice.initialIndex(options, "1:r99"))
     }
 
     @Test fun `nothing confirmed falls back to the version the customer opened`() {
         val options = listOf(option(1, confirmed = false), option(2, confirmed = false, anchor = true))
-        assertEquals(1, MovieVersionChoice.initialIndex(options, null))
-        assertEquals(0, MovieVersionChoice.initialIndex(emptyList(), null))
+        assertEquals(1, VersionChoice.initialIndex(options, null))
+        assertEquals(0, VersionChoice.initialIndex(emptyList(), null))
     }
 
     // ---- Where a version starts (progress is per version) ----
 
     @Test fun `own unfinished progress resumes directly`() {
         val chosen = option(1, positionMs = 60_000, durationMs = 6_000_000)
-        val plan = MovieVersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, option(2, positionMs = 90_000, durationMs = 6_000_000, updatedAt = 9)))
-        assertEquals(MovieVersionChoice.StartPlan(60_000, null), plan)
+        val plan = VersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, option(2, positionMs = 90_000, durationMs = 6_000_000, updatedAt = 9)))
+        assertEquals(VersionChoice.StartPlan(60_000, null), plan)
     }
 
     @Test fun `same-length other version offers an equivalent resume`() {
         val chosen = option(1)
         val other = option(2, positionMs = 1_800_000, durationMs = 6_000_000, updatedAt = 5)
-        val plan = MovieVersionChoice.startPlan(chosen, 6_060_000, listOf(chosen, other)) // 1 % longer
-        assertEquals(MovieVersionChoice.StartPlan(0, 1_800_000), plan)
+        val plan = VersionChoice.startPlan(chosen, 6_060_000, listOf(chosen, other)) // 1 % longer
+        assertEquals(VersionChoice.StartPlan(0, 1_800_000), plan)
     }
 
     @Test fun `different cuts or an unknown duration start from the beginning`() {
         val chosen = option(1)
         val other = option(2, positionMs = 1_800_000, durationMs = 6_000_000)
-        assertEquals(MovieVersionChoice.StartPlan(0, null), MovieVersionChoice.startPlan(chosen, 7_200_000, listOf(chosen, other)))
-        assertEquals(MovieVersionChoice.StartPlan(0, null), MovieVersionChoice.startPlan(chosen, null, listOf(chosen, other)))
+        assertEquals(VersionChoice.StartPlan(0, null), VersionChoice.startPlan(chosen, 7_200_000, listOf(chosen, other)))
+        assertEquals(VersionChoice.StartPlan(0, null), VersionChoice.startPlan(chosen, null, listOf(chosen, other)))
         val otherNoDuration = option(2, positionMs = 1_800_000, durationMs = 0)
-        assertEquals(MovieVersionChoice.StartPlan(0, null), MovieVersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, otherNoDuration)))
+        assertEquals(VersionChoice.StartPlan(0, null), VersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, otherNoDuration)))
     }
 
     @Test fun `finished versions offer nothing and the most recent other progress is used`() {
@@ -127,8 +127,8 @@ class MovieVersionChoiceTest {
         val old = option(2, positionMs = 600_000, durationMs = 6_000_000, updatedAt = 1)
         val recent = option(3, positionMs = 2_400_000, durationMs = 6_000_000, updatedAt = 7)
         val done = option(4, positionMs = 5_990_000, durationMs = 6_000_000, completed = true, updatedAt = 9)
-        assertEquals(MovieVersionChoice.StartPlan(0, 2_400_000), MovieVersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, old, recent, done)))
-        assertEquals(MovieVersionChoice.StartPlan(0, null), MovieVersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, done)))
+        assertEquals(VersionChoice.StartPlan(0, 2_400_000), VersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, old, recent, done)))
+        assertEquals(VersionChoice.StartPlan(0, null), VersionChoice.startPlan(chosen, 6_000_000, listOf(chosen, done)))
     }
 
     // ---- Remembered choice: per profile, bounded ----

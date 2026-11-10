@@ -96,6 +96,8 @@ class SeriesViewModel(
     private val externalPlayerLauncher: tv.own.owntv.core.player.ExternalPlayerLauncher,
     private val streamUrlResolver: tv.own.owntv.core.stalker.StreamUrlResolver,
     private val subtitleController: tv.own.owntv.core.subtitles.SubtitleController,
+    private val versionRepository: tv.own.owntv.core.catalog.versions.VersionRepository,
+    private val deviceVideo: tv.own.owntv.core.player.DeviceVideoCapabilities,
 ) : ViewModel() {
 
     data class SeriesMoveState(val items: List<SeriesEntity>, val activeIndex: Int, val contextKey: String)
@@ -396,9 +398,8 @@ class SeriesViewModel(
         val url = player.currentMediaUrl ?: return
         val all = episodes.value
         val finished = all.firstOrNull { it.streamUrl == url } ?: return // not one of this series' episodes
-        val nextEpisode = all
-            .filter { it.seasonNumber == finished.seasonNumber + 1 }
-            .minByOrNull { it.episodeNumber } ?: return // no next season — series finished
+        // Within the same series row: a queue in one version never continues into another's episodes.
+        val nextEpisode = EpisodeQueues.nextSeasonFirst(all, finished) ?: return // no next season — series finished
         playEpisode(nextEpisode)
     }
 
@@ -747,6 +748,9 @@ class SeriesViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     fun openSeries(s: SeriesEntity) {
+        switchingVersion?.cancel()
+        closeEpisodeVersions()
+        loadSeriesVersions(s)
         _openedSeries.value = s
         _selectedSeason.value = 1 // reset season when opening a different show
         _lastPlayedEpisodeId.value = null
@@ -797,7 +801,272 @@ class SeriesViewModel(
     }
 
     fun closeSeries() {
+        switchingVersion?.cancel()
+        closeEpisodeVersions()
         _openedSeries.value = null
+    }
+
+    // ---- Alternate versions (4.6.1 stage 3): the same show as 1080p / 4K / Dolby Vision / another language ----
+
+    private val _seriesVersions = MutableStateFlow<tv.own.owntv.features.versions.VersionsUi?>(null)
+
+    /** The open show's versions: loading, then ready (two or more options, or none for one version). */
+    val seriesVersions: StateFlow<tv.own.owntv.features.versions.VersionsUi?> = _seriesVersions.asStateFlow()
+
+    /** The raw lookup behind [seriesVersions], for finding an episode in the other versions. */
+    private var foundVersions: List<tv.own.owntv.core.catalog.versions.ContentVersion> = emptyList()
+    private var seriesVersionsJob: kotlinx.coroutines.Job? = null
+    private var switchingVersion: kotlinx.coroutines.Job? = null
+
+    enum class VersionNotice {
+        /** Switched version; the focused episode is not (or not safely) in it. */
+        EPISODE_NOT_IN_VERSION,
+        /** The chosen version's episodes could not be loaded; the previous version stays open. */
+        SWITCH_FAILED,
+    }
+
+    private val _versionNotice = MutableStateFlow<VersionNotice?>(null)
+    val versionNotice: StateFlow<VersionNotice?> = _versionNotice.asStateFlow()
+    fun consumeVersionNotice() { _versionNotice.value = null }
+
+    /**
+     * Look up [show]'s versions (one indexed query, profile-scoped — VersionRepository applies the
+     * profile's playlists, hidden and Kids rules). A show with one version ends ready with no options:
+     * the page looks exactly as before.
+     */
+    fun loadSeriesVersions(show: SeriesEntity) {
+        if (seriesVersionsJob?.isActive == true && _seriesVersions.value?.itemId == show.id) return
+        seriesVersionsJob?.cancel()
+        foundVersions = emptyList()
+        _seriesVersions.value = tv.own.owntv.features.versions.VersionsUi.loading(show.id)
+        seriesVersionsJob = viewModelScope.launch {
+            val ui = kotlinx.coroutines.withTimeoutOrNull(VERSION_LOOKUP_TIMEOUT_MS) {
+                runCatching { buildSeriesVersions(show) }
+                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "series version lookup failed seriesId=${show.id}", it) }
+                    .getOrNull()
+            }
+            _seriesVersions.value = ui ?: tv.own.owntv.features.versions.VersionsUi.single(show.id)
+        }
+    }
+
+    private suspend fun buildSeriesVersions(show: SeriesEntity): tv.own.owntv.features.versions.VersionsUi {
+        val found = versionRepository.seriesVersions(show)
+        if (found.size < 2) return tv.own.owntv.features.versions.VersionsUi.single(show.id)
+        val pid = currentProfileId()
+        val caps = deviceVideo.caps
+        val onExo = tv.own.owntv.features.versions.VersionOptions.startsOnExo(settings.vodEnginePreference.first())
+        val favorites = favoriteIds.value
+        val names = playlistNames(found)
+        val options = found.map { v ->
+            tv.own.owntv.features.versions.VersionOptions.option(
+                version = v, playlistName = names[v.row.sourceId], caps = caps, startsOnExo = onExo,
+                isFavorite = v.row.id in favorites, isCurrent = v.row.id == show.id,
+            )
+        }
+        val titleKey = tv.own.owntv.features.versions.VersionOptions.titleKey(found)
+        val remembered = pid?.let { settings.versionChoice(it, titleKey, series = true) }
+        foundVersions = found
+        return tv.own.owntv.features.versions.VersionsUi(
+            itemId = show.id, ready = true, titleKey = titleKey, options = options,
+            initialIndex = tv.own.owntv.features.versions.VersionChoice.initialIndex(options, remembered),
+        )
+    }
+
+    private suspend fun playlistNames(found: List<tv.own.owntv.core.catalog.versions.ContentVersion>): Map<Long, String?> =
+        found.map { it.row.sourceId }.distinct().associateWith { sourceDao.getById(it)?.name }
+
+    /** A version's episodes and info block: the episode cache when fresh (no provider call), else one fetch. */
+    private class VersionEpisodes(
+        val show: SeriesEntity,
+        val info: tv.own.owntv.core.parser.XtProviderMetadata?,
+        val episodes: List<EpisodeEntity>,
+        val index: Map<tv.own.owntv.core.catalog.versions.EpisodeMatcher.Key, EpisodeEntity>,
+    )
+
+    /** Null when the version has no episodes to offer — the provider was unreachable or the request was cut off. */
+    private suspend fun versionEpisodes(show: SeriesEntity): VersionEpisodes? {
+        val info = runCatching { seriesRepository.loadEpisodesWithInfo(show) }
+            .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+            .getOrNull()
+        // The repository swallows a cut-off request; a cancelled caller must still stop here.
+        kotlinx.coroutines.yield()
+        val episodes = seriesDao.episodesBySeriesOnce(show.id)
+        if (episodes.isEmpty()) return null
+        val type = sourceDao.getById(show.sourceId)?.type
+        return VersionEpisodes(show, info, episodes, tv.own.owntv.core.catalog.versions.EpisodeMatcher.trustedIndex(episodes, type, show.name))
+    }
+
+    private suspend fun trustedIndexOf(show: SeriesEntity, episodes: List<EpisodeEntity>) =
+        tv.own.owntv.core.catalog.versions.EpisodeMatcher.trustedIndex(episodes, sourceDao.getById(show.sourceId)?.type, show.name)
+
+    /**
+     * Open [option]'s version of the show in place of the current one, keeping the customer's place
+     * ([EpisodeMatcher.carry]): the same episode when it is certainly in the other version, else the
+     * same season. Remembered per profile and title. If the other version's episodes cannot be loaded
+     * the current version stays open ([VersionNotice.SWITCH_FAILED]). A second press while switching is
+     * ignored; opening another show cancels it.
+     */
+    fun switchSeriesVersion(ui: tv.own.owntv.features.versions.VersionsUi, option: tv.own.owntv.features.versions.VersionOption, focused: EpisodeEntity?) {
+        if (option.isCurrent || switchingVersion?.isActive == true) return
+        val from = _openedSeries.value ?: return
+        val fromSeason = _selectedSeason.value
+        switchingVersion = viewModelScope.launch {
+            val target = seriesDao.getSeriesById(option.itemId) ?: return@launch
+            val pid = currentProfileId() ?: return@launch
+            if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, target.categoryId, profileDao, categoryDao)) return@launch
+            _episodesLoading.value = true
+            try {
+                val loaded = versionEpisodes(target)
+                if (_openedSeries.value?.id != from.id) return@launch // the customer moved on meanwhile
+                if (loaded == null) {
+                    _versionNotice.value = VersionNotice.SWITCH_FAILED
+                    return@launch
+                }
+                runCatching { settings.setVersionChoice(pid, ui.titleKey, option.key, series = true) }
+                val fromEpisodes = seriesDao.episodesBySeriesOnce(from.id)
+                val carry = tv.own.owntv.core.catalog.versions.EpisodeMatcher.carry(
+                    focused?.takeIf { it.seriesId == from.id }, fromSeason, trustedIndexOf(from, fromEpisodes), loaded.episodes, loaded.index,
+                )
+                val focusId = carry.episodeId
+                    ?: progressDao.lastWatchedEpisodeId(pid, target.id)?.takeIf { id -> carry.episodeLost.not() && loaded.episodes.any { it.id == id } }
+                adoptVersion(target, loaded.info, carry.season, focusId)
+                if (carry.episodeLost) _versionNotice.value = VersionNotice.EPISODE_NOT_IN_VERSION
+            } finally {
+                // Cancelled because another show opened: that show's own load owns the spinner now.
+                if (isActive) _episodesLoading.value = false
+            }
+        }
+    }
+
+    /** Show [target] as the open series, on [season] with [focusEpisodeId] as the place to land. */
+    private fun adoptVersion(target: SeriesEntity, info: tv.own.owntv.core.parser.XtProviderMetadata?, season: Int, focusEpisodeId: Long?) {
+        closeEpisodeVersions()
+        _openedSeries.value = target
+        _openedSeriesMeta.value = info
+        _selectedSeason.value = season
+        _lastPlayedEpisodeId.value = focusEpisodeId
+        _selectedEpisode.value = null
+        loadSeriesVersions(target)
+    }
+
+    // ---- One episode in the other versions ("Other versions" on an episode) ----
+
+    private val _episodeVersions = MutableStateFlow<tv.own.owntv.features.versions.VersionsUi?>(null)
+
+    /** [episode]'s counterpart in each version of the open show: loading, then ready. itemId = the episode. */
+    val episodeVersions: StateFlow<tv.own.owntv.features.versions.VersionsUi?> = _episodeVersions.asStateFlow()
+    private var episodeVersionsJob: kotlinx.coroutines.Job? = null
+    private var choosingEpisodeVersion: kotlinx.coroutines.Job? = null
+
+    /**
+     * Find [episode] in every version of the open show, by season and episode number only (provider ids
+     * are never assumed to match). Each version's episodes come from the cache when fresh. A version
+     * without the episode, with numbering that cannot be trusted, or whose episodes did not load is
+     * listed with the reason, never hidden.
+     */
+    fun loadEpisodeVersions(episode: EpisodeEntity) {
+        val show = _openedSeries.value ?: return
+        val found = foundVersions
+        if (episode.seriesId != show.id || _seriesVersions.value?.itemId != show.id || found.size < 2) return
+        if (episodeVersionsJob?.isActive == true && _episodeVersions.value?.itemId == episode.id) return
+        episodeVersionsJob?.cancel()
+        _episodeVersions.value = tv.own.owntv.features.versions.VersionsUi.loading(episode.id)
+        episodeVersionsJob = viewModelScope.launch {
+            val ui = runCatching { buildEpisodeVersions(show, episode, found) }
+                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it; Log.w(TAG, "episode version lookup failed episodeId=${episode.id}", it) }
+                .getOrNull()
+            _episodeVersions.value = ui ?: tv.own.owntv.features.versions.VersionsUi.single(episode.id)
+        }
+    }
+
+    /** Close the episode's version list; a lookup still running is cancelled. */
+    fun closeEpisodeVersions() {
+        episodeVersionsJob?.cancel()
+        _episodeVersions.value = null
+    }
+
+    private suspend fun buildEpisodeVersions(
+        show: SeriesEntity,
+        episode: EpisodeEntity,
+        found: List<tv.own.owntv.core.catalog.versions.ContentVersion>,
+    ): tv.own.owntv.features.versions.VersionsUi {
+        val pid = currentProfileId()
+        val caps = deviceVideo.caps
+        val onExo = tv.own.owntv.features.versions.VersionOptions.startsOnExo(settings.vodEnginePreference.first())
+        val names = playlistNames(found)
+        val fromEpisodes = seriesDao.episodesBySeriesOnce(show.id)
+        val fromIndex = trustedIndexOf(show, fromEpisodes)
+        val options = found.map { v ->
+            fun row(itemId: Long, progress: PlaybackProgressEntity?, durationSecs: Int?, unavailable: tv.own.owntv.features.versions.VersionOption.Unavailable?, current: Boolean) =
+                tv.own.owntv.features.versions.VersionOptions.option(
+                    version = v, playlistName = names[v.row.sourceId], caps = caps, startsOnExo = onExo, itemId = itemId,
+                    positionMs = progress?.positionMs ?: 0,
+                    durationMs = progress?.durationMs?.takeIf { it > 0 } ?: durationSecs?.takeIf { it > 0 }?.let { it * 1000L } ?: 0,
+                    completed = progress?.let { isEpisodeCompleted(it) } == true,
+                    progressUpdatedAt = progress?.updatedAt ?: 0,
+                    unavailable = unavailable, isCurrent = current,
+                )
+            if (v.row.id == show.id) {
+                return@map row(episode.id, pid?.let { progressDao.get(it, MediaType.EPISODE, episode.id) }, episode.durationSecs, null, current = true)
+            }
+            val other = seriesDao.getSeriesById(v.row.id)?.let { versionEpisodes(it) }
+                ?: return@map row(v.row.id, null, null, tv.own.owntv.features.versions.VersionOption.Unavailable.NOT_LOADED, current = false)
+            when (val m = tv.own.owntv.core.catalog.versions.EpisodeMatcher.match(episode, fromIndex, other.episodes, other.index)) {
+                is tv.own.owntv.core.catalog.versions.EpisodeMatcher.Match.Found ->
+                    row(m.episode.id, pid?.let { progressDao.get(it, MediaType.EPISODE, m.episode.id) }, m.episode.durationSecs, null, current = false)
+                tv.own.owntv.core.catalog.versions.EpisodeMatcher.Match.Missing ->
+                    row(v.row.id, null, null, tv.own.owntv.features.versions.VersionOption.Unavailable.MISSING, current = false)
+                tv.own.owntv.core.catalog.versions.EpisodeMatcher.Match.Unmatched ->
+                    row(v.row.id, null, null, tv.own.owntv.features.versions.VersionOption.Unavailable.UNMATCHED, current = false)
+            }
+        }
+        val titleKey = tv.own.owntv.features.versions.VersionOptions.titleKey(found)
+        val remembered = pid?.let { settings.versionChoice(it, titleKey, series = true) }
+        return tv.own.owntv.features.versions.VersionsUi(
+            itemId = episode.id, ready = true, titleKey = titleKey, options = options,
+            initialIndex = tv.own.owntv.features.versions.VersionChoice.initialIndex(options, remembered),
+        )
+    }
+
+    /**
+     * The customer picked [option] for an episode. Its version becomes the open one (so Next and the
+     * next season continue there), the choice is remembered, and [onPlan] gets the episode and where it
+     * starts ([VersionChoice.startPlan]: its own unfinished progress, or an offer to resume at the other
+     * version's point when both durations are known and match). Progress then saves to the chosen
+     * episode only; the original keeps its own. A second OK while preparing is ignored.
+     */
+    fun chooseEpisodeVersion(
+        ui: tv.own.owntv.features.versions.VersionsUi,
+        option: tv.own.owntv.features.versions.VersionOption,
+        onPlan: (SeriesEntity, EpisodeEntity, tv.own.owntv.features.versions.VersionChoice.StartPlan) -> Unit,
+    ) {
+        if (option.unavailable != null || choosingEpisodeVersion?.isActive == true) return
+        choosingEpisodeVersion = viewModelScope.launch {
+            val episode = seriesDao.getEpisodeById(option.itemId) ?: return@launch
+            val show = seriesDao.getSeriesById(episode.seriesId) ?: return@launch
+            val pid = currentProfileId() ?: return@launch
+            if (!tv.own.owntv.core.content.AdultCategoryClassifier.allows(pid, show.categoryId, profileDao, categoryDao)) return@launch
+            val durationMs = option.durationMs.takeIf { it > 0 } ?: episode.durationSecs?.takeIf { it > 0 }?.let { it * 1000L }
+            val plan = tv.own.owntv.features.versions.VersionChoice.startPlan(option, durationMs, ui.options)
+            if (!option.isCurrent) {
+                runCatching { settings.setVersionChoice(pid, ui.titleKey, option.key, series = true) }
+                val info = runCatching { seriesRepository.loadEpisodesWithInfo(show) }
+                    .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+                    .getOrNull()
+                adoptVersion(show, info, episode.seasonNumber, episode.id)
+            } else {
+                closeEpisodeVersions()
+            }
+            onPlan(show, episode, plan)
+        }
+    }
+
+    /** Play [episode] of [show] with its season from the database — not from the open list, which may still be another version's. */
+    fun playEpisodeOf(show: SeriesEntity, episode: EpisodeEntity, startPositionMs: Long) {
+        viewModelScope.launch {
+            val queue = EpisodeQueues.seasonQueue(seriesDao.episodesBySeriesOnce(show.id), episode).ifEmpty { listOf(episode) }
+            playEpisodeQueue(show, queue, episode, startPositionMs)
+        }
     }
 
     /** The user's resume preference (Always / Ask / Never) — the screen drives the prompt. */
@@ -860,9 +1129,16 @@ class SeriesViewModel(
 
     fun playEpisode(episode: EpisodeEntity, startPositionMs: Long = 0) {
         val show = _openedSeries.value ?: return
-        val seasonEpisodes = episodes.value
-            .filter { it.seasonNumber == episode.seasonNumber }
-            .sortedBy { it.episodeNumber }
+        val seasonEpisodes = EpisodeQueues.seasonQueue(episodes.value, episode)
+        // The open show just changed (another version) and its episode list has not caught up yet:
+        // build the queue from the database instead of from the previous version's list.
+        if (show.id != episode.seriesId || seasonEpisodes.none { it.id == episode.id }) {
+            viewModelScope.launch {
+                val owner = if (show.id == episode.seriesId) show else seriesDao.getSeriesById(episode.seriesId) ?: return@launch
+                playEpisodeQueue(owner, EpisodeQueues.seasonQueue(seriesDao.episodesBySeriesOnce(owner.id), episode).ifEmpty { listOf(episode) }, episode, startPositionMs)
+            }
+            return
+        }
         playEpisodeQueue(show, seasonEpisodes, episode, startPositionMs)
     }
 
@@ -1205,6 +1481,9 @@ class SeriesViewModel(
 
     private companion object {
         const val TAG = "OwnTVHome"
+
+        /** A version lookup slower than this leaves the page as a one-version show. */
+        const val VERSION_LOOKUP_TIMEOUT_MS = 3_000L
 
         /**
          * How long the user must stay on a season before the grid fetches its stills. Longer than the
