@@ -55,10 +55,8 @@ internal object GuideSyncNotifications {
         }
 
     /** Notification channels exist from Android 8; before that the notification needs none. */
-    internal fun needsChannel(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.O
-
     private fun ensureChannel(context: Context, localized: Context) {
-        if (!needsChannel(Build.VERSION.SDK_INT)) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         val name = localized.getString(R.string.content_epg_title)
         val key = "${localized.resources.configuration.locales[0]?.toLanguageTag().orEmpty()}:$name"

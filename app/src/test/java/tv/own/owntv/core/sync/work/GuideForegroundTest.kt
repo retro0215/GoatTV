@@ -38,10 +38,9 @@ class GuideForegroundTest {
     }
 
     @Test fun `a channel is created from Android 8 only`() {
-        assertFalse(GuideSyncNotifications.needsChannel(24))
-        assertFalse(GuideSyncNotifications.needsChannel(25))
-        assertTrue(GuideSyncNotifications.needsChannel(26))
-        assertTrue(GuideSyncNotifications.needsChannel(36))
+        val notifications = java.io.File("src/main/java/tv/own/owntv/core/sync/work/GuideSyncNotifications.kt").readText()
+        val ensure = notifications.substringAfter("private fun ensureChannel(")
+        assertTrue(ensure.indexOf("if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return") in 1 until ensure.indexOf("createNotificationChannel"))
     }
 
     // ---- Worker wiring (WorkManager is not run in a JVM test) ----
