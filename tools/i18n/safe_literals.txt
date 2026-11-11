@@ -491,8 +491,15 @@
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink failed sourceId=${source.id}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder relink sourceId=${source.id} ${it.values.groupingBy { o -> o }.eachCount()}
 1	log	app/src/main/java/tv/own/owntv/core/repository/SourceRepository.kt	reminder snapshot failed sourceId=${source.id}
+1	log	app/src/main/java/tv/own/owntv/core/sync/SyncSupport.kt	$label prune skipped sourceId=$sourceId reason=account_lapsed stored=$stored stale=$stale
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	Expired
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	HTTP 401: $reason
+1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	HTTP 401: ${tv.own.owntv.core.util.XTREAM_ACCOUNT_EXPIRED}
+1	log	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	Xtream account expiry passed with no status sourceId=${s.id} — pruning held, empty lists will fail the sync
+3	json	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	channels
+4	json	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	movies
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	panel rejected the username or password
+4	json	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	series
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	CatalogTitleBackfill
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	backfill failed; it runs again on the next start
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/CatalogTitleBackfillWorker.kt	catalog-title-backfill

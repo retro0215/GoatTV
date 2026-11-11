@@ -34,12 +34,13 @@ internal class XtreamSyncer(
 ) {
     suspend fun sync(s: SourceEntity, progress: SyncCounters, stats: SyncStatsCollector, contentTypes: SyncContentTypes) {
         val details = runCatching { xtream.fetchAccountDetails(s) }.getOrNull()
-        if (details?.authenticated == false) {
+        val nowMs = System.currentTimeMillis()
+        if (details != null && (details.authenticated == false || statedExpired(details))) {
             // Refused: keep a stated expiry date so Home's subscription warning can say why, but touch
             // nothing else — HLS support and the session limit from a refusal are not the account's.
             details.expiryMs?.let { support.sourceDao.updateExpiry(s.id, it, null) }
         }
-        requireAccepted(details, System.currentTimeMillis())
+        requireAccepted(details, nowMs)
         if (details != null) {
             // Only a panel that actually answered gets to settle this: `details == null` is a network or
             // parse failure, and leaving the row UNKNOWN is the honest record of that.
@@ -55,6 +56,14 @@ internal class XtreamSyncer(
             // Subscription expiry (v34) — used for Home screen warning.
             support.sourceDao.updateExpiry(s.id, details.expiryMs, null)
         }
+        // A passed expiry date with no status: the account may still work (some panels keep a stale date),
+        // so the lists are fetched — but nothing is deleted on their word, and if every one comes back
+        // empty the pass fails as an expired account below instead of being stamped synced.
+        val lapsed = lapsedWithoutStatus(details, nowMs)
+        if (lapsed) {
+            stats.holdPrune = true
+            Log.w(TAG, "Xtream account expiry passed with no status sourceId=${s.id} — pruning held, empty lists will fail the sync")
+        }
         val semaphore = Semaphore(2)
         Log.i(TAG, "Xtream sync scheduling sourceId=${s.id} contentTypes=$contentTypes concurrency=2 hlsSupported=${details?.hlsSupported} maxConnections=${details?.maxConnections}")
         coroutineScope {
@@ -62,6 +71,7 @@ internal class XtreamSyncer(
             if (contentTypes.movies) async { semaphore.withPermit { syncMovies(s, progress, stats) } }
             if (contentTypes.series) async { semaphore.withPermit { syncSeries(s, progress, stats) } }
         }
+        requireContentWhenLapsed(lapsed, contentTypes, stats.processedCounts)
     }
 
     // C5: the three Xtream phases share one generic scaffolding (syncXtreamPhase) — they differ only
@@ -452,7 +462,13 @@ internal class XtreamSyncer(
          * Reference: upstream OwnTV_Core 38f30e67. The message never contains credentials.
          */
         internal fun requireAccepted(details: XtreamClient.XtAccountDetails?, nowMs: Long) {
-            if (details == null || details.authenticated != false) return
+            if (details == null) return
+            // 4.6.1: some panels keep accepting an expired login (HTTP 200, no `auth: 0`) and answer every
+            // list with nothing. An explicit "Expired" status fails the sync before any list is requested.
+            if (details.authenticated != false) {
+                if (statedExpired(details)) throw expiredAccount()
+                return
+            }
             val reason = if (details.refusedAsExpired(nowMs)) {
                 tv.own.owntv.core.util.XTREAM_ACCOUNT_EXPIRED
             } else {
@@ -460,5 +476,39 @@ internal class XtreamSyncer(
             }
             throw HttpClient.HttpStatusException(401, "HTTP 401: $reason")
         }
+
+        /** The panel says in so many words that the subscription has run out. */
+        internal fun statedExpired(details: XtreamClient.XtAccountDetails): Boolean =
+            details.status.equals("Expired", ignoreCase = true)
+
+        /**
+         * The expiry date has passed but the panel states no status. Not proof on its own — a stated status
+         * ("Active") outranks the date, and a missing or unreadable date (parsed as null) never counts.
+         */
+        internal fun lapsedWithoutStatus(details: XtreamClient.XtAccountDetails?, nowMs: Long): Boolean {
+            if (details == null || details.authenticated == false) return false
+            if (!details.status.isNullOrBlank()) return false
+            val expiry = details.expiryMs ?: return false
+            return expiry <= nowMs
+        }
+
+        /**
+         * After a [lapsedWithoutStatus] pass: fails it as an expired account when every requested list
+         * came back complete and empty. Usable content keeps the sync; a list that did not finish (no
+         * count recorded) proves nothing either way, so the pass is not failed on its account.
+         */
+        internal fun requireContentWhenLapsed(lapsed: Boolean, contentTypes: SyncContentTypes, counts: Map<String, Int>) {
+            if (!lapsed) return
+            val keys = buildList {
+                if (contentTypes.live) add("channels")
+                if (contentTypes.movies) add("movies")
+                if (contentTypes.series) add("series")
+            }
+            if (keys.isEmpty()) return
+            if (keys.all { counts[it] == 0 }) throw expiredAccount()
+        }
+
+        private fun expiredAccount() =
+            HttpClient.HttpStatusException(401, "HTTP 401: ${tv.own.owntv.core.util.XTREAM_ACCOUNT_EXPIRED}")
     }
 }

@@ -141,8 +141,15 @@ internal class SyncSupport(
      * for the case where the catalog really did shrink.
      *
      * Returns true when the prune may proceed.
+     *
+     * A pass whose account looks lapsed ([SyncStatsCollector.holdPrune]) never prunes, whatever the size of
+     * the catalog and even when forced: its empty lists say nothing about what the provider still carries.
      */
     private fun pruneAllowed(label: String, sourceId: Long, stored: Int, stale: Int, stats: SyncStatsCollector): Boolean {
+        if (stats.holdPrune) {
+            Log.w(TAG, "$label prune skipped sourceId=$sourceId reason=account_lapsed stored=$stored stale=$stale")
+            return false
+        }
         if (shouldPrune(stored, stale, stats.forcePrune)) return true
         val percent = (stale * 100) / stored
         Log.w(TAG, "$label prune skipped sourceId=$sourceId reason=catalog_shrink stored=$stored stale=$stale")
@@ -586,6 +593,13 @@ internal class SyncStatsCollector(val sourceId: Long) {
      * genuinely shrunken provider catalog can be trimmed down. Off for every automatic sync.
      */
     @Volatile var forcePrune = false
+
+    /**
+     * Set by the Xtream sync when the account's expiry date has passed and the panel states no status
+     * (4.6.1): the pass may still carry content, but if its lists come back empty nothing may be deleted
+     * on their word. Overrides [forcePrune] and the small-catalog exemption of the shrink guard.
+     */
+    @Volatile var holdPrune = false
 
     fun addWarning(warning: SyncWarning) { warningFacts += warning }
 

@@ -2490,13 +2490,10 @@
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	HTTP
 4	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	SyncManager
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	Xtream sync scheduling sourceId=${s.id} contentTypes=$contentTypes concurrency=2 hlsSupported=${details?.hlsSupported} maxConnections=${details?.maxConnections}
-2	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	channels
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	channels_fts
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	complete=$complete newUnique=$delta totalUnique=${total[0]} ms=${SystemClock.elapsedRealtime() - categoryStart}
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	live
-3	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	movies
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	movies_fts
-3	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	series
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	series_fts
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	skipping category
 1	app/src/main/java/tv/own/owntv/core/sync/XtreamSyncer.kt	succeeded=${outcome.succeededCategoryRemoteIds.size} aborted=${outcome.aborted} stoppedEarly=${outcome.stoppedEarly}
