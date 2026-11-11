@@ -27,6 +27,20 @@ class MultiscreenDecodersTest {
         assertNull(MultiscreenDecoders.shownFullscreen(tiles, null))
     }
 
+    // ---- App in the background (Home, screensaver, TV off) ----
+
+    @Test
+    fun `in the background no tile keeps a decoder, grid or fullscreen`() {
+        assertEquals(emptySet<Long>(), MultiscreenDecoders.activeIds(tiles, null, visible = false))
+        assertEquals(emptySet<Long>(), MultiscreenDecoders.activeIds(tiles, 30L, visible = false))
+    }
+
+    @Test
+    fun `back on screen the grid resumes every tile, a fullscreen layout only its tile`() {
+        assertEquals(tiles.toSet(), MultiscreenDecoders.activeIds(tiles, null, visible = true))
+        assertEquals(setOf(30L), MultiscreenDecoders.activeIds(tiles, 30L, visible = true))
+    }
+
     @Test
     fun `no tiles, no decoders`() {
         assertEquals(emptySet<Long>(), MultiscreenDecoders.activeIds(emptyList(), null))

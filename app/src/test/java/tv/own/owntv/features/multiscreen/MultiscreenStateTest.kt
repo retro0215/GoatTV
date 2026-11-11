@@ -220,4 +220,71 @@ class MultiscreenStateTest {
         verify { b.volume = 0f }
         verify(exactly = 0) { b.volume = 1f }
     }
+
+    // ---- App in the background (Shield, 4.6.1: two tiles kept decoding and playing sound after Home) ----
+
+    private fun background(fullscreenId: Long?, vararg ids: Long) =
+        state.setActive(MultiscreenDecoders.activeIds(ids.toList(), fullscreenId, visible = false))
+    private fun foreground(fullscreenId: Long?, vararg ids: Long) =
+        state.setActive(MultiscreenDecoders.activeIds(ids.toList(), fullscreenId, visible = true))
+
+    @Test
+    fun `Home parks every tile - no decoder, no stream, no sound - and keeps the players`() {
+        val (a, b) = show(1, 2)
+        grid(1, 2)
+        background(null, 1, 2)
+        listOf(a, b).forEach { verify(exactly = 1) { it.stop() } }
+        listOf(a, b).forEach { verify(exactly = 0) { it.release() } }
+        assertTrue(state.isParked(1) && state.isParked(2))
+        assertEquals("the layout and its players survive", setOf(1L, 2L), state.players.keys.toSet())
+    }
+
+    @Test
+    fun `back from Home the grid resumes once, without building another player`() {
+        val (a, b) = show(1, 2)
+        grid(1, 2)
+        background(null, 1, 2)
+        foreground(null, 1, 2)
+        listOf(a, b).forEach { verify(exactly = 1) { it.prepare() } }
+        assertEquals("no extra stream: the same two players", 2, built.size)
+        assertFalse(state.isParked(1) || state.isParked(2))
+    }
+
+    @Test
+    fun `a layout left in fullscreen resumes only its fullscreen tile`() {
+        val (a, b, c) = show(1, 2, 3)
+        fullscreen(2, 1, 2, 3)
+        background(2, 1, 2, 3)
+        verify(exactly = 1) { b.stop() } // the fullscreen tile is parked too
+        foreground(2, 1, 2, 3)
+        verify(exactly = 1) { b.prepare() }
+        listOf(a, c).forEach { verify(exactly = 0) { it.prepare() } }
+        assertTrue(state.isParked(1) && state.isParked(3))
+        // and the grid brings the rest back once fullscreen ends
+        grid(1, 2, 3)
+        listOf(a, c).forEach { verify(exactly = 1) { it.prepare() } }
+    }
+
+    @Test
+    fun `repeated Home and return never stack decoders or rebuild players`() {
+        val players = show(1, 2)
+        repeat(5) {
+            background(null, 1, 2)
+            assertEquals(2, (1L..2L).count(state::isParked))
+            foreground(null, 1, 2)
+            assertEquals(0, (1L..2L).count(state::isParked))
+        }
+        players.forEach { verify(exactly = 5) { it.stop() }; verify(exactly = 5) { it.prepare() } }
+        assertEquals(2, built.size)
+    }
+
+    @Test
+    fun `the focused tile keeps its sound after Home - audio choice is not touched by parking`() {
+        val (a, b) = show(1, 2)
+        state.applyAudioFocus(2)
+        background(null, 1, 2)
+        foreground(null, 1, 2)
+        verify(exactly = 0) { a.volume = 1f }
+        verify(exactly = 1) { b.volume = 1f } // set once by the focus, never reset by Home
+    }
 }

@@ -431,10 +431,36 @@ fun MultiscreenScreen(
         id?.let { tileRequesters[it] }?.let { runCatching { it.requestFocus() } }
     }
 
+    // 4.6.1: whether the app is on screen. Home, the screensaver or TV off stop the activity; the tiles were
+    // left decoding, and the focused one playing sound, behind the Android TV home screen.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var appVisible by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED))
+    }
+    val currentChannels by rememberUpdatedState(channels)
+    val currentFullscreenId by rememberUpdatedState(fullscreenChannelId)
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                // Parked right here, not by an effect: a stopped activity may not get another frame to
+                // recompose in. The players stay, so the layout, the channels and the audio choice survive.
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                    appVisible = false
+                    msState.setActive(MultiscreenDecoders.activeIds(currentChannels.map { it.id }, currentFullscreenId, visible = false))
+                }
+                // Resumed by the effect below, after recomposition, so each decoder starts on its tile's surface.
+                androidx.lifecycle.Lifecycle.Event.ON_START -> appVisible = true
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // Park the hidden tiles before the grid recomposes, so their decoders are stopped rather than moved
     // onto a placeholder surface when their views leave.
     fun enterFullscreen(channelId: Long) {
-        msState.setActive(MultiscreenDecoders.activeIds(channels.map { it.id }, channelId))
+        msState.setActive(MultiscreenDecoders.activeIds(channels.map { it.id }, channelId, appVisible))
         fullscreenChannelId = channelId
     }
 
@@ -446,9 +472,10 @@ fun MultiscreenScreen(
     }
 
     // Back in the grid, parked tiles resume — after recomposition, so their new views are already there
-    // and the decoders start on the tile's own surface.
-    LaunchedEffect(channels, fullscreenChannelId) {
-        msState.setActive(MultiscreenDecoders.activeIds(channels.map { it.id }, fullscreenChannelId))
+    // and the decoders start on the tile's own surface. Back from the background, the same rule resumes
+    // the grid, or only the fullscreen tile when the layout was left in fullscreen.
+    LaunchedEffect(channels, fullscreenChannelId, appVisible) {
+        msState.setActive(MultiscreenDecoders.activeIds(channels.map { it.id }, fullscreenChannelId, appVisible))
     }
 
     // Recovery Handler: Ensure Back button ALWAYS works from Multiscreen.
@@ -551,6 +578,12 @@ fun MultiscreenScreen(
     DisposableEffect(Unit) {
         livePreviewEngine.setAudioSuspended(true)
         mpvPlayer.stop()
+        // 4.6.1: nothing may come back underneath the tiles. Live TV and Sports stop their preview before
+        // opening Multiscreen; if one is still loaded, stop it too, or Home would remember it and the return
+        // would re-tune a third, hidden stream. Any restore still pending is dropped for the same reason.
+        if (livePreviewEngine.currentUrl != null) livePreviewEngine.stop()
+        livePreviewEngine.discardBackgroundRestore()
+        mpvPlayer.discardBackgroundRestore()
         onDispose {
             livePreviewEngine.setAudioSuspended(false)
             msState.releaseAll()
