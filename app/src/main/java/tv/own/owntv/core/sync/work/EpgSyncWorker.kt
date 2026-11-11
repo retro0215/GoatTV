@@ -21,6 +21,7 @@ class EpgSyncWorker(
     private val store: EpgSourceStore,
     private val connectivity: ConnectivityObserver,
     private val activityTracker: EpgActivityTracker,
+    private val localeStore: tv.own.owntv.core.i18n.LocaleStore,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -42,12 +43,21 @@ class EpgSyncWorker(
             return Result.success()
         }
 
+        // Another import is running: defer before showing a notification for a job that would only be told
+        // Busy (the gate check below still catches one that starts in between).
+        if (automatic && epgRepository.isImportRunning()) return deferBusy(source.id, reason)
+
+        // Long guides outlast a regular job's window; a foreground job is not stopped at ten minutes. Android
+        // may refuse (Android 12+ does while the app is in the background): the import then runs as a regular
+        // job as before, and the run budget above keeps its restarts finite.
+        val foreground = runAsForeground()
+
         val baseProgrammes = inputData.getInt(KEY_BASE_PROGRAMMES, 0)
         val progress = ProgressPublisher(baseProgrammes) { channels, programmes ->
             activityTracker.progress(source.id, channels, programmes)
         }
         val startedAt = SystemClock.elapsedRealtime()
-        Log.i(TAG, "Starting EPG sync sourceId=${source.id} reason=$reason")
+        Log.i(TAG, "Starting EPG sync sourceId=${source.id} reason=$reason foreground=$foreground")
         activityTracker.started(source.id, source.name)
 
         try {
@@ -74,11 +84,7 @@ class EpgSyncWorker(
                         Log.i(TAG, "EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile")
                         return Result.success()
                     }
-                    tv.own.owntv.core.epg.EpgImportGate.Turn.Busy -> {
-                        val defer = EpgAutoRefreshPolicy.automaticRunAllowed(runAttemptCount + 1)
-                        Log.i(TAG, "EPG sync deferred sourceId=${source.id} reason=$reason runs=$runAttemptCount — another import is running, retry=$defer")
-                        return if (defer) Result.retry() else Result.success()
-                    }
+                    tv.own.owntv.core.epg.EpgImportGate.Turn.Busy -> return deferBusy(source.id, reason)
                 }
             } else {
                 epgRepository.refreshUrl(source.id, source.url, source.userAgent, onProgress, onSuccess = recordSynced)
@@ -117,6 +123,28 @@ class EpgSyncWorker(
             // Always clear the pill entry — success, failure, retry, or cancellation — so it never sticks.
             activityTracker.finished(source.id)
         }
+    }
+
+    /** Another import holds the gate: retry later (WorkManager backoff) while the run budget allows. */
+    private fun deferBusy(sourceId: Long, reason: String): Result {
+        val defer = EpgAutoRefreshPolicy.automaticRunAllowed(runAttemptCount + 1)
+        Log.i(TAG, "EPG sync deferred sourceId=$sourceId reason=$reason runs=$runAttemptCount — another import is running, retry=$defer")
+        return if (defer) Result.retry() else Result.success()
+    }
+
+    /**
+     * Asks WorkManager to run this job in the foreground with the "Updating TV Guide" notification. True only
+     * when Android accepted it. A refusal (ForegroundServiceStartNotAllowedException on Android 12+ while the
+     * app is in the background, or any other start failure) is logged and the import runs as a regular job.
+     */
+    private suspend fun runAsForeground(): Boolean = try {
+        setForeground(GuideSyncNotifications.foregroundInfo(applicationContext, localeStore))
+        true
+    } catch (c: CancellationException) {
+        throw c
+    } catch (e: Exception) {
+        Log.w(TAG, "EPG sync runs without foreground: ${e.javaClass.simpleName}")
+        false
     }
 
     private inner class ProgressPublisher(

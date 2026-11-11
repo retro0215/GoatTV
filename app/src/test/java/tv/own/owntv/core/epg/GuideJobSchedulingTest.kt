@@ -157,7 +157,8 @@ class GuideJobSchedulingTest {
     @Test fun `automatic imports never wait for the gate and Busy defers within the budget`() {
         assertTrue("epgRepository.tryRefreshUrlIfStillNeeded(" in worker)
         assertFalse("refreshUrlIfStillNeeded(" in worker.replace("tryRefreshUrlIfStillNeeded(", ""))
-        val busy = worker.substringAfter("EpgImportGate.Turn.Busy -> {").substringBefore("}\n")
+        assertTrue("EpgImportGate.Turn.Busy -> return deferBusy(source.id, reason)" in worker)
+        val busy = worker.substringAfter("private fun deferBusy(").substringBefore("\n    }\n")
         assertTrue("EpgAutoRefreshPolicy.automaticRunAllowed(runAttemptCount + 1)" in busy)
         assertTrue("Result.retry()" in busy)
     }

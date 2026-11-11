@@ -30,6 +30,9 @@ class EpgImportGate {
         block: suspend () -> T,
     ): T? = mutex.withLock { if (stillNeeded()) block().also { onSuccess(it) } else null }
 
+    /** Whether an import holds the gate right now (a hint only: it may change the next moment). */
+    val isBusy: Boolean get() = mutex.isLocked
+
     /** What [tryExclusiveIfStillNeeded] did. */
     sealed interface Turn<out T> {
         /** Another import holds the gate; nothing was run and nothing was waited for. */

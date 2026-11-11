@@ -160,6 +160,9 @@ class EpgRepository(
         onSuccess: suspend (programmes: Int) -> Unit = {},
     ): Int = importGate.exclusive(onSuccess) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
 
+    /** Whether a guide import is running right now (a hint for the worker; [tryRefreshUrlIfStillNeeded] decides). */
+    fun isImportRunning(): Boolean = importGate.isBusy
+
     /**
      * [refreshUrl] for automatic runs. Never waits for another import (4.6.1): [Turn.Busy] when one holds
      * the gate, so the worker can defer instead of spending Android's job window queued. With the gate,

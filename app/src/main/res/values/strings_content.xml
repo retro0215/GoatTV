@@ -599,6 +599,8 @@
     <!-- Translators: Button in the EPG screen to jump to the current time. -->
     <string name="content_epg_more">More</string>
     <string name="content_epg_updating">Updating guide…</string>
+    <!-- Translators: Title of the low-priority Android notification shown while the TV Guide downloads in the background. -->
+    <string name="content_epg_updating_notification">Updating TV Guide</string>
     <!-- Joins the programme facts in the guide details panel; the spaces are part of it. -->
     <!-- Joins the programme facts in the guide details panel. Quoted: Android drops unquoted leading and
          trailing spaces, which ran the facts together ("NOW·12:00 PM"). -->

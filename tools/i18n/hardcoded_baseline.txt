@@ -2560,7 +2560,6 @@
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync finished sourceId=${source.id} reason=$reason programmes=$programmes ms=${SystemClock.elapsedRealtime() - startedAt}
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EpgSyncWorker
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	Skipping stale EPG sync sourceId=$sourceId reason=$reason
-1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	Starting EPG sync sourceId=${source.id} reason=$reason
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	baseProgrammes
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	channels
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	programmes
