@@ -33,6 +33,15 @@ class EpgSyncWorker(
             return Result.success()
         }
 
+        val automatic = reason in AUTOMATIC_REASONS
+        // WorkManager counts every start of this job, including the restart after Android stops it at the
+        // end of its execution window. An automatic refresh that keeps being stopped (or deferred) gives up
+        // here instead of downloading the whole guide again and again; the next due check decides.
+        if (automatic && !EpgAutoRefreshPolicy.automaticRunAllowed(runAttemptCount)) {
+            Log.w(TAG, "EPG sync given up sourceId=$sourceId reason=$reason runs=$runAttemptCount — left to the next due check")
+            return Result.success()
+        }
+
         val baseProgrammes = inputData.getInt(KEY_BASE_PROGRAMMES, 0)
         val progress = ProgressPublisher(baseProgrammes) { channels, programmes ->
             activityTracker.progress(source.id, channels, programmes)
@@ -46,10 +55,11 @@ class EpgSyncWorker(
             // Recorded inside the import lock with the completion time, so a job waiting behind this one
             // sees the fresh guide when it gets its turn (see EpgImportGate).
             val recordSynced: suspend (Int) -> Unit = { store.setSynced(source.id, System.currentTimeMillis(), null) }
-            val programmes = if (reason in AUTOMATIC_REASONS) {
-                // Only one guide import runs at a time; an automatic one that waited behind another import of
-                // this source (onboarding, a manual re-sync) has nothing left to do.
-                epgRepository.refreshUrlIfStillNeeded(
+            val programmes = if (automatic) {
+                // Only one guide import runs at a time. An automatic one never queues behind another import
+                // (onboarding, a manual re-sync): it is deferred, and once it gets the gate it skips if that
+                // import refreshed this source meanwhile.
+                val turn = epgRepository.tryRefreshUrlIfStillNeeded(
                     source.id, source.url, source.userAgent,
                     stillNeeded = {
                         val lastSyncAt = store.getAll().firstOrNull { it.id == source.id }?.lastSyncAt
@@ -57,9 +67,18 @@ class EpgSyncWorker(
                     },
                     onProgress = onProgress,
                     onSuccess = recordSynced,
-                ) ?: run {
-                    Log.i(TAG, "EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile")
-                    return Result.success()
+                )
+                when (turn) {
+                    is tv.own.owntv.core.epg.EpgImportGate.Turn.Ran -> turn.value
+                    tv.own.owntv.core.epg.EpgImportGate.Turn.NotNeeded -> {
+                        Log.i(TAG, "EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile")
+                        return Result.success()
+                    }
+                    tv.own.owntv.core.epg.EpgImportGate.Turn.Busy -> {
+                        val defer = EpgAutoRefreshPolicy.automaticRunAllowed(runAttemptCount + 1)
+                        Log.i(TAG, "EPG sync deferred sourceId=${source.id} reason=$reason runs=$runAttemptCount — another import is running, retry=$defer")
+                        return if (defer) Result.retry() else Result.success()
+                    }
                 }
             } else {
                 epgRepository.refreshUrl(source.id, source.url, source.userAgent, onProgress, onSuccess = recordSynced)
@@ -71,7 +90,9 @@ class EpgSyncWorker(
             )
             return Result.success()
         } catch (c: CancellationException) {
-            Log.i(TAG, "EPG sync cancelled sourceId=${source.id} reason=$reason")
+            // stopReason tells a user cancel from Android ending the job's window (WorkInfo.STOP_REASON_*).
+            val why = if (android.os.Build.VERSION.SDK_INT >= 31) stopReason else -1
+            Log.i(TAG, "EPG sync cancelled sourceId=${source.id} reason=$reason stopReason=$why runs=$runAttemptCount")
             throw c
         } catch (e: Exception) {
             val online = connectivity.isOnlineNow()

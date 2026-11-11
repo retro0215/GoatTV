@@ -29,4 +29,33 @@ class EpgImportGate {
         onSuccess: suspend (T) -> Unit = {},
         block: suspend () -> T,
     ): T? = mutex.withLock { if (stillNeeded()) block().also { onSuccess(it) } else null }
+
+    /** What [tryExclusiveIfStillNeeded] did. */
+    sealed interface Turn<out T> {
+        /** Another import holds the gate; nothing was run and nothing was waited for. */
+        data object Busy : Turn<Nothing>
+        /** The gate was free but [stillNeeded] said no (refreshed meanwhile). */
+        data object NotNeeded : Turn<Nothing>
+        data class Ran<T>(val value: T) : Turn<T>
+    }
+
+    /**
+     * As [exclusiveIfStillNeeded], but never waits: when another import holds the gate it returns [Turn.Busy]
+     * at once. For the background worker (4.6.1, Shield): Android stops a job after about ten minutes, and
+     * an automatic refresh that spent four of them queued behind the first-login import was stopped mid-way
+     * and started over. Deferring the job instead keeps its whole window for the import.
+     */
+    suspend fun <T : Any> tryExclusiveIfStillNeeded(
+        stillNeeded: suspend () -> Boolean,
+        onSuccess: suspend (T) -> Unit = {},
+        block: suspend () -> T,
+    ): Turn<T> {
+        if (!mutex.tryLock()) return Turn.Busy
+        try {
+            if (!stillNeeded()) return Turn.NotNeeded
+            return Turn.Ran(block().also { onSuccess(it) })
+        } finally {
+            mutex.unlock()
+        }
+    }
 }

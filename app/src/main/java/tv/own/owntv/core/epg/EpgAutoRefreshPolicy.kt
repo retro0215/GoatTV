@@ -32,6 +32,14 @@ object EpgAutoRefreshPolicy {
     const val MAX_RETRY_ATTEMPTS: Int = 3
 
     /**
+     * Starts one automatic sync job may have in all — deferrals behind another import, network retries and
+     * restarts after Android stopped it at the end of its execution window (4.6.1, Shield). With
+     * WorkManager's default backoff (30 s, doubling) six runs span about half an hour; after that the job
+     * gives up and the next due check decides, so a guide that cannot finish never restarts endlessly.
+     */
+    const val MAX_AUTOMATIC_RUNS: Int = 6
+
+    /**
      * An automatic refresh that finds the source refreshed this recently does nothing: another import of
      * the same feed (onboarding, a manual re-sync) finished while it was waiting its turn.
      */
@@ -73,6 +81,12 @@ object EpgAutoRefreshPolicy {
      */
     fun shouldRetry(networkError: Boolean, runAttemptCount: Int): Boolean =
         networkError && runAttemptCount < MAX_RETRY_ATTEMPTS
+
+    /**
+     * Whether an automatic sync job may (re)start, given WorkManager's run count for it (0 on the first
+     * run, +1 for every later start: retry, deferral or restart after a stop).
+     */
+    fun automaticRunAllowed(runAttemptCount: Int): Boolean = runAttemptCount < MAX_AUTOMATIC_RUNS
 
     /** For an automatic run that has just got its turn: false when the source was refreshed meanwhile. */
     fun stillNeeded(lastSyncAt: Long?, nowMs: Long): Boolean =

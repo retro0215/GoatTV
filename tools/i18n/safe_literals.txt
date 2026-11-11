@@ -510,6 +510,9 @@
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	periodic
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgAutoRefreshWorker.kt	periodic check failed
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncScheduler.kt	epg-auto-refresh-check
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync cancelled sourceId=${source.id} reason=$reason stopReason=$why runs=$runAttemptCount
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync deferred sourceId=${source.id} reason=$reason runs=$runAttemptCount — another import is running, retry=$defer
+1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync given up sourceId=$sourceId reason=$reason runs=$runAttemptCount — left to the next due check
 1	log	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync skipped sourceId=${source.id} reason=$reason — refreshed meanwhile
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	auto_refresh
 1	protocol	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	migration_refill

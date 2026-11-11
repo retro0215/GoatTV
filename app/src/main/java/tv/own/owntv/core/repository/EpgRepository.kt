@@ -161,17 +161,20 @@ class EpgRepository(
     ): Int = importGate.exclusive(onSuccess) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
 
     /**
-     * [refreshUrl] for automatic runs: once it has its turn, [stillNeeded] decides whether the import is
-     * still worth doing (another import may have refreshed this source while it waited). Null = skipped.
+     * [refreshUrl] for automatic runs. Never waits for another import (4.6.1): [Turn.Busy] when one holds
+     * the gate, so the worker can defer instead of spending Android's job window queued. With the gate,
+     * [stillNeeded] decides whether the import is still worth doing ([Turn.NotNeeded] when another import
+     * refreshed this source meanwhile).
      */
-    suspend fun refreshUrlIfStillNeeded(
+    suspend fun tryRefreshUrlIfStillNeeded(
         storeId: Long,
         url: String,
         userAgent: String?,
         stillNeeded: suspend () -> Boolean,
         onProgress: (channels: Int, programmes: Int) -> Unit = { _, _ -> },
         onSuccess: suspend (programmes: Int) -> Unit = {},
-    ): Int? = importGate.exclusiveIfStillNeeded(stillNeeded, onSuccess) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
+    ): tv.own.owntv.core.epg.EpgImportGate.Turn<Int> =
+        importGate.tryExclusiveIfStillNeeded(stillNeeded, onSuccess) { refreshUrlExclusive(storeId, url, userAgent, onProgress) }
 
     private suspend fun refreshUrlExclusive(
         storeId: Long,

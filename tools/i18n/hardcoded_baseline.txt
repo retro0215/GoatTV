@@ -2555,7 +2555,6 @@
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncScheduler.kt	epg-source-$sourceId
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncScheduler.kt	epg-sync
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncScheduler.kt	epg-sync-source-$sourceId
-1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync cancelled sourceId=${source.id} reason=$reason
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync failed sourceId=${source.id} reason=$reason
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync failed transiently sourceId=${source.id} reason=$reason attempt=$runAttemptCount — will retry
 1	app/src/main/java/tv/own/owntv/core/sync/work/EpgSyncWorker.kt	EPG sync finished sourceId=${source.id} reason=$reason programmes=$programmes ms=${SystemClock.elapsedRealtime() - startedAt}
