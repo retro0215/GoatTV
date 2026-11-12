@@ -9,6 +9,74 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.6.1 — 2026-11-11
+
+### ✨ What's new
+
+- **🎬 Choose Your Version**
+   Pick between 1080p, 4K and Dolby Vision versions of a movie or a series episode when your provider has more than one.
+- **▶️ Improved Playback Stability**
+   Videos start more reliably after 4K titles, and live channels come back after Home, the screensaver or turning the TV off.
+- **🔲 Multiscreen in the Background**
+   Multiscreen pauses its streams when you leave the app and picks them back up when you return.
+- **🗓️ More Reliable TV Guide Updates**
+   Large guides keep updating in the background with an "Updating TV Guide" notice, and an incomplete guide is no longer marked as up to date.
+- **🚀 Better First-Time Setup**
+   Your playlist and TV Guide are imported once, and an interrupted setup picks up where it left off.
+- **🔐 Account Sync Safeguards**
+   An expired account is now reported clearly, and your channels and library are kept instead of being removed.
+
+## allaccess-v4.6.1 — 2026-11-11
+
+### ✨ What's new
+
+- **🎬 Choose Your Version**
+   Pick between 1080p, 4K and Dolby Vision versions of a movie or a series episode when your provider has more than one.
+- **▶️ Improved Playback Stability**
+   Videos start more reliably after 4K titles, and live channels come back after Home, the screensaver or turning the TV off.
+- **🔲 Multiscreen in the Background**
+   Multiscreen pauses its streams when you leave the app and picks them back up when you return.
+- **🗓️ More Reliable TV Guide Updates**
+   Large guides keep updating in the background with an "Updating TV Guide" notice, and an incomplete guide is no longer marked as up to date.
+- **🚀 Better First-Time Setup**
+   Your playlist and TV Guide are imported once, and an interrupted setup picks up where it left off.
+- **🔐 Account Sync Safeguards**
+   An expired account is now reported clearly, and your channels and library are kept instead of being removed.
+
+## 5star-v4.6.1 — 2026-11-11
+
+### ✨ What's new
+
+- **🎬 Choose Your Version**
+   Pick between 1080p, 4K and Dolby Vision versions of a movie or a series episode when your provider has more than one.
+- **▶️ Improved Playback Stability**
+   Videos start more reliably after 4K titles, and live channels come back after Home, the screensaver or turning the TV off.
+- **🔲 Multiscreen in the Background**
+   Multiscreen pauses its streams when you leave the app and picks them back up when you return.
+- **🗓️ More Reliable TV Guide Updates**
+   Large guides keep updating in the background with an "Updating TV Guide" notice, and an incomplete guide is no longer marked as up to date.
+- **🚀 Better First-Time Setup**
+   Your playlist and TV Guide are imported once, and an interrupted setup picks up where it left off.
+- **🔐 Account Sync Safeguards**
+   An expired account is now reported clearly, and your channels and library are kept instead of being removed.
+
+## supreme-v4.6.1 — 2026-11-11
+
+### ✨ What's new
+
+- **🎬 Choose Your Version**
+   Pick between 1080p, 4K and Dolby Vision versions of a movie or a series episode when your provider has more than one.
+- **▶️ Improved Playback Stability**
+   Videos start more reliably after 4K titles, and live channels come back after Home, the screensaver or turning the TV off.
+- **🔲 Multiscreen in the Background**
+   Multiscreen pauses its streams when you leave the app and picks them back up when you return.
+- **🗓️ More Reliable TV Guide Updates**
+   Large guides keep updating in the background with an "Updating TV Guide" notice, and an incomplete guide is no longer marked as up to date.
+- **🚀 Better First-Time Setup**
+   Your playlist and TV Guide are imported once, and an interrupted setup picks up where it left off.
+- **🔐 Account Sync Safeguards**
+   An expired account is now reported clearly, and your channels and library are kept instead of being removed.
+
 ## v4.6.0 — 2026-11-06
 
 ### ✨ What's new
