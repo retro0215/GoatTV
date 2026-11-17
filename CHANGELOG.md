@@ -32,6 +32,18 @@ were recorded in CHANGELOG_APP.md only.
 - **Volume.** A saved volume of 0 is not restored, Live TV applies the chosen level and the Default
   volume (a Default of 0 keeps full volume), and a duck is undone when audio focus returns.
 
+AllAccess, 5Star Ultra and Supreme TV v4.6.2 (released the same day from the same app code) get
+the shared changes only: the HDMI audio-capability fix, audio diagnostics, the volume fixes and Search
+filtering off the main thread. Every GoatTV-only flag (AUDIO_STEREO_RECOVERY, VOD_AUDIO_SELECTION_CARRY,
+VOD_MAIN_AUDIO_GUARD, NAV_FAVORITES_SEARCH_TABS) stays off for them, so they keep the 4.6.1 rail, the
+mixed Search list and the old track-switch rule.
+
+### 🔐 Release pipeline
+
+- **Production tag builds of every brand now fail instead of falling back to a debug build** when that
+  brand's keystore, store password, key alias or key password secret is missing (previously only
+  AllAccess failed closed).
+
 ### ⭐ Favorites and navigation (GoatTV)
 
 - **Favorites is first in the main menu, with a star icon.** Home stays the launch screen and the

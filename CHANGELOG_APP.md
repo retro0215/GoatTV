@@ -30,6 +30,39 @@
 - **🏈 New Sports Icon**
    The Sports section has a new football icon in the main menu.
 
+## allaccess-v4.6.2 — 2026-11-17
+
+### ✨ What's new
+
+- **🎧 Better Sound Over HDMI**
+   Audio follows what your TV, soundbar or receiver supports, including when one of them is switched on or changed.
+- **🔉 More Reliable Live TV Volume**
+   Your Default volume now applies to Live TV, a muted volume is no longer brought back by mistake, and the sound returns to normal after an interruption.
+- **🔎 Smoother Search**
+   Search no longer holds up the screen while it looks for results.
+
+## 5star-v4.6.2 — 2026-11-17
+
+### ✨ What's new
+
+- **🎧 Better Sound Over HDMI**
+   Audio follows what your TV, soundbar or receiver supports, including when one of them is switched on or changed.
+- **🔉 More Reliable Live TV Volume**
+   Your Default volume now applies to Live TV, a muted volume is no longer brought back by mistake, and the sound returns to normal after an interruption.
+- **🔎 Smoother Search**
+   Search no longer holds up the screen while it looks for results.
+
+## supreme-v4.6.2 — 2026-11-17
+
+### ✨ What's new
+
+- **🎧 Better Sound Over HDMI**
+   Audio follows what your TV, soundbar or receiver supports, including when one of them is switched on or changed.
+- **🔉 More Reliable Live TV Volume**
+   Your Default volume now applies to Live TV, a muted volume is no longer brought back by mistake, and the sound returns to normal after an interruption.
+- **🔎 Smoother Search**
+   Search no longer holds up the screen while it looks for results.
+
 ## v4.6.1 — 2026-11-11
 
 ### ✨ What's new
