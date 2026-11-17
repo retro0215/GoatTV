@@ -1229,7 +1229,12 @@ class OwnTVPlayer(
     private val vodAudioDiag = VodAudioDiagnostics()
     /** VOD Phase 5B: the customer's audio pick for the current item, carried across engine switches and
      *  dropped on the next item. Inert unless the brand flag is on. */
-    private val vodAudioSession = VodAudioSelectionSession(tv.own.owntv.BuildConfig.VOD_AUDIO_SELECTION_CARRY)
+    private val vodAudioSession = VodAudioSelectionSession(
+        enabled = tv.own.owntv.BuildConfig.VOD_AUDIO_SELECTION_CARRY,
+        guardEnabled = tv.own.owntv.BuildConfig.VOD_MAIN_AUDIO_GUARD,
+    )
+    /** ExoPlayer's latest diagnostic track list, paired with its candidates for the 5C guard. */
+    @Volatile private var lastExoAudioInfos: List<VodAudioTrackInfo> = emptyList()
     /** The latest audio list of the engine that owns playback ("mpv"/"exo"), for turning a HUD pick into
      *  engine-independent metadata. In memory only. */
     @Volatile private var lastAudioCandidates: Pair<String, List<AudioCandidate>>? = null
@@ -1570,9 +1575,17 @@ class OwnTVPlayer(
         }
         override fun onAudioDiagnostics(playerTag: String?, tracks: List<VodAudioTrackInfo>) {
             if (!isLiveContent) vodAudio { onTracks("exo", tracks, playerTag) }
+            if (!isLiveContent) lastExoAudioInfos = tracks
         }
         override fun onAudioCandidates(candidates: List<AudioCandidate>) {
-            if (!isLiveContent) lastAudioCandidates = "exo" to candidates
+            if (isLiveContent) return
+            lastAudioCandidates = "exo" to candidates
+            // Same 5C rule as mpv; ExoPlayer applies through its own selectAudio (ordinal ids), not the HUD
+            // path, so the move is never recorded as the customer's pick.
+            guardMainAudio("exo", lastExoAudioInfos, candidates) { id ->
+                val e = exoEngine ?: return@guardMainAudio false
+                runCatching { e.selectAudio(id) }.isSuccess
+            }
         }
         override fun onAudioCarry(result: CarryResult, applied: Boolean) {
             if (isLiveContent) return
@@ -4019,6 +4032,37 @@ class OwnTVPlayer(
         vodAudio { onTracks("mpv", infos) }
         lastAudioCandidates = "mpv" to candidates
         carryAudioChoiceIntoMpv(m, candidates)
+        guardMainAudio("mpv", infos, candidates) { aid -> runCatching { m.setPropertyInt("aid", aid) }.isSuccess }
+    }
+
+    /**
+     * 5C: once per engine per item, and only with no customer pick (or carry) for it, move an identified
+     * commentary/audio-description start to the normal track ([MainAudioGuard]). [apply] selects by THIS
+     * engine's own id — the ordinal index is mapped through [candidates], never assumed to be an engine id.
+     */
+    private fun guardMainAudio(
+        engine: String,
+        infos: List<VodAudioTrackInfo>,
+        candidates: List<AudioCandidate>,
+        apply: (engineId: Int) -> Boolean,
+    ) {
+        if (!vodAudioSession.mayGuard(engine)) return
+        val decision = MainAudioGuard.decide(infos, prefAudioLang.takeIf { it.isNotBlank() })
+        if (decision.reason == GuardReason.NO_SELECTION) return // nothing chosen yet: look at the next report
+        vodAudioSession.markGuarded(engine)
+        val engineId = decision.to?.let { idx -> candidates.firstOrNull { it.index == idx }?.engineId }
+        if (decision.switches && engineId == null) {
+            vodAudio { onGuard(engine, decision.copy(to = null, reason = GuardReason.NO_SUITABLE_ALTERNATIVE)) }
+            return
+        }
+        if (engineId != null && !apply(engineId)) {
+            vodAudio { onGuard(engine, decision.copy(to = null, reason = GuardReason.NO_SUITABLE_ALTERNATIVE)) }
+            return
+        }
+        if (engineId != null) {
+            _audioTrackList.value = _audioTrackList.value.map { it.copy(selected = it.mpvId == engineId) }
+        }
+        vodAudio { onGuard(engine, decision) }
     }
 
     /** 5B: the item came (back) to mpv — re-find the customer's pick in mpv's own list and select it, but

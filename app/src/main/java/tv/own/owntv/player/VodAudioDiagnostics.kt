@@ -29,6 +29,8 @@ enum class AudioSelectionReason(val wire: String) {
     ENGINE_HANDOFF("engine_handoff"),
     /** The customer's own pick, re-found and re-applied on the engine that took the item over (5B). */
     USER_CARRIED("user_carried"),
+    /** The 5C guard moved the engine off a commentary/audio-description start onto the normal track. */
+    MAIN_AUDIO_GUARD("main_audio_guard"),
     UNKNOWN("unknown"),
 }
 
@@ -187,6 +189,20 @@ class VodAudioDiagnostics(private val sink: (String) -> Unit = { LiveDiagnostics
         if (applied && idx != null) {
             writeSelection(engine, idx, lastTracks[engine]?.firstOrNull { it.index == idx }, AudioSelectionReason.USER_CARRIED)
         }
+    }
+
+    /**
+     * The 5C guard's decision for [engine] on this item — one line per engine per item, whether it switched
+     * or deliberately left the selection alone. A switch is also written as a selection with reason
+     * `main_audio_guard` (so the engine echoing it back is suppressed).
+     */
+    fun onGuard(engine: String, decision: GuardDecision) {
+        val key = itemKey ?: return
+        val action = if (decision.switches) "switched" else "unchanged"
+        val to = decision.to?.let { " to=$it" } ?: ""
+        sink("VOD_AUDIO_GUARD engine=$engine content=$key action=$action from=${decision.from ?: "-"}$to reason=${decision.reason.wire}")
+        val idx = decision.to ?: return
+        writeSelection(engine, idx, lastTracks[engine]?.firstOrNull { it.index == idx }, AudioSelectionReason.MAIN_AUDIO_GUARD)
     }
 
     private fun observeSelection(engine: String, track: VodAudioTrackInfo) {

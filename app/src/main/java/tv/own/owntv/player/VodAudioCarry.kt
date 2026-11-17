@@ -130,16 +130,35 @@ object AudioTrackMatcher {
  * reach it.
  */
 @androidx.media3.common.util.UnstableApi
-class VodAudioSelectionSession(private val enabled: Boolean) {
+class VodAudioSelectionSession(
+    private val enabled: Boolean,
+    /** Brand flag for the 5C main-audio guard. */
+    private val guardEnabled: Boolean = false,
+) {
 
     private var choice: AudioChoice? = null
     private var aidResetPending = false
+    private var isVodItem = false
+    /** Engines the guard has already decided on for this item — it acts at most once per engine. */
+    private val guarded = HashSet<String>()
 
     /** A new movie/episode/version from the UI (NOT a retry/reload/handoff of the same item). */
     @Synchronized fun newItem(isLive: Boolean) {
         choice = null
         aidResetPending = enabled && !isLive
+        isVodItem = !isLive
+        guarded.clear()
     }
+
+    /**
+     * 5C: may the main-audio guard look at [engine]'s first selection for this item? Never once the customer
+     * has picked a track (that pick, or its carry, wins), never twice on one engine, never on Live TV.
+     */
+    @Synchronized fun mayGuard(engine: String): Boolean =
+        guardEnabled && isVodItem && choice == null && engine !in guarded
+
+    /** The guard has decided for [engine] on this item (whatever it decided): it will not act there again. */
+    @Synchronized fun markGuarded(engine: String) { guarded += engine }
 
     /** True once per new VOD item: put mpv's `aid` back to auto before its loadfile, so an id set on the
      *  previous file cannot select a track in this one. */
@@ -156,4 +175,65 @@ class VodAudioSelectionSession(private val enabled: Boolean) {
 
     /** Whether ExoPlayer must drop audio overrides left from an earlier item when it starts one. */
     val resetsExoOverrides: Boolean get() = enabled
+}
+
+
+/** Why the guard did, or did not, change the engine's selection. */
+enum class GuardReason(val wire: String) {
+    COMMENTARY_TO_MAIN("commentary_to_main"),
+    AUDIO_DESCRIPTION_TO_MAIN("audio_description_to_main"),
+    /** The engine's pick is not identifiable as commentary/audio description: nothing to fix. */
+    SELECTED_NOT_SECONDARY("selected_not_secondary"),
+    /** The engine's pick IS secondary, but no playable normal track in the right language exists. */
+    NO_SUITABLE_ALTERNATIVE("no_suitable_alternative"),
+    /** No track is selected yet; the guard waits for the next report. */
+    NO_SELECTION("no_selection"),
+}
+
+/** [to] is set only when the guard switches (an ordinal index, never an engine id). */
+data class GuardDecision(val from: Int?, val to: Int?, val reason: GuardReason) {
+    val switches: Boolean get() = to != null
+}
+
+/**
+ * VOD Phase 5C: a conservative "don't start on the commentary" rule, shared by mpv and ExoPlayer.
+ *
+ * It only ever acts when the engine's own pick is IDENTIFIED as commentary or audio description (by the
+ * [AudioTrackClassifier] class already computed for diagnostics: title, mpv's visual-impaired flag, or Media3
+ * role flags). It then moves to a normal track — one not identified as secondary — that is playable and in
+ * the right language:
+ *  - the customer's preferred audio language when set, otherwise the language of the engine's own pick
+ *    (switching from an English commentary to a French dub is a language change nobody asked for);
+ *  - a track with no language tag ("und") is acceptable when no exact-language track is;
+ *  - among several: exact language, then the file's default flag, then a title that says "main/original",
+ *    then file order. Channel count and bitrate are never used.
+ * Anything less certain leaves the engine's pick alone.
+ */
+@androidx.media3.common.util.UnstableApi
+object MainAudioGuard {
+
+    private val SECONDARY = setOf(AudioTitleClass.COMMENTARY, AudioTitleClass.AUDIO_DESCRIPTION)
+
+    fun decide(tracks: List<VodAudioTrackInfo>, preferredLanguage: String?): GuardDecision {
+        val picked = tracks.firstOrNull { it.selected } ?: return GuardDecision(null, null, GuardReason.NO_SELECTION)
+        val reason = when (picked.titleClass) {
+            AudioTitleClass.COMMENTARY -> GuardReason.COMMENTARY_TO_MAIN
+            AudioTitleClass.AUDIO_DESCRIPTION -> GuardReason.AUDIO_DESCRIPTION_TO_MAIN
+            else -> return GuardDecision(picked.index, null, GuardReason.SELECTED_NOT_SECONDARY)
+        }
+        val wanted = AudioTrackMatcher.normalizeLanguage(preferredLanguage)
+            ?: AudioTrackMatcher.normalizeLanguage(picked.language)
+        val normal = tracks.filter { it.index != picked.index && it.titleClass !in SECONDARY && it.playable != false }
+        val fitting = if (wanted == null) normal else normal.filter {
+            val lang = AudioTrackMatcher.normalizeLanguage(it.language)
+            lang == wanted || lang == null
+        }
+        val best = fitting.sortedWith(
+            compareByDescending<VodAudioTrackInfo> { wanted != null && AudioTrackMatcher.normalizeLanguage(it.language) == wanted }
+                .thenByDescending { it.isDefault == true }
+                .thenByDescending { it.titleClass == AudioTitleClass.MAIN }
+                .thenBy { it.index },
+        ).firstOrNull() ?: return GuardDecision(picked.index, null, GuardReason.NO_SUITABLE_ALTERNATIVE)
+        return GuardDecision(picked.index, best.index, reason)
+    }
 }

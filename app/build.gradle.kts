@@ -213,6 +213,9 @@ android {
         // Movies & Series: keep the customer's audio-track pick across mpv/ExoPlayer switches and reset it for
         // every new item. Off by default; enabled per brand below while it is validated (GoatTV first).
         buildConfigField("boolean", "VOD_AUDIO_SELECTION_CARRY", "false")
+        // Movies & Series: if the engine starts on a track identified as commentary/audio description, move
+        // to the normal soundtrack once. Off by default; enabled per brand below (GoatTV first).
+        buildConfigField("boolean", "VOD_MAIN_AUDIO_GUARD", "false")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
         buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
         // Sports event channels (Phase C2): the brand sent as ?brand= to the Sports API. Empty = this
@@ -299,6 +302,7 @@ android {
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("boolean", "AUDIO_STEREO_RECOVERY", "true")
             buildConfigField("boolean", "VOD_AUDIO_SELECTION_CARRY", "true")
+            buildConfigField("boolean", "VOD_MAIN_AUDIO_GUARD", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")
             buildConfigField("String", "FCM_SENDER_ID", "\"17825531376\"")
             signingConfig = signingConfigs.findByName("goat")
