@@ -160,6 +160,15 @@ class VodAudioSelectionSession(
     /** The guard has decided for [engine] on this item (whatever it decided): it will not act there again. */
     @Synchronized fun markGuarded(engine: String) { guarded += engine }
 
+    /**
+     * [engine] is starting a fresh playback lifecycle for the SAME item (an ExoPlayer start: the mpv →
+     * ExoPlayer handoff, the software-decoder rescue, an engine fallback). Its start drops the audio
+     * overrides an earlier lifecycle left behind, so the engine picks its default again — and the guard
+     * must be allowed to look at that pick once more. Only that engine's mark is cleared; a customer pick
+     * still blocks the guard ([mayGuard]), and mpv's mark is untouched.
+     */
+    @Synchronized fun engineStarted(engine: String) { guarded -= engine }
+
     /** True once per new VOD item: put mpv's `aid` back to auto before its loadfile, so an id set on the
      *  previous file cannot select a track in this one. */
     @Synchronized fun takeAidReset(): Boolean = aidResetPending.also { aidResetPending = false }
@@ -235,5 +244,37 @@ object MainAudioGuard {
                 .thenBy { it.index },
         ).firstOrNull() ?: return GuardDecision(picked.index, null, GuardReason.NO_SUITABLE_ALTERNATIVE)
         return GuardDecision(picked.index, best.index, reason)
+    }
+}
+
+
+/**
+ * F-01 (4.6.2): what an ExoPlayer audio-track switch must do. A bitstreamed (passthrough) output does not
+ * survive an in-place track change — the receiver's decoder never recovers — so that switch is followed by
+ * one seek to the current position, which re-primes the output from a stopped state like a fresh start.
+ *
+ * The old rule asked only the legacy `passthrough` guess, which is still false at the moment the guard or
+ * the carry switches (first track report, before the audio clock moves) and never true for E-AC-3 JOC or
+ * DTS-HD. With [accurate] (the GoatTV VOD audio flags) the encoding of the AudioTrack actually open decides
+ * instead. A switch to the track already playing does nothing. With [accurate] off the rule is exactly the
+ * old one, so the other brands are unchanged.
+ */
+object AudioRePrime {
+    enum class Action { NONE, SELECT, SELECT_AND_REPRIME }
+
+    /**
+     * [outputPassthrough] is the open AudioTrack's state: true = encoded bitstream, false = PCM, null = no
+     * output opened yet (a switch before the output exists needs no re-prime: the first output is fresh).
+     */
+    fun decide(
+        accurate: Boolean,
+        alreadySelected: Boolean,
+        legacyPassthrough: Boolean,
+        outputPassthrough: Boolean?,
+    ): Action = when {
+        accurate && alreadySelected -> Action.NONE
+        legacyPassthrough -> Action.SELECT_AND_REPRIME
+        accurate && outputPassthrough == true -> Action.SELECT_AND_REPRIME
+        else -> Action.SELECT
     }
 }

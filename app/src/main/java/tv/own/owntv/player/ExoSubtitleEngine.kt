@@ -731,6 +731,16 @@ class ExoSubtitleEngine(
                 "codec=${f?.sampleMimeType} ch=${f?.channelCount} rate=${f?.sampleRate}",
         )
         logAudioDiag("select_audio")
+        val alreadySelected = runCatching {
+            p.currentTracks.groups.any { it.mediaTrackGroup == sel.group && it.isTrackSelected(sel.trackIndex) }
+        }.getOrDefault(false)
+        val action = AudioRePrime.decide(
+            accurate = tv.own.owntv.BuildConfig.VOD_AUDIO_SELECTION_CARRY || tv.own.owntv.BuildConfig.VOD_MAIN_AUDIO_GUARD,
+            alreadySelected = alreadySelected,
+            legacyPassthrough = audioWatchdog.passthrough,
+            outputPassthrough = audioWatchdog.outputPassthrough,
+        )
+        if (action == AudioRePrime.Action.NONE) return // already the playing track: no churn, no re-prime
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setOverrideForType(TrackSelectionOverride(sel.group, listOf(sel.trackIndex)))
             .build()
@@ -744,7 +754,8 @@ class ExoSubtitleEngine(
         // Seeking to where we already are re-primes the sink once, from a stopped state, the way a
         // fresh start does. It costs a brief re-buffer, so it is spent only on the path that needs it —
         // when the app decodes the audio itself the plain override above is already correct.
-        if (audioWatchdog.passthrough) {
+        // F-01: decided on the AudioTrack actually open (see [AudioRePrime]); one seek, same position.
+        if (action == AudioRePrime.Action.SELECT_AND_REPRIME) {
             android.util.Log.i(TAG, "passthrough audio: re-priming the output after the track change")
             runCatching { p.seekTo(p.currentPosition) }
         }

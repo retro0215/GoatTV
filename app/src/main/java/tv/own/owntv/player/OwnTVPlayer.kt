@@ -1874,6 +1874,10 @@ class OwnTVPlayer(
 
     private fun startExo(url: String, pos: Long, surface: Surface, sub: TrackOption?) {
         exoActive = true
+        // F-03: every ExoPlayer start is a new playback lifecycle for this item (its start clears the audio
+        // overrides of the last one), so the main-audio guard may decide again for "exo". Customer picks
+        // still win: mayGuard() refuses while one exists.
+        if (!isLiveContent) vodAudioSession.engineStarted("exo")
         _engineChip.value = "EXO"
         _exoActiveState.value = true // mount the SubtitleView overlay now (only while Exo owns playback)
         _directRender.value = true // ExoPlayer also renders direct-to-surface → the view sizes for zoom

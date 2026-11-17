@@ -989,7 +989,7 @@
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	auto
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	direct
-6	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo
+7	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: stuck mpv still releasing after ${STUCK_MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
