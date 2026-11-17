@@ -577,12 +577,13 @@ jobs:
             BRAND="goat" # fallback for dev builds
           fi
           
-          # Determine if we have the necessary signing material for the selected brand
-          if [[ "$BRAND" == "goat" && -n "$KEYSTORE_FILE" ]]; then
+          # Determine if we have the necessary signing material for the selected brand:
+          # keystore, store password, key alias and key password, for every brand.
+          if [[ "$BRAND" == "goat" && -n "$KEYSTORE_FILE" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
             CAN_SIGN="true"
-          elif [[ "$BRAND" == "fivestar" && -n "$FIVESTAR_KEYSTORE_FILE" ]]; then
+          elif [[ "$BRAND" == "fivestar" && -n "$FIVESTAR_KEYSTORE_FILE" && -n "$FIVESTAR_KEYSTORE_PASSWORD" && -n "$FIVESTAR_KEY_ALIAS" && -n "$FIVESTAR_KEY_PASSWORD" ]]; then
             CAN_SIGN="true"
-          elif [[ "$BRAND" == "supreme" && -n "$SUPREME_KEYSTORE_FILE" ]]; then
+          elif [[ "$BRAND" == "supreme" && -n "$SUPREME_KEYSTORE_FILE" && -n "$SUPREME_KEYSTORE_PASSWORD" && -n "$SUPREME_KEY_ALIAS" && -n "$SUPREME_KEY_PASSWORD" ]]; then
             CAN_SIGN="true"
           elif [[ "$BRAND" == "allaccess" && -n "$ALLACCESS_KEYSTORE_FILE" && -n "$ALLACCESS_KEYSTORE_PASSWORD" && -n "$ALLACCESS_KEY_ALIAS" && -n "$ALLACCESS_KEY_PASSWORD" ]]; then
             CAN_SIGN="true"
@@ -590,13 +591,15 @@ jobs:
             CAN_SIGN="false"
           fi
 
-          # Hardening: AllAccess production tag builds MUST be signed. No fallback allowed.
-          # For manual AllAccess builds, also require signing if it's the intended release.
+          # Hardening: a production tag build of ANY brand must be production-signed. No debug
+          # fallback — a debug APK on a release would be offered to customers by the updater.
+          if [[ "$IS_TAG" == "true" && "$CAN_SIGN" != "true" ]]; then
+            echo "::error::Production release (tag $GITHUB_REF_NAME) for $BRAND requires that brand's keystore, store password, key alias and key password secrets."
+            exit 1
+          fi
+          # Manual AllAccess builds must be signed too.
           if [[ "$BRAND" == "allaccess" && "$CAN_SIGN" != "true" ]]; then
-            if [[ "$IS_TAG" == "true" ]]; then
-              echo "::error::AllAccess production release (tag $GITHUB_REF_NAME) requires all ALLACCESS_* signing secrets."
-              exit 1
-            elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
                echo "::error::Manual AllAccess build requires all ALLACCESS_* signing secrets to produce a valid APK."
                exit 1
             fi
