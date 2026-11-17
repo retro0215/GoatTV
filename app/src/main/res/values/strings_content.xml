@@ -368,6 +368,8 @@
     <string name="content_live_time_range_plain"><xliff:g id="start">%1$s</xliff:g> \u2013 <xliff:g id="stop">%2$s</xliff:g></string>
     <!-- Translators: Predefined category name for the Favorites list. -->
     <string name="content_category_favorites">Favorites</string>
+    <!-- Translators: Temporary message on the new Favorites page in the main menu, shown until the page lists the viewer's saved channels, movies and series. -->
+    <string name="favorites_coming_soon">Your favorite channels, movies and series will appear here soon.</string>
     <!-- Translators: Predefined category name for the History list. -->
     <string name="content_category_history">History</string>
     <!-- Translators: Predefined category name for the "All Channels" view. -->

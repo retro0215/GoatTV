@@ -216,6 +216,9 @@ android {
         // Movies & Series: if the engine starts on a track identified as commentary/audio description, move
         // to the normal soundtrack once. Off by default; enabled per brand below (GoatTV first).
         buildConfigField("boolean", "VOD_MAIN_AUDIO_GUARD", "false")
+        // Navigation: Favorites first in the rail, the football Sports icon, and (later phases) the tabbed
+        // Favorites and Search screens. Off by default; enabled per brand below (GoatTV first).
+        buildConfigField("boolean", "NAV_FAVORITES_SEARCH_TABS", "false")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
         buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
         // Sports event channels (Phase C2): the brand sent as ?brand= to the Sports API. Empty = this
@@ -303,6 +306,7 @@ android {
             buildConfigField("boolean", "AUDIO_STEREO_RECOVERY", "true")
             buildConfigField("boolean", "VOD_AUDIO_SELECTION_CARRY", "true")
             buildConfigField("boolean", "VOD_MAIN_AUDIO_GUARD", "true")
+            buildConfigField("boolean", "NAV_FAVORITES_SEARCH_TABS", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")
             buildConfigField("String", "FCM_SENDER_ID", "\"17825531376\"")
             signingConfig = signingConfigs.findByName("goat")

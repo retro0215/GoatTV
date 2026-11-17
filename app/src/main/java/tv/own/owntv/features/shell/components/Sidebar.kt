@@ -100,7 +100,7 @@ fun Sidebar(
         selected == MainSection.SEARCH -> MainSection.HOME
         selected == MainSection.SETTINGS -> MainSection.SETTINGS
         selected in visibleSections -> selected
-        else -> MainSection.browseOrder.firstOrNull { it in visibleSections } ?: MainSection.SETTINGS
+        else -> MainSection.fallback(visibleSections) // Home first, even with Favorites above it
     }
 
     Column(
@@ -437,6 +437,7 @@ private fun NavItem(
 
 private val MainSection.navIcon: OwnTVIcon
     get() = when (this) {
+        MainSection.FAVORITES -> OwnTVIcon.STAR
         MainSection.SEARCH -> OwnTVIcon.SEARCH
         MainSection.HOME -> OwnTVIcon.HOME
         MainSection.LIVE_TV -> OwnTVIcon.LIVE_TV

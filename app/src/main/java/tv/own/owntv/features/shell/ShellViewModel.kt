@@ -42,6 +42,8 @@ import tv.own.owntv.ui.theme.UiZoom
 
 /** Top-level navigation destinations rendered in the Layer-1 sidebar. */
 enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
+    /** Favorites (Phase A of the Search/Favorites project; GoatTV only while it is validated). */
+    FAVORITES(tv.own.owntv.R.string.content_category_favorites),
     SEARCH(tv.own.owntv.R.string.common_nav_search),
     HOME(tv.own.owntv.R.string.common_nav_home),
     LIVE_TV(tv.own.owntv.R.string.common_nav_live_tv),
@@ -58,8 +60,18 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
     val isBrowse: Boolean get() = this != SETTINGS && this != SEARCH && this != MULTISCREEN
 
     companion object {
+        /** Brand flag: Favorites in the rail (and, in later phases, the tabbed Search/Favorites screens). */
+        val favoritesNavEnabled: Boolean get() = tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS
+
+        /** Where the app opens, and where it falls back to — never Favorites, even though it is listed first. */
+        val LAUNCH: MainSection get() = HOME
+
         /** Fixed order of the browse icons in the rail (Settings is pinned separately at the bottom). */
-        val browseOrder: List<MainSection> = buildList {
+        val browseOrder: List<MainSection> = browseOrderFor(favoritesNavEnabled)
+
+        /** [browseOrder] for a given flag value — Favorites first, directly above Home, when enabled. */
+        fun browseOrderFor(favoritesEnabled: Boolean): List<MainSection> = buildList {
+            if (favoritesEnabled) add(FAVORITES)
             add(HOME)
             add(LIVE_TV)
             add(MOVIES)
@@ -81,7 +93,14 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
          * part of this set. Shared between ShellViewModel (the rail) and SettingsViewModel (the settings
          * screen's read-only DYNAMIC rows) so both agree on what DYNAMIC mode shows.
          */
-        fun dynamicVisible(hasLive: Boolean, hasMovies: Boolean, hasSeries: Boolean): Set<MainSection> = buildSet {
+        fun dynamicVisible(
+            hasLive: Boolean,
+            hasMovies: Boolean,
+            hasSeries: Boolean,
+            favoritesEnabled: Boolean = favoritesNavEnabled,
+        ): Set<MainSection> = buildSet {
+            // Favorites always shows (even with none saved yet), like Home.
+            if (favoritesEnabled) add(FAVORITES)
             add(HOME)
             add(SOCIAL_ROOMS)
             if (hasLive) {
@@ -92,6 +111,20 @@ enum class MainSection(@param:androidx.annotation.StringRes val labelRes: Int) {
             if (hasMovies) add(MOVIES)
             if (hasSeries) add(SERIES)
             if (hasMovies || hasSeries) add(DOWNLOADS)
+        }
+
+        /** What DYNAMIC mode shows with no playlist in scope: Home, and Favorites when enabled. */
+        fun alwaysVisible(favoritesEnabled: Boolean = favoritesNavEnabled): Set<MainSection> =
+            if (favoritesEnabled) setOf(FAVORITES, HOME) else setOf(HOME)
+
+        /**
+         * Where to go when the section being viewed is no longer visible: Home whenever it is visible (it is
+         * the launch destination, and Favorites being first in the rail must not change that), else the first
+         * visible browse item, else Settings (always pinned).
+         */
+        fun fallback(visible: Set<MainSection>, order: List<MainSection> = browseOrder): MainSection = when {
+            HOME in visible -> HOME
+            else -> order.firstOrNull { it in visible } ?: SETTINGS
         }
     }
 }
@@ -344,7 +377,7 @@ class ShellViewModel(
         .map<Long, Long?> { it }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val _selectedSection = MutableStateFlow(MainSection.HOME)
+    private val _selectedSection = MutableStateFlow(MainSection.LAUNCH)
     val selectedSection: StateFlow<MainSection> = _selectedSection.asStateFlow()
 
     fun selectSection(section: MainSection) {
@@ -393,7 +426,7 @@ class ShellViewModel(
      *  Per-section Off flags drop that section from the nav even when cached rows remain. */
     private fun countCapsFlow(sources: List<tv.own.owntv.core.database.entity.SourceEntity>, defaultId: Long): Flow<Set<MainSection>> {
         val scoped = if (defaultId > 0) sources.filter { it.id == defaultId } else sources
-        if (scoped.isEmpty()) return flowOf(setOf(MainSection.HOME))
+        if (scoped.isEmpty()) return flowOf(MainSection.alwaysVisible())
         val liveIds = scoped.filter { it.syncLive }.map { it.id }
         val movieIds = scoped.filter { it.syncMovies }.map { it.id }
         val seriesIds = scoped.filter { it.syncSeries }.map { it.id }
@@ -420,7 +453,7 @@ class ShellViewModel(
             .onEach { visible ->
                 val current = _selectedSection.value
                 if (current in visible || current == MainSection.SETTINGS || current == MainSection.SEARCH) return@onEach
-                _selectedSection.value = MainSection.browseOrder.firstOrNull { it in visible } ?: MainSection.SETTINGS
+                _selectedSection.value = MainSection.fallback(visible)
             }
             .launchIn(viewModelScope)
     }

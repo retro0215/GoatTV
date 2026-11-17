@@ -832,6 +832,15 @@ fun OwnTVShell(
                             onBack = { runCatching { sidebarFocus.requestFocus() } },
                             modifier = Modifier.fillMaxSize().onFocusChanged { if (it.hasFocus) focusedLayer = ShellLayer.CONTENT }.focusGroup(),
                         )
+                        // Phase A placeholder (replaced by the Favorites screen in Phase B). Not focusable on
+                        // purpose: D-pad focus stays in the rail, so nothing can be stranded here.
+                        selectedSection == MainSection.FAVORITES -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            tv.own.owntv.ui.components.EmptyState(
+                                icon = OwnTVIcon.STAR,
+                                title = stringResource(R.string.content_category_favorites),
+                                message = stringResource(R.string.favorites_coming_soon),
+                            )
+                        }
                         else -> Box(Modifier.fillMaxSize())
                     }
                 }
@@ -1029,6 +1038,7 @@ private fun OfflineBanner() {
 
 private val MainSection.emptyIcon: OwnTVIcon
     get() = when (this) {
+        MainSection.FAVORITES -> OwnTVIcon.STAR
         MainSection.SEARCH -> OwnTVIcon.SEARCH
         MainSection.HOME -> OwnTVIcon.HOME
         MainSection.LIVE_TV -> OwnTVIcon.LIVE_TV
@@ -1043,7 +1053,7 @@ private val MainSection.emptyIcon: OwnTVIcon
     }
 
 private fun railCategoriesFor(section: MainSection): List<RailCategory> = when (section) {
-    MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN, MainSection.SPORTS, MainSection.SOCIAL_ROOMS -> emptyList()
+    MainSection.FAVORITES, MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN, MainSection.SPORTS, MainSection.SOCIAL_ROOMS -> emptyList()
     MainSection.LIVE_TV -> listOf(
         RailCategory("Favorites", OwnTVIcon.FAVORITE, R.string.content_category_favorites),
         RailCategory("History", OwnTVIcon.HISTORY, R.string.content_category_history),
@@ -1080,7 +1090,7 @@ private fun railCategoriesFor(section: MainSection): List<RailCategory> = when (
 
 @Composable
 private fun placeholderCount(section: MainSection): String = when (section) {
-    MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN, MainSection.SPORTS, MainSection.SOCIAL_ROOMS -> ""
+    MainSection.FAVORITES, MainSection.SEARCH, MainSection.HOME, MainSection.EPG, MainSection.SETTINGS, MainSection.MULTISCREEN, MainSection.SPORTS, MainSection.SOCIAL_ROOMS -> ""
     MainSection.LIVE_TV -> stringResource(R.string.content_zero_channels)
     MainSection.MOVIES -> stringResource(R.string.content_zero_movies)
     MainSection.SERIES -> stringResource(R.string.content_zero_series)

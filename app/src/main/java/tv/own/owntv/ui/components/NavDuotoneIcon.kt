@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import tv.own.owntv.features.shell.MainSection
 
 /**
@@ -156,26 +157,63 @@ fun NavDuotoneIcon(
                 dot(62f, 47f, 4f, soft)
             }
 
-            // ---- Sports — star icon ----------------------------------------------
-            MainSection.SPORTS -> {
-                drawCircle(soft, radius = 30f * s, center = o(50f, 50f))
-                val starPath = Path().apply {
-                    moveTo(o(50f, 15f).x, o(50f, 15f).y)
-                    lineTo(o(61f, 38f).x, o(61f, 38f).y)
-                    lineTo(o(86f, 41f).x, o(86f, 41f).y)
-                    lineTo(o(68f, 58f).x, o(68f, 58f).y)
-                    lineTo(o(73f, 83f).x, o(73f, 83f).y)
-                    lineTo(o(50f, 70f).x, o(50f, 70f).y)
-                    lineTo(o(27f, 83f).x, o(27f, 83f).y)
-                    lineTo(o(32f, 58f).x, o(32f, 58f).y)
-                    lineTo(o(14f, 41f).x, o(14f, 41f).y)
-                    lineTo(o(39f, 38f).x, o(39f, 38f).y)
-                    close()
+            // ---- Favorites (star) / Sports (football, or the star where the nav flag is off) ----
+            MainSection.FAVORITES, MainSection.SPORTS -> when (navGlyphFor(section)) {
+                NavGlyph.FOOTBALL -> {
+                    // American football: a pointed oval tilted like a thrown ball, with a lace and stitches.
+                    // Same duotone language as the other icons: soft fill, solid outline, thin details.
+                    rotate(degrees = -35f, pivot = o(50f, 50f)) {
+                        val ball = Path().apply {
+                            moveTo(o(12f, 50f).x, o(12f, 50f).y)
+                            quadraticTo(o(50f, 12f).x, o(50f, 12f).y, o(88f, 50f).x, o(88f, 50f).y)
+                            quadraticTo(o(50f, 88f).x, o(50f, 88f).y, o(12f, 50f).x, o(12f, 50f).y)
+                            close()
+                        }
+                        drawPath(ball, soft)
+                        drawPath(ball, fill, style = stroke)
+                        drawPath(poly(36f, 50f, 64f, 50f), fill, style = thin)
+                        for (x in floatArrayOf(40f, 46f, 52f, 58f)) drawPath(poly(x, 45f, x, 55f), fill, style = thin)
+                    }
                 }
-                drawPath(starPath, fill, style = stroke)
+                else -> drawStar(soft, fill, stroke)
             }
         }
     }
+}
+
+/** The two rail glyphs the brand nav flag decides between (Phase A of the Search/Favorites project). */
+enum class NavGlyph { STAR, FOOTBALL }
+
+/**
+ * Favorites always uses the star. Sports uses the football where Favorites is in the rail (the star now
+ * means Favorites there), and keeps its original star where the flag is off, so those brands are unchanged.
+ * Null for every other section (each draws its own glyph).
+ */
+fun navGlyphFor(section: MainSection, favoritesNavEnabled: Boolean = MainSection.favoritesNavEnabled): NavGlyph? = when (section) {
+    MainSection.FAVORITES -> NavGlyph.STAR
+    MainSection.SPORTS -> if (favoritesNavEnabled) NavGlyph.FOOTBALL else NavGlyph.STAR
+    else -> null
+}
+
+/** The original Sports star, unchanged, now shared with Favorites. */
+private fun DrawScope.drawStar(soft: Color, fill: Color, stroke: Stroke) {
+    val s = size.minDimension / 100f
+    fun o(x: Float, y: Float) = Offset(x * s, y * s)
+    drawCircle(soft, radius = 30f * s, center = o(50f, 50f))
+    val starPath = Path().apply {
+        moveTo(o(50f, 15f).x, o(50f, 15f).y)
+        lineTo(o(61f, 38f).x, o(61f, 38f).y)
+        lineTo(o(86f, 41f).x, o(86f, 41f).y)
+        lineTo(o(68f, 58f).x, o(68f, 58f).y)
+        lineTo(o(73f, 83f).x, o(73f, 83f).y)
+        lineTo(o(50f, 70f).x, o(50f, 70f).y)
+        lineTo(o(27f, 83f).x, o(27f, 83f).y)
+        lineTo(o(32f, 58f).x, o(32f, 58f).y)
+        lineTo(o(14f, 41f).x, o(14f, 41f).y)
+        lineTo(o(39f, 38f).x, o(39f, 38f).y)
+        close()
+    }
+    drawPath(starPath, fill, style = stroke)
 }
 
 /**
