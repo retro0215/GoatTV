@@ -201,6 +201,7 @@ private fun buildMultiscreenPlayer(
         context,
         forceStereo = !AudioOutputPolicy.allowsMultichannel(surroundMode),
         softwareFirst = !hwDecoding,
+        engine = "ms",
     )
     val dataSourceFactory = OkHttpDataSource.Factory(streamingHttp.client)
         .setUserAgent(ua)

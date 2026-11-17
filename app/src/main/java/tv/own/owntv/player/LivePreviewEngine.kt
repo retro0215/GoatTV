@@ -542,7 +542,7 @@ class LivePreviewEngine(
         out += StreamInfoRow(
             StreamInfoLabel.AUDIO_OUTPUT,
             StreamInfoValue.AudioOutput(
-                kind = if (audioWatchdog.passthrough) AudioOutputKind.PASSTHROUGH else AudioOutputKind.DECODED_IN_APP,
+                kind = if (audioWatchdog.outputPassthrough == true) AudioOutputKind.PASSTHROUGH else AudioOutputKind.DECODED_IN_APP,
                 multichannelAllowed = AudioOutputPolicy.allowsMultichannel(surroundMode),
                 fallbackReason = null,
             ),
@@ -2690,7 +2690,9 @@ class LivePreviewEngine(
             context,
             forceStereo = !AudioOutputPolicy.allowsMultichannel(surroundMode),
             softwareFirst = !hwDecodingEnabled,
+            engine = "live",
         )
+        audioWatchdog.bind(renderers.audioDiagnostics) // diagnostics follow THIS player, not a shared static
         return ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)
             .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFor(currentUa)))
@@ -2745,11 +2747,12 @@ class LivePreviewEngine(
             "channelCount=${format?.channelCount ?: -1} " +
             "sampleRate=${format?.sampleRate ?: -1} " +
             "language=${format?.language ?: "null"} " +
-            "decoderName=${audioWatchdog.audioFormat?.let { if (audioWatchdog.passthrough) "passthrough" else "decoded" } ?: "unknown"} " +
+            "decoderName=${AudioOutputReport.pathLabel(audioWatchdog.outputPassthrough)} " +
             "audioTrackDisabled=$audioTrackDisabled " +
             "volume=${p.volume} " +
             "forceStereo=${!AudioOutputPolicy.allowsMultichannel(surroundMode)} " +
-            "passthroughEnabled=${audioWatchdog.passthrough} " +
+            "passthroughEnabled=${audioWatchdog.outputPassthrough} " +
+            "outputEncoding=${AudioOutputReport.encodingName(audioWatchdog.outputEncoding)} " +
             "handleAudioFocus=$handleFocus " +
             "playbackState=$stateName"
 

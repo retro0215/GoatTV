@@ -39,6 +39,9 @@ object AudioOutputPolicy {
 
     const val UNDERRUN_WINDOW_MS = 10_000L
 
+    /** Underruns within [UNDERRUN_WINDOW_MS] worth one diagnostic line (the 4.1.7 threshold). Report-only. */
+    const val UNDERRUN_REPORT_COUNT = 4
+
     /**
      * True when this mode permits anything other than plain stereo PCM.
      */
@@ -106,7 +109,35 @@ object PassthroughPolicy {
  * reaches the renderer through the forwarded listener (`onAudioCapabilitiesChanged`).
  */
 @UnstableApi
-class PassthroughFilteringAudioSink(sink: AudioSink) : androidx.media3.exoplayer.audio.ForwardingAudioSink(sink) {
+class PassthroughFilteringAudioSink(
+    sink: AudioSink,
+    /** Diagnostics only: called when Media3 reports a capability change (HDMI plug, routed device, …). */
+    private val onCapabilitiesChanged: () -> Unit = {},
+) : androidx.media3.exoplayer.audio.ForwardingAudioSink(sink) {
+
+    /** Every callback is forwarded unchanged; only the capability change is also observed. Spelled out
+     *  (not `by`) so a Java default method can never silently stop reaching the renderer. */
+    override fun setListener(listener: AudioSink.Listener) {
+        super.setListener(object : AudioSink.Listener {
+            override fun onPositionDiscontinuity() = listener.onPositionDiscontinuity()
+            override fun onPositionAdvancing(playoutStartSystemTimeMs: Long) = listener.onPositionAdvancing(playoutStartSystemTimeMs)
+            override fun onUnderrun(bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) =
+                listener.onUnderrun(bufferSize, bufferSizeMs, elapsedSinceLastFeedMs)
+            override fun onSkipSilenceEnabledChanged(skipSilenceEnabled: Boolean) = listener.onSkipSilenceEnabledChanged(skipSilenceEnabled)
+            override fun onOffloadBufferEmptying() = listener.onOffloadBufferEmptying()
+            override fun onOffloadBufferFull() = listener.onOffloadBufferFull()
+            override fun onAudioSinkError(audioSinkError: Exception) = listener.onAudioSinkError(audioSinkError)
+            override fun onAudioCapabilitiesChanged() {
+                runCatching(onCapabilitiesChanged)
+                listener.onAudioCapabilitiesChanged()
+            }
+            override fun onAudioTrackInitialized(audioTrackConfig: AudioSink.AudioTrackConfig) = listener.onAudioTrackInitialized(audioTrackConfig)
+            override fun onAudioTrackReleased(audioTrackConfig: AudioSink.AudioTrackConfig) = listener.onAudioTrackReleased(audioTrackConfig)
+            override fun onSilenceSkipped() = listener.onSilenceSkipped()
+            override fun onAudioSessionIdChanged(audioSessionId: Int) = listener.onAudioSessionIdChanged(audioSessionId)
+        })
+    }
+
     override fun supportsFormat(format: Format): Boolean =
         getFormatSupport(format) != AudioSink.SINK_FORMAT_UNSUPPORTED
 
@@ -119,6 +150,69 @@ class PassthroughFilteringAudioSink(sink: AudioSink) : androidx.media3.exoplayer
         else androidx.media3.exoplayer.audio.AudioOffloadSupport.DEFAULT_UNSUPPORTED
 }
 
+/** How an AudioTrack output encoding should be reported. Diagnostics only — never drives playback. */
+@UnstableApi
+object AudioOutputReport {
+    /** True = an encoded bitstream (passthrough), false = PCM decoded in-app, null = no output yet / unknown. */
+    fun isEncodedPassthrough(encoding: Int): Boolean? = when {
+        encoding == C.ENCODING_INVALID || encoding == Format.NO_VALUE -> null
+        androidx.media3.common.util.Util.isEncodingLinearPcm(encoding) -> false
+        else -> true
+    }
+
+    fun pathLabel(passthrough: Boolean?): String = when (passthrough) {
+        true -> "passthrough"
+        false -> "decoded"
+        null -> "unknown"
+    }
+
+    fun encodingName(encoding: Int): String = when (encoding) {
+        C.ENCODING_PCM_16BIT -> "PCM_16BIT"
+        C.ENCODING_PCM_FLOAT -> "PCM_FLOAT"
+        C.ENCODING_AC3 -> "AC3"
+        C.ENCODING_E_AC3 -> "E_AC3"
+        C.ENCODING_E_AC3_JOC -> "E_AC3_JOC"
+        C.ENCODING_DTS -> "DTS"
+        C.ENCODING_DTS_HD -> "DTS_HD"
+        else -> "ENCODING_$encoding"
+    }
+
+    /** One line naming the selected audio track (no URL, id or label), or null when there are no audio tracks. */
+    fun describeSelectedAudio(tracks: androidx.media3.common.Tracks): String? {
+        val groups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        if (groups.isEmpty()) return null
+        val total = groups.sumOf { it.length }
+        val supported = groups.sumOf { g -> (0 until g.length).count { g.isTrackSupported(it) } }
+        val selected = groups.firstNotNullOfOrNull { g ->
+            (0 until g.length).firstOrNull { g.isTrackSelected(it) }?.let { g.getTrackFormat(it) }
+        } ?: return "none tracks=$total supported=$supported"
+        return "mime=${selected.sampleMimeType} codecs=${selected.codecs} ch=${selected.channelCount} " +
+            "rate=${selected.sampleRate} lang=${selected.language} tracks=$total supported=$supported"
+    }
+}
+
+/**
+ * The audio diagnostics of ONE player. Each [OwnTVRenderersFactory] owns one, so lines from a Multiscreen
+ * tile can no longer be mistaken for the Live player's, and the route check reads this player's own
+ * AudioTrack instead of whichever one was created last anywhere in the app.
+ */
+class AudioOutputDiagnostics(val playerTag: String, val sinkKind: AudioSinkKind) {
+    @Volatile private var trackRef: java.lang.ref.WeakReference<AudioTrack>? = null
+
+    /** The most recent AudioTrack this player created. Weak, so diagnostics never keep a released track alive. */
+    val lastTrack: AudioTrack? get() = trackRef?.get()
+
+    fun onTrackCreated(track: AudioTrack) { trackRef = java.lang.ref.WeakReference(track) }
+
+    /** Into the exported ring (redacted there by [tv.own.owntv.core.diagnostics.SensitiveText]). */
+    fun event(message: String) = LiveDiagnosticsLog.event("EXO_AUDIO_DIAG [$playerTag] $message")
+
+    companion object {
+        private val counter = java.util.concurrent.atomic.AtomicInteger()
+        fun nextTag(engine: String): String = "$engine#${counter.incrementAndGet()}"
+    }
+}
+
 /**
  * A [DefaultRenderersFactory] that can be pinned to plain stereo PCM.
  */
@@ -126,7 +220,12 @@ class PassthroughFilteringAudioSink(sink: AudioSink) : androidx.media3.exoplayer
 open class OwnTVRenderersFactory( // open only so the unit test can reach buildAudioSink
     private val context: Context,
     private val forceStereo: Boolean,
+    /** Diagnostics label for the engine building this player ("live", "vod", "ms", …). */
+    engine: String = "exo",
 ) : DefaultRenderersFactory(context) {
+
+    /** This player's diagnostics identity — see [AudioOutputDiagnostics]. */
+    val audioDiagnostics = AudioOutputDiagnostics(AudioOutputDiagnostics.nextTag(engine), AudioSinkKind.of(forceStereo))
 
     @Suppress("DEPRECATION") // setAudioTrackProvider (diagnostics) and the context-less Builder (stereo)
     override fun buildAudioSink(
@@ -135,13 +234,14 @@ open class OwnTVRenderersFactory( // open only so the unit test can reach buildA
         enableAudioOutputPlaybackParams: Boolean,
     ): AudioSink? {
         val kind = AudioSinkKind.of(forceStereo)
+        audioDiagnostics.event("AUDIO_SINK kind=$kind")
         return runCatching<AudioSink?> {
             when (kind) {
                 // The context-less builder is the only one that honours fixed capabilities. Fixed is
                 // right here: stereo PCM is what the user asked for whatever the HDMI output reports.
                 AudioSinkKind.STEREO_PCM -> DefaultAudioSink.Builder()
                     .setAudioCapabilities(AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
-                    .setAudioTrackProvider(DiagnosticAudioTrackProvider())
+                    .setAudioTrackProvider(DiagnosticAudioTrackProvider(audioDiagnostics))
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                     .build()
@@ -153,20 +253,31 @@ open class OwnTVRenderersFactory( // open only so the unit test can reach buildA
                 // (or from another route) stayed in force.
                 AudioSinkKind.DYNAMIC_FILTERED -> PassthroughFilteringAudioSink(
                     DefaultAudioSink.Builder(context)
-                        .setAudioTrackProvider(DiagnosticAudioTrackProvider())
+                        .setAudioTrackProvider(DiagnosticAudioTrackProvider(audioDiagnostics))
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                         .build(),
+                    onCapabilitiesChanged = ::logCapabilitiesChanged,
                 )
             }
         }.getOrElse {
             android.util.Log.w("AudioOutputPolicy", "sink build failed, falling back", it)
+            audioDiagnostics.event("AUDIO_SINK build failed (${it.javaClass.simpleName}); using Media3 default")
             val fallback = super.buildAudioSink(context, enableFloatOutput, enableAudioOutputPlaybackParams)
-            if (kind == AudioSinkKind.DYNAMIC_FILTERED && fallback != null) PassthroughFilteringAudioSink(fallback) else fallback
+            if (kind == AudioSinkKind.DYNAMIC_FILTERED && fallback != null) {
+                PassthroughFilteringAudioSink(fallback, onCapabilitiesChanged = ::logCapabilitiesChanged)
+            } else fallback
         }
     }
 
-    private class DiagnosticAudioTrackProvider : DefaultAudioSink.AudioTrackProvider {
+    /** Media3 saw the output change (HDMI plug, the Global surround setting, a routed-device change). */
+    private fun logCapabilitiesChanged() {
+        audioDiagnostics.event("AUDIO_CAPABILITIES_CHANGED (renderer will re-check formats)")
+    }
+
+    private class DiagnosticAudioTrackProvider(
+        private val diagnostics: AudioOutputDiagnostics,
+    ) : DefaultAudioSink.AudioTrackProvider {
         @Suppress("DEPRECATION")
         override fun getAudioTrack(
             config: AudioSink.AudioTrackConfig,
@@ -183,17 +294,11 @@ open class OwnTVRenderersFactory( // open only so the unit test can reach buildA
                     "playState=${track.playState} routedId=${dev?.id} type=${dev?.type} " +
                     "product='${dev?.productName}' usage=${attributes.usage} content=${attributes.contentType}"
                 android.util.Log.i("EXO_AUDIO_DIAG", msg)
-                LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
-                
-                currentTrack = track
+                diagnostics.event(msg)
             }
+            diagnostics.onTrackCreated(track)
             return track
         }
-    }
-    
-    companion object {
-        /** Reference to the most recently created AudioTrack for routing diagnostics. */
-        @Volatile var currentTrack: AudioTrack? = null
     }
 }
 
@@ -213,15 +318,47 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
 
     @Volatile var audioFormat: Format? = null
         private set
+    /**
+     * Legacy guess (decoder name / input mime). Kept exactly as it was because it still gates the
+     * passthrough re-prime seek in `selectAudio` — changing it would change playback. For *reporting*
+     * use [outputPassthrough], which comes from the AudioTrack the sink actually opened.
+     */
     @Volatile var passthrough = false
         private set
     @Volatile private var decoderInitialized = false
+
+    /** The encoding of the AudioTrack this player's sink last opened, or [C.ENCODING_INVALID] before one. */
+    @Volatile var outputEncoding: Int = C.ENCODING_INVALID
+        private set
+
+    /** Diagnostics only: true = encoded bitstream, false = PCM decoded in-app, null = no output yet. */
+    val outputPassthrough: Boolean? get() = AudioOutputReport.isEncodedPassthrough(outputEncoding)
+
+    /** The player this watchdog is attached to, for tagged lines and the per-player route check. */
+    @Volatile private var diagnostics: AudioOutputDiagnostics? = null
+    @Volatile private var lastSelectedAudio: String? = null
+
+    /** Attach to the player built from [diag]'s factory. Call on every (re)build. */
+    fun bind(diag: AudioOutputDiagnostics?) { diagnostics = diag }
+
+    /** Exported-ring line, tagged with this watchdog's player when bound. */
+    private fun ring(message: String) {
+        diagnostics?.event(message) ?: LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $message")
+    }
 
     fun reset() {
         armed = false; advancing = false
         playingSinceArmMs = 0L; lastTickMs = 0L
         synchronized(underrunTimes) { underrunTimes.clear() }
         audioFormat = null; passthrough = false; decoderInitialized = false
+        outputEncoding = C.ENCODING_INVALID; lastSelectedAudio = null
+    }
+
+    override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: androidx.media3.common.Tracks) {
+        val line = AudioOutputReport.describeSelectedAudio(tracks) ?: return
+        if (line == lastSelectedAudio) return // only when the selection actually changes — bounded ring
+        lastSelectedAudio = line
+        ring("AUDIO_TRACK_SELECTED $line")
     }
 
     override fun onAudioInputFormatChanged(
@@ -232,7 +369,7 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
         val msg = "onAudioInputFormatChanged: mime=${format.sampleMimeType} codecs=${format.codecs} " +
             "ch=${format.channelCount} rate=${format.sampleRate}Hz lang=${format.language}"
         android.util.Log.i("EXO_AUDIO_DIAG", msg)
-        LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
+        ring(msg)
         audioFormat = format
         armed = true
         advancing = false
@@ -245,28 +382,21 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
         eventTime: AnalyticsListener.EventTime,
         audioTrackConfig: AudioSink.AudioTrackConfig,
     ) {
-        val encodingName = when (audioTrackConfig.encoding) {
-            C.ENCODING_PCM_16BIT -> "PCM_16BIT"
-            C.ENCODING_PCM_FLOAT -> "PCM_FLOAT"
-            C.ENCODING_AC3 -> "AC3"
-            C.ENCODING_E_AC3 -> "E_AC3"
-            C.ENCODING_E_AC3_JOC -> "E_AC3_JOC"
-            C.ENCODING_DTS -> "DTS"
-            C.ENCODING_DTS_HD -> "DTS_HD"
-            else -> "ENCODING_${audioTrackConfig.encoding}"
-        }
+        outputEncoding = audioTrackConfig.encoding
+        val encodingName = AudioOutputReport.encodingName(audioTrackConfig.encoding)
         val msg = "AUDIO_TRACK_CONFIG encoding=$encodingName rate=${audioTrackConfig.sampleRate}Hz " +
-            "ch=${audioTrackConfig.channelConfig} bufferSize=${audioTrackConfig.bufferSize}"
+            "ch=${audioTrackConfig.channelConfig} bufferSize=${audioTrackConfig.bufferSize}" +
+            " path=${AudioOutputReport.pathLabel(outputPassthrough)} sink=${diagnostics?.sinkKind}"
         android.util.Log.i("EXO_AUDIO_DIAG", msg)
-        LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
-        
+        ring(msg)
+
         runCatching {
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             devices.forEach { dev ->
                 val devMsg = "AVAILABLE_DEVICE id=${dev.id} type=${dev.type} product='${dev.productName}'"
                 android.util.Log.i("EXO_AUDIO_DIAG", devMsg)
-                LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $devMsg")
+                ring(devMsg)
             }
         }
     }
@@ -281,7 +411,7 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
         passthrough = decoderName.startsWith("audio.passthrough", ignoreCase = true)
 
         android.util.Log.i("EXO_AUDIO_DIAG", "onAudioDecoderInitialized: $decoderName passthrough=$passthrough")
-        LiveDiagnosticsLog.event("EXO_AUDIO_DIAG onAudioDecoderInitialized: $decoderName passthrough=$passthrough")
+        ring("onAudioDecoderInitialized: $decoderName passthrough=$passthrough")
     }
 
     override fun onAudioPositionAdvancing(
@@ -289,19 +419,20 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
         playoutStartSystemTimeMs: Long,
     ) {
         if (!advancing) {
-            val path = if (passthrough) "passthrough (bitstream)" else "decoded (PCM)"
-            val msg = "onAudioPositionAdvancing: audio head advancing path=$path"
+            val msg = "onAudioPositionAdvancing: audio head advancing path=${AudioOutputReport.pathLabel(outputPassthrough)} " +
+                "encoding=${AudioOutputReport.encodingName(outputEncoding)}"
             android.util.Log.i("EXO_AUDIO_DIAG", msg)
-            LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $msg")
-            
+            ring(msg)
+
             runCatching {
-                val track = OwnTVRenderersFactory.currentTrack
+                // This player's own AudioTrack — never another engine's (Multiscreen tiles build their own).
+                val track = diagnostics?.lastTrack
                 if (track != null) {
                     val dev = track.routedDevice
                     val routeMsg = "PCM_ROUTE_DIAG session=${track.audioSessionId} " +
                         "routedId=${dev?.id} type=${dev?.type} product='${dev?.productName}'"
                     android.util.Log.i("EXO_AUDIO_DIAG", routeMsg)
-                    LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $routeMsg")
+                    ring(routeMsg)
                 }
             }
         }
@@ -324,16 +455,27 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
     ) {
         val now = android.os.SystemClock.elapsedRealtime()
         android.util.Log.w("AudioOutputPolicy", "audio underrun: buffer=${bufferSize}B/${bufferSizeMs}ms")
-        synchronized(underrunTimes) {
+        val inWindow = synchronized(underrunTimes) {
             underrunTimes.addLast(now)
             while (underrunTimes.isNotEmpty() && now - underrunTimes.first() > AudioOutputPolicy.UNDERRUN_WINDOW_MS) {
                 underrunTimes.removeFirst()
             }
+            underrunTimes.size
+        }
+        // One ring line when a burst reaches the old safety-net threshold, not one per underrun.
+        if (inWindow == AudioOutputPolicy.UNDERRUN_REPORT_COUNT) {
+            ring("AUDIO_UNDERRUN $inWindow in ${AudioOutputPolicy.UNDERRUN_WINDOW_MS / 1000}s (buffer ${bufferSizeMs}ms)")
         }
     }
 
     override fun onAudioSinkError(eventTime: AnalyticsListener.EventTime, audioSinkError: Exception) {
         android.util.Log.e("EXO_AUDIO_DIAG", "onAudioSinkError: ${audioSinkError.message}")
+        // Class + message only (no stack); the ring redacts the message again before storing it.
+        ring(
+            "AUDIO_SINK_ERROR type=${audioSinkError.javaClass.simpleName} " +
+                "msg=${audioSinkError.message?.take(MAX_ERROR_CHARS)} " +
+                "encoding=${AudioOutputReport.encodingName(outputEncoding)}",
+        )
     }
 
     fun poll(isPlaying: Boolean) {
@@ -347,8 +489,19 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
         if (playingSinceArmMs >= graceMs) {
             val what = audioFormat?.let { MimeTypes.normalizeMimeType(it.sampleMimeType ?: "") } ?: "audio"
             android.util.Log.w("EXO_AUDIO_DIAG", "no sound detected after ${graceMs / 1000}s ($what)")
+            // Reported only — the watchdog still takes no action. "No position" is what this measures;
+            // it cannot tell whether the TV actually produced sound from a passthrough stream.
+            ring(
+                "AUDIO_WATCHDOG no audio position after ${graceMs / 1000}s playing ($what) " +
+                    "path=${AudioOutputReport.pathLabel(outputPassthrough)} " +
+                    "encoding=${AudioOutputReport.encodingName(outputEncoding)}",
+            )
             armed = false
         }
+    }
+
+    private companion object {
+        const val MAX_ERROR_CHARS = 200
     }
 
     fun describe(): String? {

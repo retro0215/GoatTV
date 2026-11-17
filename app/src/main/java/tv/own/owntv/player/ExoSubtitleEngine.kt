@@ -534,7 +534,9 @@ class ExoSubtitleEngine(
             context,
             forceStereo = !AudioOutputPolicy.allowsMultichannel(surroundMode),
             softwareFirst = softwarePreferred,
+            engine = "vod",
         )
+        audioWatchdog.bind(renderers.audioDiagnostics) // diagnostics follow THIS player, not a shared static
 
         val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
             .setUsage(androidx.media3.common.C.USAGE_MEDIA)
@@ -932,7 +934,7 @@ class ExoSubtitleEngine(
         out += StreamInfoRow(
             StreamInfoLabel.AUDIO_OUTPUT,
             StreamInfoValue.AudioOutput(
-                kind = if (audioWatchdog.passthrough) AudioOutputKind.PASSTHROUGH else AudioOutputKind.DECODED_IN_APP,
+                kind = if (audioWatchdog.outputPassthrough == true) AudioOutputKind.PASSTHROUGH else AudioOutputKind.DECODED_IN_APP,
                 multichannelAllowed = AudioOutputPolicy.allowsMultichannel(surroundMode),
                 fallbackReason = null,
             ),
@@ -1004,11 +1006,12 @@ class ExoSubtitleEngine(
             "channelCount=${format?.channelCount ?: -1} " +
             "sampleRate=${format?.sampleRate ?: -1} " +
             "language=${format?.language ?: "null"} " +
-            "decoderName=${audioWatchdog.audioFormat?.let { if (audioWatchdog.passthrough) "passthrough" else "decoded" } ?: "unknown"} " +
+            "decoderName=${AudioOutputReport.pathLabel(audioWatchdog.outputPassthrough)} " +
             "audioTrackDisabled=${params.disabledTrackTypes.contains(C.TRACK_TYPE_AUDIO)} " +
             "volume=${p.volume} " +
             "forceStereo=${!AudioOutputPolicy.allowsMultichannel(surroundMode)} " +
-            "passthroughEnabled=${audioWatchdog.passthrough} " +
+            "passthroughEnabled=${audioWatchdog.outputPassthrough} " +
+            "outputEncoding=${AudioOutputReport.encodingName(audioWatchdog.outputEncoding)} " +
             "handleAudioFocus=true " + // VOD engine always handles focus
             "playbackState=$stateName"
         )

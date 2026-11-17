@@ -3737,12 +3737,7 @@
 2	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DEPRECATION
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS_HD
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ENCODING_${audioTrackConfig.encoding}
 10	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $devMsg
-4	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $msg
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $routeMsg
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG onAudioDecoderInitialized: $decoderName passthrough=$passthrough
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	E_AC3
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	E_AC3_JOC
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	PCM_16BIT
@@ -3755,16 +3750,10 @@
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ch=${audioTrackConfig.channelConfig} bufferSize=${audioTrackConfig.bufferSize}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ch=${config.channelConfig} session=$audioSessionId state=${track.state}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ch=${format.channelCount} rate=${format.sampleRate}Hz lang=${format.language}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	decoded
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	decoded (PCM)
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	no sound detected after ${graceMs / 1000}s ($what)
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioDecoderInitialized: $decoderName passthrough=$passthrough
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioInputFormatChanged: mime=${format.sampleMimeType} codecs=${format.codecs}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioPositionAdvancing: audio head advancing path=$path
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioPositionAdvancing: determined passthrough from mime=$mime
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioSinkError: ${audioSinkError.message}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	passthrough
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	passthrough (bitstream)
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	playState=${track.playState} routedId=${dev?.id} type=${dev?.type}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	product='${dev?.productName}' usage=${attributes.usage} content=${attributes.contentType}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	routedId=${dev?.id} type=${dev?.type} product='${dev?.productName}'
@@ -3810,8 +3799,6 @@
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	channelCount=${format?.channelCount ?: -1}
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	codec=${f?.sampleMimeType} ch=${f?.channelCount} rate=${f?.sampleRate}
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	codecs=${format?.codecs ?: "null"}
-1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	decoded
-1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	decoderName=${audioWatchdog.audioFormat?.let { if (audioWatchdog.passthrough) "passthrough" else "decoded" } ?: "unknown"}
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	device
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	engine=ExoSubtitle
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	event=$event
@@ -3828,9 +3815,7 @@
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	no video track in this file — audio-only, no-video watchdog disarmed
 3	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	null
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	off
-1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	passthrough
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	passthrough audio: re-priming the output after the track change
-1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	passthroughEnabled=${audioWatchdog.passthrough}
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	playbackState=$stateName
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	player_error_${error.errorCodeName}
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	rebuilding ExoPlayer for ${if (softwarePreferred) "software" else "hardware"} decode, ${if (wantStereo) "stereo" else "device"} audio
@@ -3845,7 +3830,6 @@
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	stereo
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	subshift_
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	tracks_changed
-1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	unknown
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	video decoder: $decoderName (init ${initializationDurationMs}ms,
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	video input format: ${format.sampleMimeType} ${format.width}x${format.height} fps=${format.frameRate}
 1	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	volume=${p.volume}
@@ -3978,11 +3962,9 @@
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	codecs=${format?.codecs ?: "null"}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	connection pool evict failed: ${it.javaClass.simpleName}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	dataType=${mediaLoadData.dataType} canceled=$wasCanceled
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoded
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoder failed before first frame (${error.errorCodeName}) — rebuilding the decoder and retrying once
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoder failure before first frame — rebuild + retry once
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoder rebuild failed: ${it.message}
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoderName=${audioWatchdog.audioFormat?.let { if (audioWatchdog.passthrough) "passthrough" else "decoded" } ?: "unknown"}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	default User-Agent refused — retrying once as ${HttpClient.FALLBACK_USER_AGENT}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	discontinuitySeq=${manifest.mediaPlaylist.discontinuitySequence}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	distinct segments on this load
@@ -4041,9 +4023,7 @@
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	open stalled: $detail — the stream is buffered but unplayable here
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	owntv-http-evict
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	panel to mpv
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	passthrough
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	passthrough audio: re-priming the output after the track change
-1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	passthroughEnabled=${audioWatchdog.passthrough}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	pdt=${playlist.hasProgramDateTime} startOffsetUs=${playlist.startOffsetUs}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	play() failed: ${it.message}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	play() url=${HttpClient.redactUrl(url)} muted=$muted
@@ -4113,7 +4093,7 @@
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	type${v.first}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	type=${response.header("Content-Type").orEmpty()}
 2	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	und
-2	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	unknown
+1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	unknown
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	uri=${HttpClient.redactUrl(loadEventInfo.uri.toString())}
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	url=${HttpClient.redactUrl(finalUrl)}$via$body
 1	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	url=${HttpClient.redactUrl(request.url.toString())}
