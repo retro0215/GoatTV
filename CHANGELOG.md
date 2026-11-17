@@ -1,5 +1,62 @@
 # Changelog
 
+## v4.6.2 — 2026-11-17
+
+GoatTV Android TV only — AllAccess, 5Star Ultra and Supreme TV stay on 4.6.1. Versions 4.3.0 to 4.6.1
+were recorded in CHANGELOG_APP.md only.
+
+### 🔊 Audio reliability
+
+- **Auto and Surround follow the live HDMI audio capabilities again.** The audio output re-reads what
+  the TV, soundbar or receiver supports when it changes, while keeping the passthrough allowlist
+  (AC-3, E-AC-3, E-AC-3 JOC, DTS, DTS-HD), never bitstreaming AAC, and keeping Stereo Only on a fixed
+  stereo output. Applies to every brand's code.
+- **Audio diagnostics report the real output path and stay with their player.** Each player logs the
+  encoding, decoded-or-passthrough path and output device of the AudioTrack actually open, and no
+  longer records device product names.
+- **"No sound? Switch to stereo" in Live TV's Audio Track dialog (GoatTV).** One tap rebuilds the
+  current channel on a stereo output for the rest of the session; changing Surround or leaving the
+  channel ends it.
+- **Movies & Series keep the customer's audio pick across engines, not items (GoatTV).** A track chosen
+  on mpv is re-found on ExoPlayer after a handoff (and back) by language, codec and channel layout; a
+  new title starts from the engine's own default.
+- **Movies & Series no longer start on a commentary or audio-description track (GoatTV).** When the
+  engine's first pick is identified as commentary or description, the main track in the same language
+  is selected instead, once per engine per title, and never over a track the customer chose.
+- **Track switches while bitstreaming re-prime from the real output (GoatTV).** The one seek that
+  restarts a passthrough output after an audio-track change now follows the open AudioTrack's encoding,
+  so automatic switches and E-AC-3 JOC / DTS-HD are covered too; picking the track already playing does
+  nothing.
+- **The commentary guard decides again after an ExoPlayer restart (GoatTV).** A software-decoder rescue
+  or fallback that restarts the same title on ExoPlayer lets the guard correct a commentary start again.
+- **Volume.** A saved volume of 0 is not restored, Live TV applies the chosen level and the Default
+  volume (a Default of 0 keeps full volume), and a duck is undone when audio focus returns.
+
+### ⭐ Favorites and navigation (GoatTV)
+
+- **Favorites is first in the main menu, with a star icon.** Home stays the launch screen and the
+  fallback when a section is hidden; the navigation editor can hide Favorites like any other section.
+- **A Favorites screen with Live, Movies and Series tabs.** It reads the existing favorites of the
+  active profile and playlist (no database change), hides hidden and Kids-restricted items, plays Live
+  favorites, opens movie and series details, and removes a favorite from its long-press menu.
+- **Sports has a football icon.**
+
+### 🔎 Search (GoatTV)
+
+- **Tabbed results with counts.** Live, Movies and Series tabs show "N" when the count is exact, "N+"
+  when more may exist, and "500+" above the 500 listed; each category reads at most 501 rows, plus one
+  2,001-row pass only when hidden content thins the first.
+- **The chosen tab is kept while typing** and across a details round trip; clearing the search or
+  changing the profile or playlist starts again on Live, and a playlist change re-runs the search.
+- **Movies and series open their details page**, and Back returns to Search.
+- **Search filters its results off the main thread and shows an error instead of failing** (every
+  brand's code).
+
+### 🧪 Tests and translations
+
+- Feature-flag tests check the GoatTV-only flags per brand, and the translation coverage table is
+  regenerated for the new strings.
+
 ## v4.2.2 — 2026-08-19
 
 ### 🖼️ Episode grid — see a picture for every episode

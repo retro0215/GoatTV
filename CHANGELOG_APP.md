@@ -9,6 +9,27 @@
 > (e.g. `(community PR #40 by @codeVerine)`). Issue numbers that are part of a title (e.g. `(#57)`) are
 > fine; explanatory parentheticals are not. Descriptions belong in CHANGELOG.md, never here.
 
+## v4.6.2 — 2026-11-17
+
+### ✨ What's new
+
+- **⭐ Favorites in the Main Menu**
+   Your favorite channels, movies and series in one place, right above Home, sorted into Live, Movies and Series tabs.
+- **🔎 Clearer Search Results**
+   Search results are grouped into Live, Movies and Series tabs, each showing how many matches it found.
+- **🔊 "No Sound? Switch to Stereo"**
+   A new option in a Live channel's Audio Track menu that can bring back the sound when a channel plays without it.
+- **🎧 Better Sound Over HDMI**
+   Audio follows what your TV, soundbar or receiver supports, including when one of them is switched on or changed.
+- **🎬 The Right Soundtrack for Movies and Series**
+   Movies and series avoid starting on a commentary track, the audio track you pick is kept for that title, and switching tracks is more reliable.
+- **🔉 More Reliable Live TV Volume**
+   Your Default volume now applies to Live TV, a muted volume is no longer brought back by mistake, and the sound returns to normal after an interruption.
+- **🧭 Smoother Navigation**
+   Search no longer holds up the menu while it looks for results, and Back takes you to Favorites or Search after opening a movie or series.
+- **🏈 New Sports Icon**
+   The Sports section has a new football icon in the main menu.
+
 ## v4.6.1 — 2026-11-11
 
 ### ✨ What's new
