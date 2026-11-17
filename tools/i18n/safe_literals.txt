@@ -916,11 +916,23 @@
 1	log	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: ${fps}fps -> mode $targetId deferred ${waitMs}ms (cooldown)
 1	log	app/src/main/java/tv/own/owntv/player/FrameRateController.kt	AFR: video ${fps}fps matches no mode -> display default
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	$why - new decoder on the same stream
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_CLEARED content=${safeContentId()} reason=session_end
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_CLEARED reason=surround_setting_changed
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_FAILED content=$content reason=already_in_progress
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_FAILED content=$content reason=not_applicable
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_FAILED content=$content reason=rebuild_failed
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_REQUESTED content=$content mode=$surroundMode
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	AUDIO_RECOVERY_STEREO_APPLIED content=${safeContentId()} sink=STEREO_PCM sound_unverified=true
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	EXO_AUDIO_DIAG $message
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	decoderName=${AudioOutputReport.pathLabel(audioWatchdog.outputPassthrough)}
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	encoding=${AudioOutputReport.encodingName(audioWatchdog.outputEncoding)}
 1	technical	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	live
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	none
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	output=${AudioOutputReport.pathLabel(audioWatchdog.outputPassthrough)}
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	outputEncoding=${AudioOutputReport.encodingName(audioWatchdog.outputEncoding)}
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	passthroughEnabled=${audioWatchdog.outputPassthrough}
 2	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	picture frozen
+1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	stereo recovery changed (built=$builtStereoOverride now=${stereoRecovery.active}) — rebuilding player
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface from $role kept off the decoder (owner $surfaceOwner)
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch (owner $surfaceOwner) - watching frames
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch ok: ${framesNow - handoffFramesAtSwitch} frames since the switch

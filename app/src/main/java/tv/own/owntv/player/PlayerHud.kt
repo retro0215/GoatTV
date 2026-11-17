@@ -209,6 +209,7 @@ fun PlayerHud(
     val isLive = player.isLiveContent
     val switchedToExo = stringResource(R.string.player_switch_exo)
     val switchedToMpv = stringResource(R.string.player_switch_mpv)
+    val stereoRecoveryStarted = stringResource(R.string.player_audio_stereo_recovery_started)
     val tuneNotFound = stringResource(R.string.player_channel_not_found)
     val multipleChannels = stringResource(R.string.player_multiple_channels)
     val tuneFailed = stringResource(R.string.player_tune_failed)
@@ -688,6 +689,13 @@ fun PlayerHud(
                 // stream can arrive with the provider's own drift baked in). Hidden on ExoPlayer (F19e).
                 audioDelayMs = if (player.audioDelayAvailable()) audioDelayMs else null,
                 onAdjustAudioDelay = if (player.audioDelayAvailable()) ({ d -> player.adjustAudioDelay(d) }) else null,
+                // "No sound? Switch to stereo": only where the engine says it can help right now (live
+                // ExoPlayer, audible, not already stereo, brand flag on). Read once as the dialog opens.
+                onStereoRecovery = if (remember { player.stereoRecoveryAvailable() }) ({
+                    dialog = HudDialog.NONE
+                    engineMsg = stereoRecoveryStarted; engineFlash++
+                    player.recoverAudioAsStereo()
+                }) else null,
             )
         }
         HudDialog.SUBS -> {

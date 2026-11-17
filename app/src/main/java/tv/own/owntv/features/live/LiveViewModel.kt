@@ -887,6 +887,8 @@ class LiveViewModel(
      *  playing (no stop) — just clears the flag so [playPreview] works again. */
     fun onFullscreenExited() {
         _liveOnExo.value = false
+        // Leaving the player ends its playback session, and with it any one-tap stereo recovery.
+        previewEngine.endStereoRecoverySession()
         // Leaving full-screen ends the rewind: the archive stream is torn down with the player, and the
         // 1 Hz "behind live" ticker would otherwise keep running against nothing for the rest of the session.
         clearTimeshift()
@@ -904,6 +906,7 @@ class LiveViewModel(
     }
 
     fun clearLiveOnExo() {
+        previewEngine.endStereoRecoverySession() // another item takes over full-screen: session over
         exoOutcomeJob?.cancel()
         stalkerPreviewJob?.cancel()
         stalkerPreviewCmd = null
@@ -2239,6 +2242,7 @@ class LiveViewModel(
     }
 
     fun stopPreview() {
+        previewEngine.endStereoRecoverySession()
         setStalkerReconnect(null) // tearing down — no reconnect re-resolve should fire
         previewEngine.stop()
         player.stop()

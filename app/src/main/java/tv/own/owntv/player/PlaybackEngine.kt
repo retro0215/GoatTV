@@ -101,6 +101,11 @@ interface PlaybackEngine {
     /** True when this engine can shift audio against video (mpv's `audio-delay`). ExoPlayer cannot, so
      *  the HUD hides the nudge there. mpv supports it on live too — provider A/V drift is real (F19e). */
     fun audioDelayAvailable(): Boolean = false
+    /** True when the HUD may offer "No sound? Switch to stereo" right now. Only the live ExoPlayer engine
+     *  implements it; mpv always decodes in-app and Multiscreen/VOD/hero players are left alone. */
+    fun stereoRecoveryAvailable(): Boolean = false
+    /** Customer-requested, session-only switch of this engine to decoded stereo. Never automatic. */
+    fun recoverAudioAsStereo() {}
     /** Subtitle-timing offset (ms) for the ACTIVE subtitle — VOD only (subtitle plan §8). */
     val subDelayMs: StateFlow<Int> get() = ZERO_INT
     /** Settings → Seek step: how far one press of rewind/forward moves. VOD only; a live engine never

@@ -100,6 +100,13 @@ class LivePreviewEngine(
     private var muted: Boolean = true
     /** True when audio is globally suspended (e.g. Multiscreen active), independent of [muted] state. */
     private var audioSuspended: Boolean = false
+    // One-tap "No sound? Switch to stereo" state. Declared up here, before the settings collectors in init:
+    // those run inline on Main.immediate during construction and the Surround one reads [stereoRecovery].
+    private val stereoRecovery = StereoRecoverySession()
+    /** Whether the live [player] was built with the stereo recovery override. */
+    private var builtStereoOverride = false
+    /** The current player's audio diagnostics identity (tag), for the recovery lines. */
+    private var audioDiag: AudioOutputDiagnostics? = null
     // Volume-0 is NOT a reliable mute. When the TV/AVR declares AC3/E-AC3/DTS support, MediaCodecAudioRenderer
     // picks the passthrough "decoder" and the compressed 5.1 bitstream is forwarded to HDMI untouched —
     // AudioTrack.setVolume() has no effect on an IEC61937 stream, so those channels kept playing sound in a
@@ -228,6 +235,8 @@ class LivePreviewEngine(
             val changed = surroundMode != mode
             surroundMode = mode
             if (changed) {
+                // A Surround change is the customer choosing again: drop any one-tap stereo recovery.
+                if (stereoRecovery.clear()) recoveryLog("AUDIO_RECOVERY_CLEARED reason=surround_setting_changed")
                 // Section 1: Clear latch and rebuild with settle delay
                 AudioOutputPolicy.clearLatch()
                 currentUrl?.let { rebuildForSettingChange() }
@@ -1413,6 +1422,14 @@ class LivePreviewEngine(
                 player = null
                 videoRenderer = null
             }
+            // The sink is fixed at construction too, so a player built with (or without) the one-tap stereo
+            // recovery that no longer matches the session is replaced. Only ever true around a recovery.
+            if (player != null && builtStereoOverride != stereoRecovery.active) {
+                LiveDiagnosticsLog.event("stereo recovery changed (built=$builtStereoOverride now=${stereoRecovery.active}) — rebuilding player")
+                player?.run { removeListener(listener); release() }
+                player = null
+                videoRenderer = null
+            }
             val p = player ?: build().also { player = it }
             // May be null right after a surface-generation bump — setSurface attaches it a frame later.
             surface?.let { p.setVideoSurface(it) }
@@ -1442,8 +1459,13 @@ class LivePreviewEngine(
      * constructed, so re-preparing the same player would keep the sink that just failed. Live has no
      * position to preserve, so this is just "open the same channel again".
      */
-    private fun rebuildForSettingChange() {
-        val url = currentUrl ?: return
+    private fun rebuildForSettingChange(
+        /** Skip the replay when the customer has tuned elsewhere (or stopped) during the settle delay. */
+        abandonIfRetuned: Boolean = false,
+        /** Called once the replay was attempted: true when a player built for the current session stands. */
+        after: ((Boolean) -> Unit)? = null,
+    ) {
+        val url = currentUrl ?: run { after?.invoke(false); return }
         val meta = _currentMeta.value
         val ua = currentUa
         val wasMuted = muted
@@ -1461,14 +1483,86 @@ class LivePreviewEngine(
         // before the next one starts. Crucial for NVIDIA Shield audio HAL stability.
         scope.launch {
             delay(OwnTVPlayer.CORE_RESET_SETTLE_MS)
+            if (abandonIfRetuned && currentUrl != url) {
+                // A zap during the delay already built the next channel's player for this session.
+                after?.invoke(player != null && builtStereoOverride == stereoRecovery.active)
+                return@launch
+            }
             play(url, wasMuted, meta, ua, preroll, headers, tunedDrmConfig)
+            after?.invoke(player != null && builtStereoOverride == stereoRecovery.active && _state.value != State.ERROR)
         }
+    }
+
+    // --- "No sound? Switch to stereo" (customer-requested, session-only; see [StereoRecoverySession]) ---
+
+    /** A content identifier safe for the exported ring: `sourceId:LIVE:remoteId`, never a stream URL. */
+    private fun safeContentId(): String = _currentMeta.value.contentKey ?: "none"
+
+    private fun recoveryLog(message: String) {
+        audioDiag?.event(message) ?: LiveDiagnosticsLog.event("EXO_AUDIO_DIAG $message")
+    }
+
+    override fun stereoRecoveryAvailable(): Boolean = stereoRecovery.isAvailable(
+        featureEnabled = tv.own.owntv.BuildConfig.AUDIO_STEREO_RECOVERY,
+        mode = surroundMode,
+        tuned = currentUrl != null && player != null,
+        hasAudioTrack = hasAudioTrack,
+        // A muted preview / Multiscreen suspension is silent on purpose — never offer a "fix" for it.
+        silencedOnPurpose = muted || audioSuspended || audioTrackDisabled,
+    )
+
+    override fun recoverAudioAsStereo() {
+        val content = safeContentId()
+        recoveryLog(
+            "AUDIO_RECOVERY_REQUESTED content=$content mode=$surroundMode " +
+                "output=${AudioOutputReport.pathLabel(audioWatchdog.outputPassthrough)} " +
+                "encoding=${AudioOutputReport.encodingName(audioWatchdog.outputEncoding)}",
+        )
+        if (!stereoRecoveryAvailable()) {
+            recoveryLog("AUDIO_RECOVERY_FAILED content=$content reason=not_applicable")
+            return
+        }
+        if (!stereoRecovery.begin()) {
+            recoveryLog("AUDIO_RECOVERY_FAILED content=$content reason=already_in_progress")
+            return
+        }
+        // What the rebuild would otherwise reset: the level the customer is listening at and the audio
+        // language actually playing (a track picked by hand is not a saved preference).
+        val keepVolume = _volume.value
+        val keepLanguage = player?.audioFormat?.language
+        // The same rebuild a Surround change uses: same channel, User-Agent, headers, pre-buffer and DRM.
+        rebuildForSettingChange(abandonIfRetuned = true) { ok ->
+            stereoRecovery.finish(ok)
+            if (!ok) {
+                recoveryLog("AUDIO_RECOVERY_FAILED content=$content reason=rebuild_failed")
+                return@rebuildForSettingChange
+            }
+            if (!muted && keepVolume > 0 && keepVolume != _volume.value) adjustVolume(keepVolume - _volume.value)
+            if (keepLanguage != null) player?.let { p ->
+                runCatching {
+                    p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                        .setPreferredAudioLanguage(keepLanguage).build()
+                }
+            }
+            // The output was rebuilt as stereo PCM. Whether the customer now HEARS it is not observable.
+            recoveryLog("AUDIO_RECOVERY_STEREO_APPLIED content=${safeContentId()} sink=STEREO_PCM sound_unverified=true")
+        }
+    }
+
+    /** The customer left this playback session: the next player is built from their own setting again. */
+    fun endStereoRecoverySession() {
+        if (stereoRecovery.clear()) recoveryLog("AUDIO_RECOVERY_CLEARED content=${safeContentId()} reason=session_end")
     }
 
     fun setMuted(m: Boolean) {
         muted = m
         _volume.value = if (m) 0 else 100
         applyMute()
+        // Promoting a preview whose player was built for a recovery that has since ended: rebuild once on
+        // the customer's own setting. Never true unless a recovery ran this session.
+        if (!m && player != null && currentUrl != null && builtStereoOverride != stereoRecovery.active) {
+            rebuildForSettingChange(abandonIfRetuned = true)
+        }
     }
 
     /** Mutes and disables audio tracks globally (Multiscreen) without altering the persistent [muted] state. */
@@ -2688,10 +2782,13 @@ class LivePreviewEngine(
         // mis-plays Dolby got exactly the same treatment however the switch was set.
         val renderers = ownTVRenderers(
             context,
-            forceStereo = !AudioOutputPolicy.allowsMultichannel(surroundMode),
+            // The customer's one-tap stereo recovery (session-only) pins the sink exactly like "Stereo only".
+            forceStereo = stereoRecovery.forceStereo(surroundMode),
             softwareFirst = !hwDecodingEnabled,
             engine = "live",
         )
+        builtStereoOverride = stereoRecovery.active
+        audioDiag = renderers.audioDiagnostics
         audioWatchdog.bind(renderers.audioDiagnostics) // diagnostics follow THIS player, not a shared static
         return ExoPlayer.Builder(context)
             .setRenderersFactory(renderers)

@@ -207,6 +207,9 @@ android {
 
         buildConfigField("boolean", "PUSHWOOSH_ENABLED", "false")
         buildConfigField("String", "PUSHWOOSH_APP_ID", "\"\"")
+        // Player "No sound? Switch to stereo" action. Off by default; enabled per brand below while it is
+        // validated (GoatTV first), so the other brands ship no behaviour change from the shared code.
+        buildConfigField("boolean", "AUDIO_STEREO_RECOVERY", "false")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
         buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
         // Sports event channels (Phase C2): the brand sent as ?brand= to the Sports API. Empty = this
@@ -291,6 +294,7 @@ android {
             buildConfigField("String", "SPORTS_CHANNEL_BRAND", "\"goat\"")
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"GoatTV\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
+            buildConfigField("boolean", "AUDIO_STEREO_RECOVERY", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")
             buildConfigField("String", "FCM_SENDER_ID", "\"17825531376\"")
             signingConfig = signingConfigs.findByName("goat")

@@ -52,6 +52,10 @@
     <string name="player_provider_busy">The provider is busy.</string>
     <!-- Translators: Dialog title for the audio track selection dialog in the player HUD. -->
     <string name="player_audio_track">Audio Track</string>
+    <!-- Translators: Option row at the bottom of the Audio Track dialog. Rebuilds the player with plain stereo sound for this viewing session only, for when the picture plays but there is no sound. -->
+    <string name="player_audio_stereo_recovery">No sound? Switch to stereo</string>
+    <!-- Translators: Brief message shown over the video after choosing player_audio_stereo_recovery. It only says the switch is being tried; it must not promise that sound is back. -->
+    <string name="player_audio_stereo_recovery_started">Trying stereo sound…</string>
     <!-- Translators: Dialog title for the subtitle track selection dialog in the player HUD. -->
     <string name="player_subtitles">Subtitles</string>
     <!-- Translators: Option row label in the subtitle dialog, and dialog title for the subtitle timing adjustment dialog. -->

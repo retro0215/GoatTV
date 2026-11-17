@@ -75,6 +75,8 @@ internal fun TrackDialog(
     // Non-null on the Subtitles dialog when timing adjustment applies to the active track (plan §8) →
     // an "ADJUST" section with a "Subtitle timing" row.
     onSubtitleTiming: (() -> Unit)? = null,
+    // Non-null on the Audio dialog when the engine offers the one-tap stereo recovery → one last row.
+    onStereoRecovery: (() -> Unit)? = null,
 ) {
     val colors = OwnTVTheme.colors
     val focus = remember { FocusRequester() }
@@ -153,6 +155,11 @@ internal fun TrackDialog(
                 )
             }
             item { OptionRow(label = stringResource(R.string.player_subtitle_timing), selected = false, onClick = onSubtitleTiming) }
+        }
+        // "No sound? Switch to stereo" (audio dialog, live ExoPlayer only). A plain row like the others, so
+        // the D-pad reaches it by moving down past the tracks.
+        if (onStereoRecovery != null) {
+            item { OptionRow(label = stringResource(R.string.player_audio_stereo_recovery), selected = false, onClick = onStereoRecovery) }
         }
         // A/V-sync nudge (audio dialog, VOD only) — fixes a badly-muxed file where audio leads/lags the video.
         if (onAdjustAudioDelay != null) {
