@@ -1224,6 +1224,13 @@ class OwnTVPlayer(
     // card the instant a new stream loads — channel zapping changes the plain vars above, but a plain
     // var isn't observed, so the "now watching" card showed the previous channel's name.
     private val _currentMeta = MutableStateFlow(MediaMeta())
+    /** Movies & Series audio-track diagnostics (report-only). mpv and the ExoPlayer engine both report
+     *  through this one instance so an engine handoff on the same item is recognisable as one. */
+    private val vodAudioDiag = VodAudioDiagnostics()
+    /** Serialized (mpv event thread + main) and fail-safe: a diagnostics fault must never touch playback. */
+    private fun vodAudio(block: VodAudioDiagnostics.() -> Unit) {
+        synchronized(vodAudioDiag) { runCatching { vodAudioDiag.block() } }
+    }
     val currentMeta: StateFlow<MediaMeta> = _currentMeta.asStateFlow()
 
     private var preMuteVolume = 100
@@ -1554,6 +1561,9 @@ class OwnTVPlayer(
         override fun onAudioTracks(tracks: List<TrackOption>) {
             _audioTrackList.value = tracks
             _audioCount.value = tracks.size
+        }
+        override fun onAudioDiagnostics(playerTag: String?, tracks: List<VodAudioTrackInfo>) {
+            if (!isLiveContent) vodAudio { onTracks("exo", tracks, playerTag) }
         }
         override fun onTextTracks(tracks: List<TrackOption>) {
             // Only when Exo owns playback as a VOD ENGINE: mpv never probed the file, so its subtitle
@@ -2723,6 +2733,8 @@ class OwnTVPlayer(
         currentRewindStartMs = meta.rewindStartMs
         _currentMeta.value = meta // reactive — refreshes the HUD title / "now watching" card on every load
         isLiveContent = isLive
+        // A brand-new item (not an in-place reload / retry) starts fresh VOD audio diagnostics.
+        if (resetRetries) vodAudio { if (isLive) stopItem() else startItem(meta.contentKey) }
         currentUrl = url
         currentContentKey = meta.contentKey
         applyRememberedPrefs(meta.contentKey ?: url)
@@ -3950,6 +3962,33 @@ class OwnTVPlayer(
         return out
     }
 
+    /** VOD audio diagnostics from mpv's track list: the flags mpv exposes, a title CLASS (the title itself
+     *  is never logged). Same thread rules as [queryTracks]; never affects which track plays. */
+    private fun recordMpvAudioDiagnostics() {
+        val m = mpv ?: return
+        val infos = runCatching {
+            val count = m.getPropertyInt("track-list/count") ?: 0
+            val out = ArrayList<VodAudioTrackInfo>()
+            for (i in 0 until count) {
+                if (m.getPropertyString("track-list/$i/type") != "audio") continue
+                out.add(
+                    mpvAudioTrackInfo(
+                        index = out.size,
+                        title = m.getPropertyString("track-list/$i/title"),
+                        language = m.getPropertyString("track-list/$i/lang"),
+                        codec = m.getPropertyString("track-list/$i/codec"),
+                        channels = m.getPropertyInt("track-list/$i/demux-channel-count"),
+                        isDefault = m.getPropertyBoolean("track-list/$i/default"),
+                        visualImpaired = m.getPropertyBoolean("track-list/$i/visual-impaired"),
+                        selected = m.getPropertyBoolean("track-list/$i/selected") ?: false,
+                    ),
+                )
+            }
+            out
+        }.getOrNull() ?: return
+        vodAudio { onTracks("mpv", infos) }
+    }
+
     /** Synchronous mpv read — only call off the main thread (mpv event thread / mpv-cmd worker). */
     private fun queryTracks(type: String): List<TrackOption> {
         if (!initialized) return emptyList()
@@ -3985,6 +4024,12 @@ class OwnTVPlayer(
     }
 
     fun selectAudio(mpvId: Int) {
+        // Diagnostics first, from what the HUD asked for: ExoPlayer ids are already the audio ordinal; an mpv
+        // id is mapped to its ordinal through the published list. Report-only.
+        if (!isLiveContent) {
+            val index = if (exoActive) mpvId else _audioTrackList.value.firstOrNull { it.mpvId == mpvId }?.typeIndex ?: -1
+            if (index >= 0) vodAudio { onUserSelected(if (exoActive) "exo" else "mpv", index) }
+        }
         if (exoActive) exoEngine?.selectAudio(mpvId) else if (initialized) mpvAsync { setPropertyInt("aid", mpvId) }
         _audioTrackList.value = _audioTrackList.value.map { it.copy(selected = it.mpvId == mpvId) }
     }
@@ -4305,6 +4350,7 @@ class OwnTVPlayer(
                     currentUrl?.let { LiveStreamQuirks.rememberBlocksDefaultUserAgent(it) }
                 }
                 _audioTrackList.value = queryTracks("audio")
+                if (!isLiveContent) recordMpvAudioDiagnostics()
                 _subTrackList.value = queryTracks("sub")
                 _audioCount.value = _audioTrackList.value.size
                 _subCount.value = _subTrackList.value.size

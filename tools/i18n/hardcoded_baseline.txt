@@ -4211,7 +4211,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ao
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	archive didn't start on hardware
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	attachSurface
-2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio-bitrate
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio-channels
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio-codec-name
@@ -4438,13 +4437,7 @@
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	target-colorspace-hint
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	time-pos
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	tone-mapping
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/codec
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/id
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/lang
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/selected
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/title
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/type
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/count
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	trimmed probe found no audio — re-probing fully
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	truehd
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ua=${if (currentUserAgent.isNullOrBlank()) "default" else "custom"}

@@ -57,6 +57,9 @@ class ExoSubtitleEngine(
         fun onFirstFrame()
         fun onCues(cues: List<Cue>)
         fun onAudioTracks(tracks: List<TrackOption>)
+        /** Diagnostics only (VOD Phase 5A): the same audio tracks with the metadata Media3 holds for them.
+         *  [playerTag] names this engine's current ExoPlayer instance. */
+        fun onAudioDiagnostics(playerTag: String?, tracks: List<VodAudioTrackInfo>) {}
         /** Text/image subtitle tracks from the active file — [OwnTVPlayer] shows these in the HUD while
          *  this engine owns playback as a VOD engine (mpv never probed the file, so its list is empty). */
         fun onTextTracks(tracks: List<TrackOption>)
@@ -70,6 +73,8 @@ class ExoSubtitleEngine(
     }
 
     private var player: ExoPlayer? = null
+    /** Diagnostics tag of the current [player] ("vod#n"), for the VOD audio lines. */
+    private var audioPlayerTag: String? = null
     private var surface: Surface? = null
     private var pendingSubLang: String? = null
     private var pendingSubTypeIndex: Int = -1
@@ -537,6 +542,7 @@ class ExoSubtitleEngine(
             engine = "vod",
         )
         audioWatchdog.bind(renderers.audioDiagnostics) // diagnostics follow THIS player, not a shared static
+        audioPlayerTag = renderers.audioDiagnostics.playerTag
 
         val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
             .setUsage(androidx.media3.common.C.USAGE_MEDIA)
@@ -743,11 +749,13 @@ class ExoSubtitleEngine(
     private fun rebuildAudioTracks(tracks: Tracks) {
         val out = ArrayList<TrackOption>()
         val sels = ArrayList<AudioSel>()
+        val diag = ArrayList<VodAudioTrackInfo>()
         var id = 0
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
                 val format = group.getTrackFormat(i)
+                diag.add(vodAudioTrackInfo(id, format, playable = group.isTrackSupported(i), selected = group.isTrackSelected(i)))
                 out.add(
                     TrackOption(
                         label = format.label.orEmpty(),
@@ -764,6 +772,7 @@ class ExoSubtitleEngine(
         }
         audioSelections = sels
         callbacks.onAudioTracks(out)
+        callbacks.onAudioDiagnostics(audioPlayerTag, diag)
     }
 
     /** Enumerate the file's text/image subtitle tracks for the HUD menu. [TrackOption.mpvId] and
