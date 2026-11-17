@@ -77,7 +77,7 @@
     <string name="search_no_results"><xliff:g id="query">%1$s</xliff:g> \u2014 no results.</string>
     <!-- Translators: A Search results tab with its number of matches, e.g. "Live (12)" or "Movies (500+)". %1$s is the tab name, %2$s the count. -->
     <string name="search_tab_count"><xliff:g id="tab">%1$s</xliff:g> (<xliff:g id="count">%2$s</xliff:g>)</string>
-    <!-- Translators: Shown instead of an exact count when a Search tab has more matches than the app lists, e.g. "500+". -->
+    <!-- Translators: A Search tab count that is "at least" this many, because more matches may exist than the app looked at, e.g. "500+" or "312+". -->
     <string name="search_count_capped"><xliff:g id="cap">%1$d</xliff:g>+</string>
     <!-- Translators: Shown while a search is running. -->
     <string name="search_searching">Searching\u2026</string>

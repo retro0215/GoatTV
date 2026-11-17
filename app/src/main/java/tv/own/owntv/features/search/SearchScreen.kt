@@ -567,7 +567,6 @@ private fun TabbedSearchResults(
     val firstItemFocus = remember { FocusRequester() }
     // The debounce or the search itself is still running for what was typed.
     val loading = results.query != query
-    val cappedLabel = stringResource(R.string.search_count_capped, SearchCounts.TAB_CAP)
 
     Column(Modifier.fillMaxSize()) {
         androidx.compose.foundation.layout.Row(
@@ -578,13 +577,16 @@ private fun TabbedSearchResults(
         ) {
             SearchTab.entries.forEach { t ->
                 val name = stringResource(t.labelRes)
-                val (count, capped) = when (t) {
-                    SearchTab.LIVE -> results.channels.size to results.channelsCapped
-                    SearchTab.MOVIES -> results.movies.size to results.moviesCapped
-                    SearchTab.SERIES -> results.series.size to results.seriesCapped
-                }
-                val label = if (loading || results.error) name
-                    else stringResource(R.string.search_tab_count, name, if (capped) cappedLabel else localizedInteger(count))
+                val count = SearchCounts.label(
+                    when (t) {
+                        SearchTab.LIVE -> results.liveCount
+                        SearchTab.MOVIES -> results.movieCount
+                        SearchTab.SERIES -> results.seriesCount
+                    },
+                )
+                // "12" exact · "312+" at least, maybe more · "500+" more than are listed (see SearchCounts).
+                val countText = if (count.plus) stringResource(R.string.search_count_capped, count.number) else localizedInteger(count.number)
+                val label = if (loading || results.error) name else stringResource(R.string.search_tab_count, name, countText)
                 tv.own.owntv.ui.components.ContentTabChip(
                     label = label,
                     selected = t == tab,

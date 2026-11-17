@@ -56,10 +56,10 @@ data class SearchResults(
     val series: List<SeriesEntity> = emptyList(),
     /** The (trimmed) query these results answer; "" for none — lets the UI tell "searching" from "nothing". */
     val query: String = "",
-    /** True when the category had more matches than [SearchCounts.TAB_CAP] (tabbed Search only). */
-    val channelsCapped: Boolean = false,
-    val moviesCapped: Boolean = false,
-    val seriesCapped: Boolean = false,
+    /** Tabbed Search only: how many results each category has, and whether more may exist (see [CategoryCount]). */
+    val liveCount: CategoryCount = CategoryCount(),
+    val movieCount: CategoryCount = CategoryCount(),
+    val seriesCount: CategoryCount = CategoryCount(),
     /** The search failed (e.g. a database error) — shown as an error state, never a crash. */
     val error: Boolean = false,
 ) {
@@ -70,21 +70,65 @@ data class SearchResults(
 enum class SearchTab { LIVE, MOVIES, SERIES }
 
 /**
- * Bounded result counts for the tabbed Search. The DAO is asked for one row more than [TAB_CAP]; when it
- * returns more than the cap, the tab says "500+" rather than claiming a total it never counted. Below the
- * cap the count is exact: every visibility filter (hidden items/categories, Kids) has been applied to all
- * matching rows. (Filtering only removes rows, so a capped category can show fewer than 500 tiles while
- * still being labelled 500+ — the label is honest about "more than we looked at".)
+ * One category's count after every visibility filter (hidden items, hidden categories, Kids).
+ * [visible] is how many visible results were found; [more] is true when the scan stopped at its row limit,
+ * so further matches may exist beyond what was looked at.
+ */
+data class CategoryCount(val visible: Int = 0, val more: Boolean = false)
+
+/**
+ * Bounded, honest result counts for the tabbed Search (navigation Phases C/D).
+ *
+ * Visibility filters run in Kotlin after the SQL limit (hidden items are keyed by provider id/name, which
+ * SQL cannot see), so a plain `LIMIT 501` cannot tell "500 visible" from "500 rows, 200 of them hidden".
+ * So: one pass of [TAB_CAP] + 1 rows; if that pass was full but filtering left [TAB_CAP] or fewer visible,
+ * ONE refill pass of [REFILL_LIMIT] + 1 rows. Never more — at most ~2,000 rows per category, three
+ * categories, only for broad queries that also hit hidden content. The tab then reads:
+ *  - "N"    — the scan reached the end of the matches: N is exact;
+ *  - "N+"   — the scan stopped at its limit with N (≤ 500) visible: at least N, maybe more;
+ *  - "500+" — more than 500 visible (at most 500 are listed).
+ * The one unavoidable uncertainty is the "N+" case: beyond [REFILL_LIMIT] rows the true total is unknown,
+ * and the label says so instead of guessing.
  */
 object SearchCounts {
     const val TAB_CAP = 500
+    const val REFILL_LIMIT = 2_000
 
-    /** Rows to request: the legacy limit for the old mixed layout, cap + 1 for the tabbed one. */
-    fun queryLimit(tabbed: Boolean, legacyLimit: Int): Int = if (tabbed) TAB_CAP + 1 else legacyLimit
+    /** What a tab shows: [number], with a "+" when [plus]. */
+    data class Label(val number: Int, val plus: Boolean)
 
-    /** The rows to show and whether the category is capped, from the raw SQL row count. */
-    fun <T> bound(rawRows: Int, visible: List<T>, tabbed: Boolean): Pair<List<T>, Boolean> =
-        if (!tabbed) visible to false else visible.take(TAB_CAP) to (rawRows > TAB_CAP)
+    fun label(c: CategoryCount): Label = when {
+        c.visible > TAB_CAP -> Label(TAB_CAP, plus = true)
+        c.more -> Label(c.visible, plus = true)
+        else -> Label(c.visible, plus = false)
+    }
+
+    /**
+     * Fetch and filter one category. [fetch] runs the DAO query with a row limit; [filter] applies the
+     * visibility rules and renames. The old mixed layout ([tabbed] false) keeps its single [legacyLimit]
+     * query and is never counted.
+     */
+    suspend fun <R, T> collect(
+        tabbed: Boolean,
+        legacyLimit: Int,
+        fetch: suspend (limit: Int) -> List<R>,
+        filter: (List<R>) -> List<T>,
+    ): Pair<List<T>, CategoryCount> {
+        if (!tabbed) {
+            val rows = filter(fetch(legacyLimit))
+            return rows to CategoryCount(rows.size, more = false)
+        }
+        var limit = TAB_CAP + 1
+        var raw = fetch(limit)
+        var visible = filter(raw)
+        if (raw.size >= limit && visible.size <= TAB_CAP) {
+            // A full first pass that filtering thinned out: look further, once, within a fixed bound.
+            limit = REFILL_LIMIT + 1
+            raw = fetch(limit)
+            visible = filter(raw)
+        }
+        return visible.take(TAB_CAP) to CategoryCount(visible.size, more = raw.size >= limit)
+    }
 }
 
 /**
@@ -95,13 +139,16 @@ object SearchCounts {
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 internal fun searchResultsFlow(
     queries: Flow<String>,
+    /** The profile/playlist scope: a change re-runs the current query at once, so results never go stale. */
+    scope: Flow<Any?> = flowOf(null),
     debounceMs: Long = 300,
     search: suspend (String) -> SearchResults,
-): Flow<SearchResults> = queries
-    .map { it.trim() }
-    .debounce(debounceMs)
+): Flow<SearchResults> = combine(
+    queries.map { it.trim() }.debounce(debounceMs).distinctUntilChanged(),
+    scope.distinctUntilChanged(),
+) { q, sc -> q to sc }
     .distinctUntilChanged()
-    .flatMapLatest { q ->
+    .flatMapLatest { (q, _) ->
         if (q.length < 2) flowOf(SearchResults())
         else flow {
             val result = try {
@@ -161,20 +208,32 @@ class SearchViewModel(
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
-    val results: StateFlow<SearchResults> = searchResultsFlow(_query) { q -> search(q) }
+    val results: StateFlow<SearchResults> = searchResultsFlow(_query, scope = ctx) { q -> search(q) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchResults())
 
-    /** Tabbed Search (Phase C): the selected category. A new query starts on Live; browsing keeps it. */
+    /**
+     * Tabbed Search: the selected category. Live when Search opens (the shell clears the query on entry) and
+     * whenever the query is cleared; a tab the customer picked stays while they keep typing and across a
+     * details round trip; a profile or playlist change starts over on Live with freshly searched results.
+     */
     private val _tab = MutableStateFlow(SearchTab.LIVE)
     val tab: StateFlow<SearchTab> = _tab.asStateFlow()
-    private var tabQuery = ""
     fun selectTab(t: SearchTab) { _tab.value = t }
+
+    init {
+        viewModelScope.launch {
+            var last: Ctx? = null
+            ctx.collect { c ->
+                if (last != null && last != c) _tab.value = SearchTab.LIVE
+                last = c
+            }
+        }
+    }
 
     fun setQuery(q: String) {
         _query.value = q
         if (q.isNotBlank()) _intent.value = null // typing overrides an active launcher intent
-        val t = q.trim()
-        if (t != tabQuery) { tabQuery = t; _tab.value = SearchTab.LIVE }
+        if (q.isBlank()) _tab.value = SearchTab.LIVE // cleared: the next search starts on Live
     }
 
     // --- Batch 5: empty-state launcher (recent search terms + Continue / Unwatched / Channels) ---
@@ -260,7 +319,6 @@ class SearchViewModel(
         val pid = currentProfileId() ?: return SearchResults(query = q)
         val c = ctx.value
         if (!c.hasAny) return SearchResults(query = q)
-        val limit = SearchCounts.queryLimit(tabbed, LIMIT)
         val fts = ftsQueryFor(q)
         // Respect this profile's customizations: hidden items and hidden categories never surface,
         // renames are shown (channels, and bulk-renamed movies/series from Customize).
@@ -271,33 +329,42 @@ class SearchViewModel(
         val hiddenLiveCats = hiddenCategoryIds(c.liveSourceIds, MediaType.LIVE, custLive, isKidsProfile)
         val hiddenMovieCats = hiddenCategoryIds(c.movieSourceIds, MediaType.MOVIE, custMovie, isKidsProfile)
         val hiddenSeriesCats = hiddenCategoryIds(c.seriesSourceIds, MediaType.SERIES, custSeries, isKidsProfile)
-        val rawChannels = if (c.liveSourceIds.isEmpty()) emptyList()
-            else (if (fts != null) channelDao.searchListDetailedFts(fts, c.liveSourceIds, limit) else channelDao.searchListDetailed(q, c.liveSourceIds, limit))
-        val rawMovies = if (c.movieSourceIds.isEmpty()) emptyList()
-            else (if (fts != null) movieDao.searchListFts(fts, c.movieSourceIds, limit) else movieDao.searchList(q, c.movieSourceIds, limit))
-        val rawSeries = if (c.seriesSourceIds.isEmpty()) emptyList()
-            else (if (fts != null) seriesDao.searchListFts(fts, c.seriesSourceIds, limit) else seriesDao.searchList(q, c.seriesSourceIds, limit))
-        val (channels, channelsCapped) = SearchCounts.bound(rawChannels.size, rawChannels
-                .filter {
-                    CustomizeKeys.channel(it.channel) !in custLive.hiddenItems &&
-                        (it.channel.categoryId == null || it.channel.categoryId !in hiddenLiveCats)
-                }
-                .map { row -> custLive.itemNames[CustomizeKeys.channel(row.channel)]?.let { row.copy(channel = row.channel.copy(name = it)) } ?: row }, tabbed)
-        val (movies, moviesCapped) = SearchCounts.bound(rawMovies.size, rawMovies
-                .filter {
-                    CustomizeKeys.movie(it) !in custMovie.hiddenItems &&
-                        (it.categoryId == null || it.categoryId !in hiddenMovieCats)
-                }
-                .map { m -> custMovie.itemNames[CustomizeKeys.movie(m)]?.let { m.copy(name = it) } ?: m }, tabbed)
-        val (series, seriesCapped) = SearchCounts.bound(rawSeries.size, rawSeries
-                .filter {
-                    CustomizeKeys.series(it) !in custSeries.hiddenItems &&
-                        (it.categoryId == null || it.categoryId !in hiddenSeriesCats)
-                }
-                .map { s -> custSeries.itemNames[CustomizeKeys.series(s)]?.let { s.copy(name = it) } ?: s }, tabbed)
+        val (channels, liveCount) = if (c.liveSourceIds.isEmpty()) emptyList<ChannelSearchResult>() to CategoryCount()
+            else SearchCounts.collect(
+                tabbed, LIMIT,
+                fetch = { lim -> if (fts != null) channelDao.searchListDetailedFts(fts, c.liveSourceIds, lim) else channelDao.searchListDetailed(q, c.liveSourceIds, lim) },
+                filter = { rows ->
+                    rows.filter {
+                        CustomizeKeys.channel(it.channel) !in custLive.hiddenItems &&
+                            (it.channel.categoryId == null || it.channel.categoryId !in hiddenLiveCats)
+                    }.map { row -> custLive.itemNames[CustomizeKeys.channel(row.channel)]?.let { row.copy(channel = row.channel.copy(name = it)) } ?: row }
+                },
+            )
+        val (movies, movieCount) = if (c.movieSourceIds.isEmpty()) emptyList<MovieEntity>() to CategoryCount()
+            else SearchCounts.collect(
+                tabbed, LIMIT,
+                fetch = { lim -> if (fts != null) movieDao.searchListFts(fts, c.movieSourceIds, lim) else movieDao.searchList(q, c.movieSourceIds, lim) },
+                filter = { rows ->
+                    rows.filter {
+                        CustomizeKeys.movie(it) !in custMovie.hiddenItems &&
+                            (it.categoryId == null || it.categoryId !in hiddenMovieCats)
+                    }.map { m -> custMovie.itemNames[CustomizeKeys.movie(m)]?.let { m.copy(name = it) } ?: m }
+                },
+            )
+        val (series, seriesCount) = if (c.seriesSourceIds.isEmpty()) emptyList<SeriesEntity>() to CategoryCount()
+            else SearchCounts.collect(
+                tabbed, LIMIT,
+                fetch = { lim -> if (fts != null) seriesDao.searchListFts(fts, c.seriesSourceIds, lim) else seriesDao.searchList(q, c.seriesSourceIds, lim) },
+                filter = { rows ->
+                    rows.filter {
+                        CustomizeKeys.series(it) !in custSeries.hiddenItems &&
+                            (it.categoryId == null || it.categoryId !in hiddenSeriesCats)
+                    }.map { sr -> custSeries.itemNames[CustomizeKeys.series(sr)]?.let { sr.copy(name = it) } ?: sr }
+                },
+            )
         return SearchResults(
             channels = channels, movies = movies, series = series, query = q,
-            channelsCapped = channelsCapped, moviesCapped = moviesCapped, seriesCapped = seriesCapped,
+            liveCount = liveCount, movieCount = movieCount, seriesCount = seriesCount,
         )
     }
 
