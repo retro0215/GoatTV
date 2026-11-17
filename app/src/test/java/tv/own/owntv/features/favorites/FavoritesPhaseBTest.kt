@@ -240,7 +240,7 @@ class FavoritesPhaseBTest {
     // ===== Brand isolation ========================================================================
 
     @Test fun `favorites is reachable only where the nav flag is on`() {
-        assertTrue(tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS)
+        assertEquals("on for GoatTV only", tv.own.owntv.BuildConfig.FLAVOR_brand == "goat", tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS)
         assertTrue(MainSection.FAVORITES in MainSection.browseOrderFor(favoritesEnabled = true))
         assertFalse(MainSection.FAVORITES in MainSection.browseOrderFor(favoritesEnabled = false))
         assertFalse(MainSection.FAVORITES in MainSection.dynamicVisible(true, true, true, favoritesEnabled = false))

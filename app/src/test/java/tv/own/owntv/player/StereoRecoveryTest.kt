@@ -148,8 +148,8 @@ class StereoRecoveryTest {
 
     // --- Brand isolation -----------------------------------------------------------------------------
 
-    @Test fun `enabled on the GoatTV build under test`() {
-        assertTrue(tv.own.owntv.BuildConfig.AUDIO_STEREO_RECOVERY)
+    @Test fun `enabled on the GoatTV build only`() {
+        assertEquals("on for GoatTV, off for the other brands", tv.own.owntv.BuildConfig.FLAVOR_brand == "goat", tv.own.owntv.BuildConfig.AUDIO_STEREO_RECOVERY)
     }
 
     @Test fun `only the goat flavor turns the flag on`() {

@@ -197,7 +197,8 @@ class SearchPhaseCTest {
         runCurrent()
         f.vm.setQuery("bat"); advanceUntilIdle()
         assertEquals(listOf(10L), f.liveIds.captured)          // not source 11
-        assertEquals(501, f.limit.captured)                     // GoatTV: tabbed cap + 1
+        // GoatTV: the tabbed cap + 1. Other brands: the old mixed list's 40 rows (SearchViewModel.LIMIT).
+        assertEquals(if (tv.own.owntv.BuildConfig.FLAVOR_brand == "goat") 501 else 40, f.limit.captured)
         coVerify(exactly = 0) { f.movieDao.searchListFts(any(), any(), any()) } // source 10 has Movies off
         assertEquals(listOf(1L), f.vm.results.value.channels.map { it.channel.id })
     }
@@ -315,8 +316,9 @@ class SearchPhaseCTest {
     // ===== Brand isolation ========================================================================
 
     @Test fun `tabbed search is GoatTV-only`() {
-        assertTrue(tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS)
-        assertTrue(MainSection.favoritesNavEnabled)
+        val goat = tv.own.owntv.BuildConfig.FLAVOR_brand == "goat"
+        assertEquals(goat, tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS)
+        assertEquals(goat, MainSection.favoritesNavEnabled)
         // Where the flag is off, the queries keep the old 40 rows and nothing is counted (asserted above).
     }
 }

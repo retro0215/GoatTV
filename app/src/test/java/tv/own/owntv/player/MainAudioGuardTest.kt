@@ -212,7 +212,7 @@ class MainAudioGuardTest {
     // --- Brand isolation ----------------------------------------------------------------------------
 
     @Test fun `only the goat flavor enables the guard`() {
-        assertTrue(tv.own.owntv.BuildConfig.VOD_MAIN_AUDIO_GUARD)
+        assertEquals("on for GoatTV only", tv.own.owntv.BuildConfig.FLAVOR_brand == "goat", tv.own.owntv.BuildConfig.VOD_MAIN_AUDIO_GUARD)
         val text = (File("build.gradle.kts").takeIf { it.exists() } ?: File("app/build.gradle.kts")).readText()
         val on = Regex("""buildConfigField\("boolean", "VOD_MAIN_AUDIO_GUARD", "true"\)""").findAll(text).toList()
         assertEquals(1, on.size)

@@ -28,10 +28,13 @@ class FavoritesNavPhaseATest {
         assertEquals(before, MainSection.browseOrderFor(favoritesEnabled = true).drop(1))
     }
 
-    @Test fun `the GoatTV build under test has it in the rail`() {
-        assertTrue(tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS)
-        assertEquals(MainSection.FAVORITES, MainSection.browseOrder.first())
-        assertTrue(MainSection.FAVORITES in MainSection.allBrowse)
+    @Test fun `the rail has favorites first on GoatTV and not at all on the other brands`() {
+        val goat = tv.own.owntv.BuildConfig.FLAVOR_brand == "goat"
+        assertEquals(goat, tv.own.owntv.BuildConfig.NAV_FAVORITES_SEARCH_TABS)
+        assertEquals(MainSection.browseOrderFor(goat), MainSection.browseOrder)
+        assertEquals(goat, MainSection.FAVORITES in MainSection.allBrowse)
+        if (goat) assertEquals(MainSection.FAVORITES, MainSection.browseOrder.first())
+        else assertEquals("the other brands keep the 4.6.1 rail", MainSection.browseOrderFor(false), MainSection.browseOrder)
     }
 
     // --- Home stays the launch destination and the fallback ------------------------------------------
@@ -122,6 +125,9 @@ class FavoritesNavPhaseATest {
         val src = File("src/main/java/tv/own/owntv/features/settings/NavMenuSettingsScreen.kt").takeIf { it.exists() }
             ?: File("app/src/main/java/tv/own/owntv/features/settings/NavMenuSettingsScreen.kt")
         assertTrue(src.readText().contains("MainSection.browseOrder.forEach"))
-        assertEquals(MainSection.FAVORITES, MainSection.browseOrder.first())
+        // GoatTV: Favorites heads the list. Other brands: the row does not exist there at all.
+        val goat = tv.own.owntv.BuildConfig.FLAVOR_brand == "goat"
+        assertEquals(goat, MainSection.browseOrder.firstOrNull() == MainSection.FAVORITES)
+        assertEquals(goat, MainSection.FAVORITES in MainSection.browseOrder)
     }
 }

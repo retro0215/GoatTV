@@ -201,7 +201,7 @@ class VodAudioCarryTest {
     // --- Brand isolation ------------------------------------------------------------------------------
 
     @Test fun `only the goat flavor enables the carry`() {
-        assertTrue(tv.own.owntv.BuildConfig.VOD_AUDIO_SELECTION_CARRY)
+        assertEquals("on for GoatTV only", tv.own.owntv.BuildConfig.FLAVOR_brand == "goat", tv.own.owntv.BuildConfig.VOD_AUDIO_SELECTION_CARRY)
         val text = (File("build.gradle.kts").takeIf { it.exists() } ?: File("app/build.gradle.kts")).readText()
         val on = Regex("""buildConfigField\("boolean", "VOD_AUDIO_SELECTION_CARRY", "true"\)""").findAll(text).toList()
         assertEquals(1, on.size)
