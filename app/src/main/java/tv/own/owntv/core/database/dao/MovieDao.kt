@@ -248,6 +248,12 @@ interface MovieDao {
     )
     fun countFavorites(profileId: Long, sourceIds: List<Long>): Flow<Int>
 
+    /** The Favorites screen (navigation Phase B): this profile's favorites within the given (active) sources,
+     *  newest first — the same join and source filter as [countFavorites], so the screen can never list a
+     *  favorite whose item went stale or belongs to an inactive playlist. Read-only; reactive on both tables. */
+    @Query(FavoritesSql.MOVIE)
+    fun favoritesForSources(profileId: Long, sourceIds: List<Long>): Flow<List<MovieEntity>>
+
     /** History rail count, joined to movies so it can honor the active-playlist filter. */
     @Query(
         "SELECT COUNT(*) FROM watch_history h INNER JOIN movies m ON m.id = h.itemId " +

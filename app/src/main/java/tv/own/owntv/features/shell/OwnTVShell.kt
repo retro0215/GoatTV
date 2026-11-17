@@ -173,6 +173,9 @@ fun OwnTVShell(
     var restoreTrendingSearchFocus by remember { mutableStateOf(false) }
     var trendingSearchActive by remember { mutableStateOf(false) }
     var fullscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
+    // Favorites (navigation Phase B) return paths. Movies/Series details opened from Favorites return to
+    // Favorites when closed; the tab the customer was on is kept for that return (and for the player's).
+    var favoritesReturn by remember { mutableStateOf(tv.own.owntv.features.favorites.FavoritesReturnState()) }
     var multiscreenReturnSection by remember { mutableStateOf<MainSection?>(null) }
     // Phase 4: the TV Guide's live preview — the channel the player was on, still playing (GuidePlayback).
     var guideSession by remember { mutableStateOf(GuidePlayback.NONE) }
@@ -222,8 +225,33 @@ fun OwnTVShell(
     val movieVm = org.koin.androidx.compose.koinViewModel<MovieViewModel>()
     val seriesVm = org.koin.androidx.compose.koinViewModel<SeriesViewModel>()
     val searchVm = org.koin.androidx.compose.koinViewModel<SearchViewModel>()
+    val favoritesVm = org.koin.androidx.compose.koinViewModel<tv.own.owntv.features.favorites.FavoritesViewModel>()
     val liveVm = org.koin.androidx.compose.koinViewModel<LiveViewModel>()
     val epgVm = org.koin.androidx.compose.koinViewModel<tv.own.owntv.features.epg.EpgViewModel>()
+
+    // Favorites (navigation Phase B). Arriving from another destination starts on Live; coming back from
+    // Favorites' own player or details keeps the tab. Going anywhere else drops the pending return paths.
+    LaunchedEffect(selectedSection) {
+        val change = tv.own.owntv.features.favorites.FavoritesReturn.onSectionChanged(favoritesReturn, selectedSection)
+        favoritesReturn = change.state
+        if (change.resetTab) favoritesVm.resetTab()
+    }
+    // A Movies/Series details page opened from Favorites: once it closes (its own Back), go back to
+    // Favorites — not while a title from it is playing (that exit returns to the details page as before).
+    val favDetailedMovie by movieVm.detailedMovie.collectAsStateWithLifecycle()
+    val favOpenedSeries by seriesVm.openedSeries.collectAsStateWithLifecycle()
+    LaunchedEffect(favDetailedMovie, favOpenedSeries, favoritesReturn.detailsFrom, selectedSection, playerMode) {
+        val open = when (favoritesReturn.detailsFrom) {
+            MainSection.MOVIES -> favDetailedMovie != null
+            MainSection.SERIES -> favOpenedSeries != null
+            else -> return@LaunchedEffect
+        }
+        val (next, goBack) = tv.own.owntv.features.favorites.FavoritesReturn.onDetails(
+            favoritesReturn, detailsOpen = open, section = selectedSection, playerIdle = playerMode == PlayerMode.NONE,
+        )
+        favoritesReturn = next
+        if (goBack) onSelectSection(MainSection.FAVORITES)
+    }
 
     LaunchedEffect(selectedSection) {
         if (selectedSection != MainSection.MULTISCREEN) {
@@ -832,15 +860,35 @@ fun OwnTVShell(
                             onBack = { runCatching { sidebarFocus.requestFocus() } },
                             modifier = Modifier.fillMaxSize().onFocusChanged { if (it.hasFocus) focusedLayer = ShellLayer.CONTENT }.focusGroup(),
                         )
-                        // Phase A placeholder (replaced by the Favorites screen in Phase B). Not focusable on
-                        // purpose: D-pad focus stays in the rail, so nothing can be stranded here.
-                        selectedSection == MainSection.FAVORITES -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            tv.own.owntv.ui.components.EmptyState(
-                                icon = OwnTVIcon.STAR,
-                                title = stringResource(R.string.content_category_favorites),
-                                message = stringResource(R.string.favorites_coming_soon),
-                            )
-                        }
+                        selectedSection == MainSection.FAVORITES -> tv.own.owntv.features.favorites.FavoritesScreen(
+                            vm = favoritesVm,
+                            // The Sports pattern: the shared live path, then back to Favorites on exit.
+                            onPlayChannel = { ch, list ->
+                                liveVm.watchFullscreen(ch, list)
+                                zapSource = MainSection.LIVE_TV
+                                homeVm.stopPreview()
+                                fullscreenReturnSection = MainSection.FAVORITES
+                                favoritesReturn = tv.own.owntv.features.favorites.FavoritesReturn.openedPlayer(favoritesReturn)
+                                if (playerMode != PlayerMode.MINI && !liveVm.externalPlayerOn.value) {
+                                    playerMode = PlayerMode.FULLSCREEN
+                                }
+                                onSelectSection(MainSection.LIVE_TV)
+                            },
+                            // The Home pattern: the section's own details page (versions, trailers, resume,
+                            // seasons, history all live there), with a return to Favorites when it closes.
+                            onOpenMovie = { movie ->
+                                movieVm.openMovieDetails(movie)
+                                favoritesReturn = tv.own.owntv.features.favorites.FavoritesReturn.openedDetails(favoritesReturn, MainSection.MOVIES)
+                                onSelectSection(MainSection.MOVIES)
+                            },
+                            onOpenSeries = { series ->
+                                seriesVm.openSeries(series)
+                                favoritesReturn = tv.own.owntv.features.favorites.FavoritesReturn.openedDetails(favoritesReturn, MainSection.SERIES)
+                                onSelectSection(MainSection.SERIES)
+                            },
+                            onChildFocused = { focusedLayer = ShellLayer.CONTENT },
+                            modifier = Modifier.fillMaxSize(),
+                        )
                         else -> Box(Modifier.fillMaxSize())
                     }
                 }

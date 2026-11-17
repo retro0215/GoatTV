@@ -354,6 +354,12 @@
 3	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	SELECT COUNT(*) FROM channels WHERE sourceId IN (:sourceIds)
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/ChannelDao.kt	UPDATE channels SET sortOrder = :sortOrder WHERE id = :id
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/EpgDao.kt	SELECT COALESCE(MAX(id), 0) FROM epg_programmes
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/FavoritesSql.kt	SELECT c.* FROM channels c INNER JOIN favorites f ON f.itemId = c.id AND f.mediaType = 'LIVE'
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/FavoritesSql.kt	SELECT m.* FROM movies m INNER JOIN favorites f ON f.itemId = m.id AND f.mediaType = 'MOVIE'
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/FavoritesSql.kt	SELECT s.* FROM series s INNER JOIN favorites f ON f.itemId = s.id AND f.mediaType = 'SERIES'
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/FavoritesSql.kt	WHERE f.profileId = :profileId AND c.sourceId IN (:sourceIds) ORDER BY f.addedAt DESC
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/FavoritesSql.kt	WHERE f.profileId = :profileId AND m.sourceId IN (:sourceIds) ORDER BY f.addedAt DESC
+1	sql	app/src/main/java/tv/own/owntv/core/database/dao/FavoritesSql.kt	WHERE f.profileId = :profileId AND s.sourceId IN (:sourceIds) ORDER BY f.addedAt DESC
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	) ORDER BY number ASC, name ASC LIMIT :limit
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%')
 1	sql	app/src/main/java/tv/own/owntv/core/database/dao/GuideSql.kt	AND (:query = '' OR name LIKE '%' || :query || '%') ORDER BY number ASC, name ASC
@@ -569,6 +575,8 @@
 1	log	app/src/main/java/tv/own/owntv/features/epg/GuideLoad.kt	guide open requested
 1	compiler	app/src/main/java/tv/own/owntv/features/epg/GuideMemoryPressure.kt	DEPRECATION
 1	empty	app/src/main/java/tv/own/owntv/features/epg/GuideNav.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/features/favorites/FavoritesScreen.kt	${it.tab}:${it.id}
+1	compiler	app/src/main/java/tv/own/owntv/features/favorites/FavoritesViewModel.kt	OPT_IN_USAGE
 2	empty	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	\0
 1	log	app/src/main/java/tv/own/owntv/features/movies/MovieViewModel.kt	version lookup failed movieId=${movie.id}
 7	log	app/src/main/java/tv/own/owntv/features/multiscreen/MultiscreenScreen.kt	MultiscreenDiag

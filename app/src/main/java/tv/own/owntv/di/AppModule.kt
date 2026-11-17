@@ -17,6 +17,7 @@ import tv.own.owntv.features.movies.MovieViewModel
 import tv.own.owntv.features.profiles.ProfileGateSessionViewModel
 import tv.own.owntv.features.profiles.ProfilesViewModel
 import tv.own.owntv.features.search.SearchViewModel
+import tv.own.owntv.features.favorites.FavoritesViewModel
 import tv.own.owntv.features.series.SeriesViewModel
 import tv.own.owntv.features.sports.SportsViewModel
 import tv.own.owntv.features.sports.live.SportsEventsViewModel
@@ -64,6 +65,7 @@ val appModule = module {
     viewModelOf(::SportsViewModel)
     viewModelOf(::SportsEventsViewModel)
     viewModelOf(::SearchViewModel)
+    viewModelOf(::FavoritesViewModel)
     viewModelOf(::ProfilesViewModel)
     // Activity-scoped session state for the profile gate (configuration-only retention, no saved
     // state — see ProfileGateSessionViewModel).

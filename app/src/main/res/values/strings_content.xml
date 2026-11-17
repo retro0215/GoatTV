@@ -368,8 +368,20 @@
     <string name="content_live_time_range_plain"><xliff:g id="start">%1$s</xliff:g> \u2013 <xliff:g id="stop">%2$s</xliff:g></string>
     <!-- Translators: Predefined category name for the Favorites list. -->
     <string name="content_category_favorites">Favorites</string>
-    <!-- Translators: Temporary message on the new Favorites page in the main menu, shown until the page lists the viewer's saved channels, movies and series. -->
-    <string name="favorites_coming_soon">Your favorite channels, movies and series will appear here soon.</string>
+    <!-- Translators: First tab of the Favorites page (live TV channels). Kept short: it sits next to "Movies" and "Series". -->
+    <string name="favorites_tab_live">Live</string>
+    <!-- Translators: Empty-state title on the Favorites page's Live tab. -->
+    <string name="favorites_empty_live">No favorite channels yet</string>
+    <!-- Translators: Empty-state title on the Favorites page's Movies tab. -->
+    <string name="favorites_empty_movies">No favorite movies yet</string>
+    <!-- Translators: Empty-state title on the Favorites page's Series tab. -->
+    <string name="favorites_empty_series">No favorite series yet</string>
+    <!-- Translators: Empty-state hint on every Favorites tab: how to add a favorite (hold OK on a channel, movie or series and pick Add to Favorites). -->
+    <string name="favorites_empty_message">Hold OK on a channel, movie or series and choose Add to Favorites.</string>
+    <!-- Translators: Shown on the Favorites page when the saved favorites could not be loaded. -->
+    <string name="favorites_error">Your favorites could not be loaded.</string>
+    <!-- Translators: Button in the Favorites page's long-press menu: open the channel, movie or series. -->
+    <string name="favorites_open">Open</string>
     <!-- Translators: Predefined category name for the History list. -->
     <string name="content_category_history">History</string>
     <!-- Translators: Predefined category name for the "All Channels" view. -->
