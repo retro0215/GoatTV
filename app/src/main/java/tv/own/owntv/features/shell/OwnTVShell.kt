@@ -250,7 +250,7 @@ fun OwnTVShell(
             favoritesReturn, detailsOpen = open, section = selectedSection, playerIdle = playerMode == PlayerMode.NONE,
         )
         favoritesReturn = next
-        if (goBack) onSelectSection(MainSection.FAVORITES)
+        if (goBack != null) onSelectSection(goBack)
     }
 
     LaunchedEffect(selectedSection) {
@@ -781,7 +781,21 @@ fun OwnTVShell(
                         )
                         selectedSection == MainSection.SEARCH -> SearchScreen(
                             vm = searchVm, onFullscreen = { openFullscreen() },
-                            onOpenSeries = { series -> trendingSearchActive = false; seriesVm.openSeries(series); onSelectSection(MainSection.SERIES) },
+                            onOpenSeries = { series ->
+                                trendingSearchActive = false
+                                seriesVm.openSeries(series)
+                                // Tabbed Search (Phase C): closing the details page returns to these results.
+                                if (MainSection.favoritesNavEnabled) {
+                                    favoritesReturn = tv.own.owntv.features.favorites.FavoritesReturn.openedDetails(favoritesReturn, MainSection.SERIES, returnTo = MainSection.SEARCH)
+                                }
+                                onSelectSection(MainSection.SERIES)
+                            },
+                            onOpenMovie = { movie ->
+                                trendingSearchActive = false
+                                movieVm.openMovieDetails(movie)
+                                favoritesReturn = tv.own.owntv.features.favorites.FavoritesReturn.openedDetails(favoritesReturn, MainSection.MOVIES, returnTo = MainSection.SEARCH)
+                                onSelectSection(MainSection.MOVIES)
+                            },
                             onPlayChannel = { ch -> restoreFocus = false; liveVm.watchFromGuide(ch); zapSource = MainSection.LIVE_TV; homeVm.stopPreview(); if (playerMode != PlayerMode.MINI && !liveVm.externalPlayerOn.value) playerMode = PlayerMode.FULLSCREEN },
                             playMovie = { movie -> movieVm.playWithSavedPosition(movie) },
                             onChildFocused = { focusedLayer = ShellLayer.CONTENT }, returnToHomeOnBack = trendingSearchActive,

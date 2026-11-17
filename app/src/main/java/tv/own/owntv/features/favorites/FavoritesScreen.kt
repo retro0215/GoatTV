@@ -43,7 +43,9 @@ import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.MovieEntity
 import tv.own.owntv.core.database.entity.SeriesEntity
 import tv.own.owntv.core.epg.displayLogoUrl
+import tv.own.owntv.ui.components.ChannelLogoCard
 import tv.own.owntv.ui.components.ContentPanelFill
+import tv.own.owntv.ui.components.ContentTabChip
 import tv.own.owntv.ui.components.EmptyState
 import tv.own.owntv.ui.components.ErrorState
 import tv.own.owntv.ui.components.FocusableSurface
@@ -130,7 +132,7 @@ fun FavoritesScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             FavoritesTab.entries.forEach { t ->
-                FavoritesTabChip(
+                ContentTabChip(
                     label = stringResource(t.labelRes),
                     selected = t == tab,
                     modifier = Modifier.focusRequester(tabFocus.getValue(t)),
@@ -175,7 +177,7 @@ fun FavoritesScreen(
                             Unit
                         }
                         if (item.tab == FavoritesTab.LIVE) {
-                            ChannelTile(item, focusMod, onClick = open, onLongClick = { menuFor = item })
+                            ChannelLogoCard(item.title, item.art, focusMod, onClick = open, onLongClick = { menuFor = item })
                         } else {
                             PosterCard(
                                 posterUrl = item.art,
@@ -226,62 +228,6 @@ private val FavoritesTab.emptyTitleRes: Int
         FavoritesTab.MOVIES -> R.string.favorites_empty_movies
         FavoritesTab.SERIES -> R.string.favorites_empty_series
     }
-
-@Composable
-private fun FavoritesTabChip(label: String, selected: Boolean, modifier: Modifier, onFocused: () -> Unit, onClick: () -> Unit) {
-    val colors = OwnTVTheme.colors
-    FocusableSurface(
-        onClick = onClick,
-        selected = selected,
-        modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
-        shape = RoundedCornerShape(20.dp),
-        selectedContainerColor = colors.primaryContainer, // the brand accent marks the selected tab
-        surface = GlassSurface.CARDS,
-    ) { focused ->
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            color = when {
-                selected -> colors.onPrimaryContainer
-                focused -> colors.primary
-                else -> colors.onSurfaceVariant
-            },
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun ChannelTile(item: FavItem, modifier: Modifier, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val colors = OwnTVTheme.colors
-    FocusableSurface(
-        onClick = onClick,
-        onLongClick = onLongClick,
-        modifier = modifier.fillMaxWidth().height(118.dp),
-        shape = RoundedCornerShape(Dimens.PosterCardCorner),
-        surface = GlassSurface.CARDS,
-    ) { focused ->
-        Column(Modifier.fillMaxSize().padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.fillMaxWidth().height(62.dp), contentAlignment = Alignment.Center) {
-                if (item.art != null) {
-                    AsyncImage(model = item.art, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-                } else {
-                    OwnTVIcon(OwnTVIcon.LIVE_TV, tint = colors.onSurfaceVariant, modifier = Modifier.size(34.dp))
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                item.title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (focused) colors.primary else colors.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
 
 /** The long-press menu, in the same modal pattern as the Live/Movies/Series context menus. */
 @Composable

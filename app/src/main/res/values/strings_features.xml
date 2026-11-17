@@ -75,6 +75,16 @@
     <string name="search_minimum_query">Type at least 2 characters to search across everything.</string>
     <!-- Translators: Empty-state message when a search returns no results. "query" is the search text. -->
     <string name="search_no_results"><xliff:g id="query">%1$s</xliff:g> \u2014 no results.</string>
+    <!-- Translators: A Search results tab with its number of matches, e.g. "Live (12)" or "Movies (500+)". %1$s is the tab name, %2$s the count. -->
+    <string name="search_tab_count"><xliff:g id="tab">%1$s</xliff:g> (<xliff:g id="count">%2$s</xliff:g>)</string>
+    <!-- Translators: Shown instead of an exact count when a Search tab has more matches than the app lists, e.g. "500+". -->
+    <string name="search_count_capped"><xliff:g id="cap">%1$d</xliff:g>+</string>
+    <!-- Translators: Shown while a search is running. -->
+    <string name="search_searching">Searching\u2026</string>
+    <!-- Translators: Shown when a search could not be completed. -->
+    <string name="search_error">Search failed. Please try again.</string>
+    <!-- Translators: Message under the "no results" line when the selected Search tab (Live, Movies or Series) has no matches. -->
+    <string name="search_empty_tab">Try another tab, or different words.</string>
     <!-- Translators: Empty-state message when a list category has no items. "list" is the list name. -->
     <string name="search_nothing_in_list">Nothing in <xliff:g id="list">%1$s</xliff:g> yet.</string>
     <!-- Translators: Button to clear the search input. -->

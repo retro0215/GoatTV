@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
@@ -95,6 +97,10 @@ fun SearchScreen(
     returnToHomeOnBack: Boolean = false,
     onReturnToHome: () -> Unit = {},
     modifier: Modifier = Modifier,
+    /** Tabbed results (navigation Phase C): a film opens its details page instead of playing. */
+    onOpenMovie: (MovieEntity) -> Unit = {},
+    /** Live | Movies | Series tabs instead of the mixed list — the GoatTV-only nav flag. */
+    tabbed: Boolean = tv.own.owntv.features.shell.MainSection.favoritesNavEnabled,
 ) {
     val query by vm.query.collectAsStateWithLifecycle()
     val results by vm.results.collectAsStateWithLifecycle()
@@ -102,6 +108,7 @@ fun SearchScreen(
     val intent by vm.intent.collectAsStateWithLifecycle()
     val recent by vm.recentSearches.collectAsStateWithLifecycle()
     val favoriteIds by vm.favoriteChannelIds.collectAsStateWithLifecycle()
+    val tab by vm.tab.collectAsStateWithLifecycle()
     val colors = OwnTVTheme.colors
 
     val searchFocus = remember { FocusRequester() }
@@ -145,6 +152,17 @@ fun SearchScreen(
                 )
             searching && query.trim().length < 2 ->
                 CenterHint(stringResource(R.string.search_minimum_query))
+            // Tabbed results replace only the mixed list; the field above, the launcher and Back are unchanged.
+            searching && tabbed -> TabbedSearchResults(
+                results = results,
+                query = query.trim(),
+                tab = tab,
+                onSelectTab = vm::selectTab,
+                onPlayChannel = { ch -> vm.noteChannelPlayed(ch); onPlayChannel(ch) },
+                onToggleFavorite = { vm.toggleFavoriteChannel(it) },
+                onOpenMovie = { vm.rememberCurrentQuery(); onOpenMovie(it) },
+                onOpenSeries = { vm.rememberCurrentQuery(); onOpenSeries(it) },
+            )
             shown.isEmpty ->
                 CenterHint(
                     if (searching) stringResource(R.string.search_no_results, query.trim())
@@ -527,3 +545,116 @@ private fun channelDetail(row: ChannelSearchResult): String? =
 private fun metaLine(year: Int?, rating: Double?, type: String): String =
     listOfNotNull(type, year?.let { localizedInteger(it, grouping = false) }, rating?.let { stringResource(R.string.content_rating, it) })
         .joinToString(stringResource(R.string.content_genres_separator))
+
+
+/**
+ * Navigation Phase C: one query, three categories — Live | Movies | Series with their counts ("500+" past
+ * the cap, see [SearchCounts]). Focus never moves here by itself while typing; Down from the search field
+ * reaches the tabs, Left/Right selects one, Down enters its grid, Up from the grid returns to that tab.
+ */
+@Composable
+private fun TabbedSearchResults(
+    results: SearchResults,
+    query: String,
+    tab: SearchTab,
+    onSelectTab: (SearchTab) -> Unit,
+    onPlayChannel: (ChannelEntity) -> Unit,
+    onToggleFavorite: (ChannelEntity) -> Unit,
+    onOpenMovie: (MovieEntity) -> Unit,
+    onOpenSeries: (SeriesEntity) -> Unit,
+) {
+    val tabFocus = remember { SearchTab.entries.associateWith { FocusRequester() } }
+    val firstItemFocus = remember { FocusRequester() }
+    // The debounce or the search itself is still running for what was typed.
+    val loading = results.query != query
+    val cappedLabel = stringResource(R.string.search_count_capped, SearchCounts.TAB_CAP)
+
+    Column(Modifier.fillMaxSize()) {
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier
+                .focusProperties { onEnter = { runCatching { tabFocus.getValue(tab).requestFocus() } } }
+                .focusGroup(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            SearchTab.entries.forEach { t ->
+                val name = stringResource(t.labelRes)
+                val (count, capped) = when (t) {
+                    SearchTab.LIVE -> results.channels.size to results.channelsCapped
+                    SearchTab.MOVIES -> results.movies.size to results.moviesCapped
+                    SearchTab.SERIES -> results.series.size to results.seriesCapped
+                }
+                val label = if (loading || results.error) name
+                    else stringResource(R.string.search_tab_count, name, if (capped) cappedLabel else localizedInteger(count))
+                tv.own.owntv.ui.components.ContentTabChip(
+                    label = label,
+                    selected = t == tab,
+                    modifier = Modifier.focusRequester(tabFocus.getValue(t)),
+                    onFocused = { onSelectTab(t) },
+                    onClick = { onSelectTab(t) },
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Box(Modifier.fillMaxSize()) {
+            val count = when (tab) {
+                SearchTab.LIVE -> results.channels.size
+                SearchTab.MOVIES -> results.movies.size
+                SearchTab.SERIES -> results.series.size
+            }
+            when {
+                loading -> tv.own.owntv.ui.components.LoadingState(stringResource(R.string.search_searching), Modifier.align(Alignment.Center))
+                results.error -> tv.own.owntv.ui.components.ErrorState(stringResource(R.string.search_error), Modifier.align(Alignment.Center))
+                count == 0 -> tv.own.owntv.ui.components.EmptyState(
+                    icon = OwnTVIcon.SEARCH,
+                    title = stringResource(R.string.search_no_results, query),
+                    message = stringResource(R.string.search_empty_tab),
+                    modifier = Modifier.align(Alignment.Center),
+                )
+                else -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(minSize = if (tab == SearchTab.LIVE) 170.dp else 130.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusProperties { onEnter = { runCatching { firstItemFocus.requestFocus() } } }
+                        .focusGroup(),
+                ) {
+                    when (tab) {
+                        SearchTab.LIVE -> itemsIndexed(results.channels, key = { _, r -> "c${r.channel.id}" }) { i, r ->
+                            tv.own.owntv.ui.components.ChannelLogoCard(
+                                title = r.channel.name,
+                                logoUrl = r.channel.displayLogoUrl,
+                                modifier = if (i == 0) Modifier.focusRequester(firstItemFocus) else Modifier,
+                                onClick = { onPlayChannel(r.channel) },
+                                // Same as the mixed list: long-press adds/removes the channel from Favorites.
+                                onLongClick = { onToggleFavorite(r.channel) },
+                            )
+                        }
+                        SearchTab.MOVIES -> itemsIndexed(results.movies, key = { _, m -> "m${m.id}" }) { i, m ->
+                            tv.own.owntv.ui.components.PosterCard(
+                                posterUrl = m.posterUrl, title = m.name, rating = m.rating,
+                                modifier = if (i == 0) Modifier.focusRequester(firstItemFocus) else Modifier,
+                                onClick = { onOpenMovie(m) },
+                            )
+                        }
+                        SearchTab.SERIES -> itemsIndexed(results.series, key = { _, ser -> "s${ser.id}" }) { i, ser ->
+                            tv.own.owntv.ui.components.PosterCard(
+                                posterUrl = ser.posterUrl, title = ser.name, rating = ser.rating,
+                                modifier = if (i == 0) Modifier.focusRequester(firstItemFocus) else Modifier,
+                                onClick = { onOpenSeries(ser) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val SearchTab.labelRes: Int
+    get() = when (this) {
+        SearchTab.LIVE -> R.string.favorites_tab_live
+        SearchTab.MOVIES -> R.string.common_nav_movies
+        SearchTab.SERIES -> R.string.common_nav_series
+    }

@@ -200,25 +200,25 @@ class FavoritesPhaseBTest {
         s = FavoritesReturn.onSectionChanged(s, MainSection.MOVIES).state
         s = FavoritesReturn.onDetails(s, detailsOpen = true, section = MainSection.MOVIES, playerIdle = true).first
         val (after, goBack) = FavoritesReturn.onDetails(s, detailsOpen = false, section = MainSection.MOVIES, playerIdle = true)
-        assertTrue(goBack)
+        assertEquals(MainSection.FAVORITES, goBack)
         assertFalse(FavoritesReturn.onSectionChanged(after, MainSection.FAVORITES).resetTab)
     }
 
     @Test fun `series details return the same way`() {
         var s = FavoritesReturn.openedDetails(FavoritesReturnState(), MainSection.SERIES)
         s = FavoritesReturn.onDetails(s, true, MainSection.SERIES, true).first
-        assertTrue(FavoritesReturn.onDetails(s, false, MainSection.SERIES, true).second)
+        assertEquals(MainSection.FAVORITES, FavoritesReturn.onDetails(s, false, MainSection.SERIES, true).second)
     }
 
     @Test fun `no return while a title from the details page is playing`() {
         var s = FavoritesReturn.openedDetails(FavoritesReturnState(), MainSection.MOVIES)
         s = FavoritesReturn.onDetails(s, true, MainSection.MOVIES, true).first
-        assertFalse(FavoritesReturn.onDetails(s, detailsOpen = false, section = MainSection.MOVIES, playerIdle = false).second)
+        assertNull(FavoritesReturn.onDetails(s, detailsOpen = false, section = MainSection.MOVIES, playerIdle = false).second)
     }
 
     @Test fun `no return before the details page was seen open`() {
         val s = FavoritesReturn.openedDetails(FavoritesReturnState(), MainSection.MOVIES)
-        assertFalse(FavoritesReturn.onDetails(s, detailsOpen = false, section = MainSection.MOVIES, playerIdle = true).second)
+        assertNull(FavoritesReturn.onDetails(s, detailsOpen = false, section = MainSection.MOVIES, playerIdle = true).second)
     }
 
     @Test fun `leaving for another destination drops the return path`() {
@@ -226,7 +226,7 @@ class FavoritesPhaseBTest {
         s = FavoritesReturn.onDetails(s, true, MainSection.MOVIES, true).first
         s = FavoritesReturn.onSectionChanged(s, MainSection.EPG).state // the customer went to the Guide
         assertNull(s.detailsFrom)
-        assertFalse(FavoritesReturn.onDetails(s, false, MainSection.MOVIES, true).second)
+        assertNull(FavoritesReturn.onDetails(s, false, MainSection.MOVIES, true).second)
         assertTrue("and Favorites is entered fresh later", FavoritesReturn.onSectionChanged(s, MainSection.FAVORITES).resetTab)
     }
 
@@ -234,7 +234,7 @@ class FavoritesPhaseBTest {
         var s = FavoritesReturn.openedDetails(FavoritesReturnState(), MainSection.MOVIES)
         s = FavoritesReturn.onDetails(s, true, MainSection.MOVIES, true).first
         s = FavoritesReturn.onSectionChanged(s, MainSection.SERIES).state
-        assertFalse(FavoritesReturn.onDetails(s, false, MainSection.SERIES, true).second)
+        assertNull(FavoritesReturn.onDetails(s, false, MainSection.SERIES, true).second)
     }
 
     // ===== Brand isolation ========================================================================

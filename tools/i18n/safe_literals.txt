@@ -586,6 +586,10 @@
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	CHAT
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	LIVE
 1	log	app/src/main/java/tv/own/owntv/features/rooms/RoomExperienceScreen.kt	Viewer
+1	technical	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	c${r.channel.id}
+1	technical	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	m${m.id}
+1	technical	app/src/main/java/tv/own/owntv/features/search/SearchScreen.kt	s${ser.id}
+5	empty	app/src/main/java/tv/own/owntv/features/search/SearchViewModel.kt	\0
 1	log	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	cached series info failed seriesId=${show.id}
 1	log	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	episode version lookup failed episodeId=${episode.id}
 1	log	app/src/main/java/tv/own/owntv/features/series/SeriesViewModel.kt	series version lookup failed seriesId=${show.id}
