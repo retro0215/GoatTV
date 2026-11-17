@@ -4200,7 +4200,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	absolute
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ac-3
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ac3
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	aid
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	alac
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	alang
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	all=warn
@@ -4225,7 +4224,6 @@
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio/true-hd
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio/vnd.dts
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audiotrack
-2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	auto
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	auto-safe
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	av1
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	avc
@@ -4437,7 +4435,6 @@
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	target-colorspace-hint
 2	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	time-pos
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	tone-mapping
-1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/id
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	trimmed probe found no audio — re-probing fully
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	truehd
 1	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	ua=${if (currentUserAgent.isNullOrBlank()) "default" else "custom"}

@@ -60,6 +60,10 @@ class ExoSubtitleEngine(
         /** Diagnostics only (VOD Phase 5A): the same audio tracks with the metadata Media3 holds for them.
          *  [playerTag] names this engine's current ExoPlayer instance. */
         fun onAudioDiagnostics(playerTag: String?, tracks: List<VodAudioTrackInfo>) {}
+        /** The audio tracks as match candidates (5B); titles stay in memory, never logged. */
+        fun onAudioCandidates(candidates: List<AudioCandidate>) {}
+        /** The outcome of re-finding a carried pick in this engine's list (5B). */
+        fun onAudioCarry(result: CarryResult, applied: Boolean) {}
         /** Text/image subtitle tracks from the active file — [OwnTVPlayer] shows these in the HUD while
          *  this engine owns playback as a VOD engine (mpv never probed the file, so its list is empty). */
         fun onTextTracks(tracks: List<TrackOption>)
@@ -77,6 +81,8 @@ class ExoSubtitleEngine(
     private var audioPlayerTag: String? = null
     private var surface: Surface? = null
     private var pendingSubLang: String? = null
+    /** 5B: the customer's pick carried in from mpv, matched once the track list arrives. */
+    private var pendingAudioChoice: AudioChoice? = null
     private var pendingSubTypeIndex: Int = -1
     private var subtitleApplied = false
     // Side-loaded external subtitle files (OpenSubtitles/local — subtitle plan §6.5/§10). ExoPlayer
@@ -296,6 +302,10 @@ class ExoSubtitleEngine(
         /** This item is a catch-up / live-rewind archive: mid-GOP, so a blank picture on the hardware
          *  decoder is rescued in software instead of erroring — see [noVideoTimeout]. */
         isArchive: Boolean = false,
+        /** 5B: the customer's audio pick for THIS item, carried across the engine switch (null = none). */
+        audioChoice: AudioChoice? = null,
+        /** 5B: drop audio overrides left on the reused player by an earlier item before starting. */
+        resetAudioOverrides: Boolean = false,
     ) {
         // "Hardware decoding = Off" used to reach mpv only, so a user who turned it off to work around a
         // broken vendor decoder still got that decoder the moment playback landed on ExoPlayer. The
@@ -306,6 +316,7 @@ class ExoSubtitleEngine(
         fallbackMode = fallback
         pendingSubLang = subLang
         pendingSubTypeIndex = subTypeIndex
+        pendingAudioChoice = audioChoice
         subtitleApplied = false
         firstFrameSeen = false
         reachedReady = false
@@ -339,6 +350,13 @@ class ExoSubtitleEngine(
             player = null
         }
         val p = player ?: build().also { player = it; builtForSoftware = softwarePreferred; builtForStereo = wantStereo }
+        // This player is reused across items, and a HUD pick is a TrackSelectionOverride kept in its
+        // parameters — so the previous item's pick could otherwise select a track here. Preferred
+        // language is a separate parameter and is untouched.
+        if (resetAudioOverrides) runCatching {
+            p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
+                .clearOverridesOfType(C.TRACK_TYPE_AUDIO).build()
+        }
         // Both are plain setters, so a cached player picks up a setting changed since it was built —
         // no rebuild needed for either (unlike the renderer factory and the audio sink above).
         p.setVideoChangeFrameRateStrategy(
@@ -750,12 +768,21 @@ class ExoSubtitleEngine(
         val out = ArrayList<TrackOption>()
         val sels = ArrayList<AudioSel>()
         val diag = ArrayList<VodAudioTrackInfo>()
+        val candidates = ArrayList<AudioCandidate>()
         var id = 0
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (i in 0 until group.length) {
                 val format = group.getTrackFormat(i)
                 diag.add(vodAudioTrackInfo(id, format, playable = group.isTrackSupported(i), selected = group.isTrackSelected(i)))
+                candidates.add(
+                    AudioCandidate(
+                        index = id, engineId = id, language = format.language,
+                        codec = format.sampleMimeType?.substringAfter('/'),
+                        channels = format.channelCount.takeIf { it != androidx.media3.common.Format.NO_VALUE },
+                        title = format.label, selected = group.isTrackSelected(i),
+                    ),
+                )
                 out.add(
                     TrackOption(
                         label = format.label.orEmpty(),
@@ -773,6 +800,18 @@ class ExoSubtitleEngine(
         audioSelections = sels
         callbacks.onAudioTracks(out)
         callbacks.onAudioDiagnostics(audioPlayerTag, diag)
+        callbacks.onAudioCandidates(candidates)
+        // 5B: re-find the customer's pick from mpv in this engine's own list, once. Only an unambiguous
+        // match changes anything; otherwise ExoPlayer's selection stands.
+        val choice = pendingAudioChoice
+        if (choice != null && candidates.isNotEmpty()) {
+            pendingAudioChoice = null
+            val result = AudioTrackMatcher.match(choice, candidates)
+            val target = result.target
+            val apply = result.outcome == CarryOutcome.MATCHED && target != null && !target.selected
+            callbacks.onAudioCarry(result, applied = apply)
+            if (apply) selectAudio(target!!.engineId)
+        }
     }
 
     /** Enumerate the file's text/image subtitle tracks for the HUD menu. [TrackOption.mpvId] and

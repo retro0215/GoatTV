@@ -27,6 +27,8 @@ enum class AudioSelectionReason(val wire: String) {
     ENGINE_DEFAULT("engine_default"),
     USER("user"),
     ENGINE_HANDOFF("engine_handoff"),
+    /** The customer's own pick, re-found and re-applied on the engine that took the item over (5B). */
+    USER_CARRIED("user_carried"),
     UNKNOWN("unknown"),
 }
 
@@ -167,6 +169,24 @@ class VodAudioDiagnostics(private val sink: (String) -> Unit = { LiveDiagnostics
     fun onUserSelected(engine: String, index: Int) {
         if (itemKey == null) return
         writeSelection(engine, index, lastTracks[engine]?.firstOrNull { it.index == index }, AudioSelectionReason.USER)
+    }
+
+    /**
+     * The outcome of carrying the customer's pick into [engine] (5B). A match that had to change the track
+     * is also written as a selection with reason `user_carried`; an ambiguous or missing match leaves the
+     * engine's own pick, said explicitly as `fallback=engine_default`.
+     */
+    fun onCarry(engine: String, from: String, result: CarryResult, applied: Boolean) {
+        val key = itemKey ?: return
+        val idx = result.target?.index
+        val tail = when (result.outcome) {
+            CarryOutcome.MATCHED -> " basis=${result.basis} index=$idx applied=$applied"
+            else -> " fallback=engine_default"
+        }
+        sink("VOD_AUDIO_CARRY engine=$engine from=$from content=$key outcome=${result.outcome.wire}$tail")
+        if (applied && idx != null) {
+            writeSelection(engine, idx, lastTracks[engine]?.firstOrNull { it.index == idx }, AudioSelectionReason.USER_CARRIED)
+        }
     }
 
     private fun observeSelection(engine: String, track: VodAudioTrackInfo) {

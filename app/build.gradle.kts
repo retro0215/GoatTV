@@ -210,6 +210,9 @@ android {
         // Player "No sound? Switch to stereo" action. Off by default; enabled per brand below while it is
         // validated (GoatTV first), so the other brands ship no behaviour change from the shared code.
         buildConfigField("boolean", "AUDIO_STEREO_RECOVERY", "false")
+        // Movies & Series: keep the customer's audio-track pick across mpv/ExoPlayer switches and reset it for
+        // every new item. Off by default; enabled per brand below while it is validated (GoatTV first).
+        buildConfigField("boolean", "VOD_AUDIO_SELECTION_CARRY", "false")
         buildConfigField("String", "FCM_SENDER_ID", "\"\"")
         buildConfigField("String", "DEFAULT_ACCENT", "\"TEAL\"")
         // Sports event channels (Phase C2): the brand sent as ?brand= to the Sports API. Empty = this
@@ -295,6 +298,7 @@ android {
             buildConfigField("String", "UPDATE_APK_PREFIX", "\"GoatTV\"")
             buildConfigField("boolean", "PUSHWOOSH_ENABLED", "true")
             buildConfigField("boolean", "AUDIO_STEREO_RECOVERY", "true")
+            buildConfigField("boolean", "VOD_AUDIO_SELECTION_CARRY", "true")
             buildConfigField("String", "PUSHWOOSH_APP_ID", "\"63340-520FF\"")
             buildConfigField("String", "FCM_SENDER_ID", "\"17825531376\"")
             signingConfig = signingConfigs.findByName("goat")

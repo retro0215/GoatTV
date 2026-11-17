@@ -940,19 +940,22 @@
 1	log	app/src/main/java/tv/own/owntv/player/LivePreviewEngine.kt	surface switch: picture frozen again - left to the freeze watchdog
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	${it.className.substringAfterLast('.')}.${it.methodName}
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	${thread.state} $top
+1	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	-
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	<
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	VOD_START_TIMEOUT: nothing played within ${budgetMs / 1000}s on $engine — stopping both engines
+3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	aid
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	attached=$surfaceAttached surface=${attachedSurface?.let { System.identityHashCode(it) }}
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	audio
+3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	auto
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	direct
-2	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo
+5	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv released, arming ExoPlayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: mpv stop still queued after ${MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exo vod fallback: stuck mpv still releasing after ${STUCK_MPV_RELEASE_TIMEOUT_MS}ms — starting ExoPlayer anyway
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	exoplayer
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	fresh
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	hardReset: old mpv instance destroyed — core unblocked (${tookMs}ms)
-8	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv
+12	technical	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv
 2	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	mpv-cmd
 3	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	network-timeout
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	no picture or sound within ${budgetMs / 1000}s
@@ -972,6 +975,7 @@
 2	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/codec
 1	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/default
 1	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/demux-channel-count
+2	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/id
 2	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/lang
 2	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/selected
 2	protocol	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	track-list/$i/title
@@ -981,6 +985,38 @@
 4	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	unknown
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	wait
 1	log	app/src/main/java/tv/own/owntv/player/OwnTVPlayer.kt	watchdog T_OPEN state: ${surfaceState()} mpvThread=${mpvThreadTop()}
+1	empty	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	\0
+1	regex	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	\\s+
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	aac
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ac-3
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ac-4
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ac3
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ac4
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ambiguous
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	dts
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	e-ac-3
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	eac3
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ec-3
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	flac
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	matched
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	metadata
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	missing
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mlp
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mp1
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mp2
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mp3
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mp4a
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mpeg
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	mpeg-l
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	opus
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	ordinal
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	pcm
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	raw
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	true-hd
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	truehd
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	und
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	unk
+2	technical	app/src/main/java/tv/own/owntv/player/VodAudioCarry.kt	vorbis
 6	empty	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	\0
 1	regex	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	(^|[^a-z0-9])(main|original|principal)
 1	regex	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	(^|[^a-z0-9])ad([^a-z0-9]|$)
@@ -988,6 +1024,7 @@
 8	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	-
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	/
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	://
+1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	VOD_AUDIO_CARRY engine=$engine from=$from content=$key outcome=${result.outcome.wire}$tail
 1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	VOD_AUDIO_SELECTED engine=$engine content=$key index=$index reason=${reason.wire}$detail
 1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	VOD_AUDIO_TRACKS $who content=$key count=${tracks.size} $body
 1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	[$index lang=${language ?: "-"} codec=${codec ?: "-"} ch=${channels ?: "-"}
@@ -1002,6 +1039,7 @@
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	audiodescription
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	audiodescrizione
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	audiodeskription
+1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	basis=${result.basis} index=$idx applied=$applied
 1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	class=${titleClass.wire} playable=${flag(playable)}${if (selected) " sel" else ""}]
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	comentario
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	comment
@@ -1014,6 +1052,7 @@
 1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	engine=$engine player=$player
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	engine_default
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	engine_handoff
+1	log	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	fallback=engine_default
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	komentar
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	komentarz
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	kommentar
@@ -1025,6 +1064,7 @@
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	sel
 2	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	unknown
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	user
+1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	user_carried
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	visually impaired
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	withheld
 1	technical	app/src/main/java/tv/own/owntv/player/VodAudioDiagnostics.kt	y

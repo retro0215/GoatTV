@@ -1227,6 +1227,12 @@ class OwnTVPlayer(
     /** Movies & Series audio-track diagnostics (report-only). mpv and the ExoPlayer engine both report
      *  through this one instance so an engine handoff on the same item is recognisable as one. */
     private val vodAudioDiag = VodAudioDiagnostics()
+    /** VOD Phase 5B: the customer's audio pick for the current item, carried across engine switches and
+     *  dropped on the next item. Inert unless the brand flag is on. */
+    private val vodAudioSession = VodAudioSelectionSession(tv.own.owntv.BuildConfig.VOD_AUDIO_SELECTION_CARRY)
+    /** The latest audio list of the engine that owns playback ("mpv"/"exo"), for turning a HUD pick into
+     *  engine-independent metadata. In memory only. */
+    @Volatile private var lastAudioCandidates: Pair<String, List<AudioCandidate>>? = null
     /** Serialized (mpv event thread + main) and fail-safe: a diagnostics fault must never touch playback. */
     private fun vodAudio(block: VodAudioDiagnostics.() -> Unit) {
         synchronized(vodAudioDiag) { runCatching { vodAudioDiag.block() } }
@@ -1565,6 +1571,14 @@ class OwnTVPlayer(
         override fun onAudioDiagnostics(playerTag: String?, tracks: List<VodAudioTrackInfo>) {
             if (!isLiveContent) vodAudio { onTracks("exo", tracks, playerTag) }
         }
+        override fun onAudioCandidates(candidates: List<AudioCandidate>) {
+            if (!isLiveContent) lastAudioCandidates = "exo" to candidates
+        }
+        override fun onAudioCarry(result: CarryResult, applied: Boolean) {
+            if (isLiveContent) return
+            val from = vodAudioSession.currentChoice()?.engine ?: "-"
+            vodAudio { onCarry("exo", from, result, applied) }
+        }
         override fun onTextTracks(tracks: List<TrackOption>) {
             // Only when Exo owns playback as a VOD ENGINE: mpv never probed the file, so its subtitle
             // list is empty — without this the HUD sub menu shows nothing (image subs included, which
@@ -1900,6 +1914,8 @@ class OwnTVPlayer(
             // decoder the same way it failed mpv's.
             preferSoftware = forceSoftwareThisLoad,
             isArchive = archiveThisItem,
+            audioChoice = if (isLiveContent) null else vodAudioSession.currentChoice(),
+            resetAudioOverrides = !isLiveContent && vodAudioSession.resetsExoOverrides,
         )
         // Re-apply the carried subtitle's remembered timing (§8.4) on the incoming engine.
         if (extSelect != null) onActiveSubtitleChanged?.invoke("path:${extSelect.path}")
@@ -2735,6 +2751,7 @@ class OwnTVPlayer(
         isLiveContent = isLive
         // A brand-new item (not an in-place reload / retry) starts fresh VOD audio diagnostics.
         if (resetRetries) vodAudio { if (isLive) stopItem() else startItem(meta.contentKey) }
+        if (resetRetries) { vodAudioSession.newItem(isLive); lastAudioCandidates = null }
         currentUrl = url
         currentContentKey = meta.contentKey
         applyRememberedPrefs(meta.contentKey ?: url)
@@ -3252,6 +3269,10 @@ class OwnTVPlayer(
                 "network-timeout",
                 (if (isLiveContent) MPV_NETWORK_TIMEOUT_SECS else VOD_OPEN_NETWORK_TIMEOUT_SECS).toString(),
             )
+            // 5B: an `aid` set at runtime survives into the next file when its track list looks the same
+            // (mpv's documented track-selection behaviour), so a new item starts from auto again. `alang`
+            // (the preferred-language setting) is a separate option and still applies.
+            if (vodAudioSession.takeAidReset()) setPropertyString("aid", "auto")
             loadfileWithStopClassification(url, "replacement loadfile")
             setPropertyBoolean("pause", false)
         }
@@ -3966,27 +3987,50 @@ class OwnTVPlayer(
      *  is never logged). Same thread rules as [queryTracks]; never affects which track plays. */
     private fun recordMpvAudioDiagnostics() {
         val m = mpv ?: return
+        val candidates = ArrayList<AudioCandidate>()
         val infos = runCatching {
             val count = m.getPropertyInt("track-list/count") ?: 0
             val out = ArrayList<VodAudioTrackInfo>()
             for (i in 0 until count) {
                 if (m.getPropertyString("track-list/$i/type") != "audio") continue
+                val title = m.getPropertyString("track-list/$i/title")
+                val lang = m.getPropertyString("track-list/$i/lang")
+                val codec = m.getPropertyString("track-list/$i/codec")
+                val channels = m.getPropertyInt("track-list/$i/demux-channel-count")
+                val selected = m.getPropertyBoolean("track-list/$i/selected") ?: false
+                m.getPropertyInt("track-list/$i/id")?.let { aid ->
+                    candidates.add(AudioCandidate(out.size, aid, lang, codec, channels, title, selected))
+                }
                 out.add(
                     mpvAudioTrackInfo(
                         index = out.size,
-                        title = m.getPropertyString("track-list/$i/title"),
-                        language = m.getPropertyString("track-list/$i/lang"),
-                        codec = m.getPropertyString("track-list/$i/codec"),
-                        channels = m.getPropertyInt("track-list/$i/demux-channel-count"),
+                        title = title,
+                        language = lang,
+                        codec = codec,
+                        channels = channels,
                         isDefault = m.getPropertyBoolean("track-list/$i/default"),
                         visualImpaired = m.getPropertyBoolean("track-list/$i/visual-impaired"),
-                        selected = m.getPropertyBoolean("track-list/$i/selected") ?: false,
+                        selected = selected,
                     ),
                 )
             }
             out
         }.getOrNull() ?: return
         vodAudio { onTracks("mpv", infos) }
+        lastAudioCandidates = "mpv" to candidates
+        carryAudioChoiceIntoMpv(m, candidates)
+    }
+
+    /** 5B: the item came (back) to mpv — re-find the customer's pick in mpv's own list and select it, but
+     *  only on an unambiguous match. A pick made on mpv itself usually needs nothing (its `aid` stands). */
+    private fun carryAudioChoiceIntoMpv(m: MPVLib, candidates: List<AudioCandidate>) {
+        val choice = vodAudioSession.currentChoice() ?: return
+        val result = AudioTrackMatcher.match(choice, candidates)
+        val target = result.target
+        val apply = result.outcome == CarryOutcome.MATCHED && target != null && !target.selected
+        if (apply) runCatching { m.setPropertyInt("aid", target!!.engineId) }
+        if (apply) _audioTrackList.value = _audioTrackList.value.map { it.copy(selected = it.mpvId == target!!.engineId) }
+        if (apply || choice.engine != "mpv") vodAudio { onCarry("mpv", choice.engine, result, apply) }
     }
 
     /** Synchronous mpv read — only call off the main thread (mpv event thread / mpv-cmd worker). */
@@ -4029,6 +4073,10 @@ class OwnTVPlayer(
         if (!isLiveContent) {
             val index = if (exoActive) mpvId else _audioTrackList.value.firstOrNull { it.mpvId == mpvId }?.typeIndex ?: -1
             if (index >= 0) vodAudio { onUserSelected(if (exoActive) "exo" else "mpv", index) }
+            val engine = if (exoActive) "exo" else "mpv"
+            lastAudioCandidates?.takeIf { it.first == engine }?.second?.let { list ->
+                list.firstOrNull { it.engineId == mpvId }?.let { picked -> vodAudioSession.userSelected(engine, picked, list) }
+            }
         }
         if (exoActive) exoEngine?.selectAudio(mpvId) else if (initialized) mpvAsync { setPropertyInt("aid", mpvId) }
         _audioTrackList.value = _audioTrackList.value.map { it.copy(selected = it.mpvId == mpvId) }
