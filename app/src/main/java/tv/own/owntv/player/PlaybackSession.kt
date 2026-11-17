@@ -48,11 +48,8 @@ class PlaybackSession(private val context: Context) {
     private var session: MediaSession? = null
 
     private var hasFocus = false
-    /** Volume the user had set before we ducked, or null when not ducked. */
-    private var preDuckVolume: Int? = null
-    /** The level the duck actually set, so [unduck] can tell "still where we left it" from "the user
-     *  changed the volume while ducked". */
-    private var duckedTo: Int? = null
+    /** The duck this session applied, if any — see [DuckState]. */
+    private val duckState = DuckState(DUCK_PERCENT)
 
     /**
      * Make [engine] the one this session represents, or `null` when nothing is playing any more (the
@@ -223,6 +220,10 @@ class PlaybackSession(private val context: Context) {
         // A refusal is not a reason to refuse to play: some TV builds deny focus to background-capable
         // apps and playing silently-unmanaged is still better than not playing.
         hasFocus = granted
+        // Focus is ours again. If we were ducked when focus was let go (the customer paused during a
+        // transient loss), no AUDIOFOCUS_GAIN will ever arrive for that old duck — undo it now, or the item
+        // plays on at 25 %. Only on a GRANT: while another app still holds focus the duck stays.
+        if (granted) unduck()
     }
 
     private fun abandonFocus() {
@@ -242,25 +243,19 @@ class PlaybackSession(private val context: Context) {
 
     private fun duck() {
         val e = engine ?: return
-        if (preDuckVolume != null) return
         val current = e.volume.value
-        preDuckVolume = current
-        val target = (current * DUCK_PERCENT / 100).coerceAtLeast(0)
-        duckedTo = target
+        val target = duckState.duck(current) ?: return // already ducked
         withEngine { it.adjustVolume(target - current) }
     }
 
     private fun unduck() {
-        val previous = preDuckVolume ?: return
-        val ducked = duckedTo
-        preDuckVolume = null
-        duckedTo = null
+        val pending = duckState.take() ?: return
         withEngine { e ->
             // If the volume is no longer where the duck left it, the user changed it while we were
             // ducked. That is a newer decision than the level saved before ducking, so restoring the old
             // one would silently undo it.
-            if (ducked != null && e.volume.value != ducked) return@withEngine
-            e.adjustVolume(previous - e.volume.value)
+            val restore = pending.levelToRestore(e.volume.value) ?: return@withEngine
+            e.adjustVolume(restore - e.volume.value)
         }
     }
 
@@ -269,5 +264,40 @@ class PlaybackSession(private val context: Context) {
         const val SEEK_STEP_MS = 30_000L
         /** How far down a manual duck goes — quiet enough to talk over, loud enough not to look broken. */
         const val DUCK_PERCENT = 25
+    }
+}
+
+/**
+ * The one duck a [PlaybackSession] may have in force (pure, so its rules are testable).
+ *
+ * A duck never goes to 0 from an audible level: on Live TV a level of 0 also deselects the audio track,
+ * which turns a "quieter for a moment" into silence if the matching restore is ever missed.
+ */
+internal class DuckState(private val duckPercent: Int) {
+    private var preDuck: Int? = null
+    private var duckedTo: Int? = null
+
+    val isDucked: Boolean get() = preDuck != null
+
+    /** Start ducking from [current]; the level to duck to, or null when a duck is already in force. */
+    fun duck(current: Int): Int? {
+        if (preDuck != null) return null
+        preDuck = current
+        val target = (current * duckPercent / 100).let { if (current > 0) it.coerceAtLeast(1) else 0 }
+        duckedTo = target
+        return target
+    }
+
+    /** End the duck (whatever the outcome): what to restore, checked against the level at that moment. */
+    fun take(): Pending? {
+        val p = preDuck ?: return null
+        val d = duckedTo
+        preDuck = null; duckedTo = null
+        return Pending(p, d)
+    }
+
+    data class Pending(val previous: Int, val duckedTo: Int?) {
+        /** [previous], unless the customer changed the volume while ducked (their newer choice stands). */
+        fun levelToRestore(current: Int): Int? = if (duckedTo != null && current != duckedTo) null else previous
     }
 }

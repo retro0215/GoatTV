@@ -3732,7 +3732,6 @@
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AC3
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_TRACK_CONFIG encoding=$encodingName rate=${audioTrackConfig.sampleRate}Hz
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_TRACK_INIT encoding=${config.encoding} rate=${config.sampleRate}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AVAILABLE_DEVICE id=${dev.id} type=${dev.type} product='${dev.productName}'
 2	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AudioOutputPolicy
 2	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DEPRECATION
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS
@@ -3754,9 +3753,6 @@
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioInputFormatChanged: mime=${format.sampleMimeType} codecs=${format.codecs}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioPositionAdvancing: determined passthrough from mime=$mime
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioSinkError: ${audioSinkError.message}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	playState=${track.playState} routedId=${dev?.id} type=${dev?.type}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	product='${dev?.productName}' usage=${attributes.usage} content=${attributes.contentType}
-1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	routedId=${dev?.id} type=${dev?.type} product='${dev?.productName}'
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	sink build failed, falling back
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	·
 1	app/src/main/java/tv/own/owntv/player/DecoderNames.kt	.sw.

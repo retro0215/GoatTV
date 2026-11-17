@@ -166,6 +166,40 @@ object AudioOutputReport {
         null -> "unknown"
     }
 
+    /**
+     * An output device for the exported ring: its id and type only. Never the product name — that is the
+     * TV's, soundbar's or receiver's name, and for Bluetooth often a name the customer chose ("Sam's
+     * AirPods"). The type says what support needs: HDMI vs ARC/eARC vs Bluetooth vs the box's speaker.
+     */
+    fun deviceLabel(id: Int?, type: Int?, idKey: String = "id"): String =
+        "$idKey=${id ?: "-"} type=${type ?: "-"}(${deviceTypeName(type)})"
+
+    /** `AudioDeviceInfo.TYPE_*` values (stable platform constants) for the device kinds a TV box routes to. */
+    fun deviceTypeName(type: Int?): String = when (type) {
+        null -> "none"
+        2 -> "builtin_speaker"
+        3 -> "wired_headset"
+        4 -> "wired_headphones"
+        5 -> "line_analog"
+        6 -> "line_digital" // S/PDIF / optical
+        7 -> "bluetooth_sco"
+        8 -> "bluetooth_a2dp"
+        9 -> "hdmi"
+        10 -> "hdmi_arc"
+        11 -> "usb_device"
+        12 -> "usb_accessory"
+        13 -> "dock"
+        18 -> "telephony"
+        22 -> "usb_headset"
+        23 -> "hearing_aid"
+        24 -> "builtin_speaker_safe"
+        26 -> "ble_headset"
+        27 -> "ble_speaker"
+        29 -> "hdmi_earc"
+        30 -> "ble_broadcast"
+        else -> "other"
+    }
+
     fun encodingName(encoding: Int): String = when (encoding) {
         C.ENCODING_PCM_16BIT -> "PCM_16BIT"
         C.ENCODING_PCM_FLOAT -> "PCM_FLOAT"
@@ -291,8 +325,8 @@ open class OwnTVRenderersFactory( // open only so the unit test can reach buildA
                 val dev = track.routedDevice
                 val msg = "AUDIO_TRACK_INIT encoding=${config.encoding} rate=${config.sampleRate} " +
                     "ch=${config.channelConfig} session=$audioSessionId state=${track.state} " +
-                    "playState=${track.playState} routedId=${dev?.id} type=${dev?.type} " +
-                    "product='${dev?.productName}' usage=${attributes.usage} content=${attributes.contentType}"
+                    "playState=${track.playState} ${AudioOutputReport.deviceLabel(dev?.id, dev?.type, "routedId")} " +
+                    "usage=${attributes.usage} content=${attributes.contentType}"
                 android.util.Log.i("EXO_AUDIO_DIAG", msg)
                 diagnostics.event(msg)
             }
@@ -394,7 +428,7 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             devices.forEach { dev ->
-                val devMsg = "AVAILABLE_DEVICE id=${dev.id} type=${dev.type} product='${dev.productName}'"
+                val devMsg = "AVAILABLE_DEVICE ${AudioOutputReport.deviceLabel(dev.id, dev.type)}"
                 android.util.Log.i("EXO_AUDIO_DIAG", devMsg)
                 ring(devMsg)
             }
@@ -430,7 +464,7 @@ class AudioWatchdog(private val appContext: Context) : AnalyticsListener {
                 if (track != null) {
                     val dev = track.routedDevice
                     val routeMsg = "PCM_ROUTE_DIAG session=${track.audioSessionId} " +
-                        "routedId=${dev?.id} type=${dev?.type} product='${dev?.productName}'"
+                        AudioOutputReport.deviceLabel(dev?.id, dev?.type, "routedId")
                     android.util.Log.i("EXO_AUDIO_DIAG", routeMsg)
                     ring(routeMsg)
                 }

@@ -3437,7 +3437,8 @@ class OwnTVPlayer(
             row.zoomMode?.let { name ->
                 runCatching { ZoomMode.valueOf(name) }.getOrNull()?.let { setZoomMode(it) }
             }
-            row.volumeBoost?.let { setVolume(it) }
+            // A remembered 0 is not restored: the item would open silent every time.
+            VolumeLevels.restorable(row.volumeBoost)?.let { setVolume(it) }
         }
     }
 

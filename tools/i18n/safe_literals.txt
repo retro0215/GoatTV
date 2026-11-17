@@ -885,6 +885,8 @@
 1	technical	app/src/main/java/tv/own/owntv/features/versions/VersionOptions.kt	${anchor.titleSignature}|${year ?: ""}
 2	technical	app/src/main/java/tv/own/owntv/features/versions/VersionPicker.kt	·
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	$engine#${counter.incrementAndGet()}
+1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	$idKey=${id ?: "-"} type=${type ?: "-"}(${deviceTypeName(type)})
+2	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	-
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_CAPABILITIES_CHANGED (renderer will re-check formats)
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_SINK build failed (${it.javaClass.simpleName}); using Media3 default
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_SINK kind=$kind
@@ -892,22 +894,49 @@
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_TRACK_SELECTED $line
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_UNDERRUN $inWindow in ${AudioOutputPolicy.UNDERRUN_WINDOW_MS / 1000}s (buffer ${bufferSizeMs}ms)
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_WATCHDOG no audio position after ${graceMs / 1000}s playing ($what)
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AVAILABLE_DEVICE ${AudioOutputReport.deviceLabel(dev.id, dev.type)}
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ENCODING_$encoding
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG $message
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	EXO_AUDIO_DIAG [$playerTag] $message
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ble_broadcast
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ble_headset
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ble_speaker
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	bluetooth_a2dp
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	bluetooth_sco
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	builtin_speaker
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	builtin_speaker_safe
 2	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	decoded
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	dock
 3	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	encoding=${AudioOutputReport.encodingName(outputEncoding)}
 1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	exo
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	hdmi
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	hdmi_arc
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	hdmi_earc
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	hearing_aid
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	id
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	line_analog
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	line_digital
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	mime=${selected.sampleMimeType} codecs=${selected.codecs} ch=${selected.channelCount}
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	msg=${audioSinkError.message?.take(MAX_ERROR_CHARS)}
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	none
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	none tracks=$total supported=$supported
 2	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioDecoderInitialized: $decoderName passthrough=$passthrough
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	onAudioPositionAdvancing: audio head advancing path=${AudioOutputReport.pathLabel(outputPassthrough)}
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	other
 2	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	passthrough
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	path=${AudioOutputReport.pathLabel(outputPassthrough)}
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	path=${AudioOutputReport.pathLabel(outputPassthrough)} sink=${diagnostics?.sinkKind}
+1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	playState=${track.playState} ${AudioOutputReport.deviceLabel(dev?.id, dev?.type, "routedId")}
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	rate=${selected.sampleRate} lang=${selected.language} tracks=$total supported=$supported
+2	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	routedId
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	telephony
 1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	unknown
+1	log	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	usage=${attributes.usage} content=${attributes.contentType}
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	usb_accessory
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	usb_device
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	usb_headset
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	wired_headphones
+1	technical	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	wired_headset
 1	technical	app/src/main/java/tv/own/owntv/player/ExoRenderers.kt	exo
 1	log	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	decoderName=${AudioOutputReport.pathLabel(audioWatchdog.outputPassthrough)}
 1	log	app/src/main/java/tv/own/owntv/player/ExoSubtitleEngine.kt	outputEncoding=${AudioOutputReport.encodingName(audioWatchdog.outputEncoding)}

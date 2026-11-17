@@ -1402,10 +1402,11 @@ class LivePreviewEngine(
         // boost there made a quiet channel go quiet again every time the stream hiccuped.
         val sameChannelReopen = url == lastTunedUrl
         lastTunedUrl = url
+        val tuneLevel = VolumeLevels.liveTuneLevel(defaultVolume)
         _volume.value = when {
             muted -> 0
-            sameChannelReopen -> _volume.value.coerceAtLeast(defaultVolume)
-            else -> defaultVolume
+            sameChannelReopen -> _volume.value.coerceAtLeast(tuneLevel)
+            else -> tuneLevel
         }
         applyRememberedPrefs(meta.contentKey ?: url)
         _state.value = State.LOADING
@@ -1578,7 +1579,9 @@ class LivePreviewEngine(
     private fun applyMute(force: Boolean = false) {
         val p = player ?: return
         val effectivelyMuted = muted || audioSuspended
-        p.volume = if (effectivelyMuted) 0f else 1f
+        // The level the customer is actually at (HUD stepper, Default volume, an audio-focus duck), not a
+        // flat 100 %: this runs on every track change, and a flat 1.0 silently undid a chosen 50 %.
+        p.volume = VolumeLevels.playerGain(_volume.value, effectivelyMuted)
         
         // Force disable audio track if suspended, OR if muted and not audio-only.
         val disable = audioSuspended || (muted && hasVideoTrack)
@@ -2257,7 +2260,8 @@ class LivePreviewEngine(
                 runCatching { ZoomMode.valueOf(name) }.getOrNull()?.let { _zoomMode.value = it }
             }
             // Never un-mute the browse preview pane by restoring a level the user set in fullscreen.
-            if (!muted) row.volumeBoost?.let { adjustVolume(it - _volume.value) }
+            // A remembered 0 is not restored: it would deselect the audio track on every future tune.
+            if (!muted) VolumeLevels.restorable(row.volumeBoost)?.let { adjustVolume(it - _volume.value) }
         }
     }
 
