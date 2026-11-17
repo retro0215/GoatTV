@@ -57,54 +57,113 @@ object AudioOutputPolicy {
 }
 
 /**
+ * Which audio sink an engine gets. Stereo only is a fixed answer; Auto and Surround must follow the
+ * HDMI/ARC output as it is *now*, so they get Media3's context-aware sink.
+ */
+enum class AudioSinkKind {
+    /** Plain 16-bit stereo PCM, never anything encoded. Static on purpose: it doesn't depend on HDMI. */
+    STEREO_PCM,
+    /** Media3's live capabilities (HDMI plug, Global surround setting, routed device), narrowed to [PassthroughPolicy]. */
+    DYNAMIC_FILTERED;
+
+    companion object {
+        fun of(forceStereo: Boolean): AudioSinkKind = if (forceStereo) STEREO_PCM else DYNAMIC_FILTERED
+    }
+}
+
+/**
+ * The compressed formats Auto/Surround may bitstream over HDMI. Anything else is decoded in-app.
+ *
+ * This keeps the encoding allowlist that the 4.2.15 sink applied to its startup capability snapshot.
+ * AAC is never on it (Media3 refuses AAC passthrough too, but this doesn't depend on that). AC-4,
+ * TrueHD, DTS:X P2 and MPEG-H are also left off, so a TV that starts reporting them doesn't put new
+ * formats on the bitstream path.
+ */
+object PassthroughPolicy {
+    val ALLOWED_ENCODINGS: Set<Int> = setOf(
+        C.ENCODING_AC3, C.ENCODING_E_AC3, C.ENCODING_E_AC3_JOC,
+        C.ENCODING_DTS, C.ENCODING_DTS_HD,
+    )
+
+    /**
+     * False when [format] must never reach the sink undecoded. PCM (`audio/raw`) is not passthrough,
+     * so it is always left to the sink.
+     */
+    @UnstableApi
+    fun mayReachSinkDirectly(format: Format): Boolean {
+        val mime = format.sampleMimeType ?: return false
+        if (mime == MimeTypes.AUDIO_RAW) return true
+        return MimeTypes.getEncoding(mime, format.codecs) in ALLOWED_ENCODINGS
+    }
+}
+
+/**
+ * Gives the sink's own support answer only for formats [PassthroughPolicy] allows to go undecoded.
+ * For any other compressed format it says "unsupported", and `MediaCodecAudioRenderer` decodes that
+ * format to PCM instead of bitstreaming it.
+ *
+ * Nothing is cached here. Every query reaches the wrapped sink, so an HDMI capability change still
+ * reaches the renderer through the forwarded listener (`onAudioCapabilitiesChanged`).
+ */
+@UnstableApi
+class PassthroughFilteringAudioSink(sink: AudioSink) : androidx.media3.exoplayer.audio.ForwardingAudioSink(sink) {
+    override fun supportsFormat(format: Format): Boolean =
+        getFormatSupport(format) != AudioSink.SINK_FORMAT_UNSUPPORTED
+
+    override fun getFormatSupport(format: Format): Int =
+        if (PassthroughPolicy.mayReachSinkDirectly(format)) super.getFormatSupport(format)
+        else AudioSink.SINK_FORMAT_UNSUPPORTED
+
+    override fun getFormatOffloadSupport(format: Format): androidx.media3.exoplayer.audio.AudioOffloadSupport =
+        if (PassthroughPolicy.mayReachSinkDirectly(format)) super.getFormatOffloadSupport(format)
+        else androidx.media3.exoplayer.audio.AudioOffloadSupport.DEFAULT_UNSUPPORTED
+}
+
+/**
  * A [DefaultRenderersFactory] that can be pinned to plain stereo PCM.
  */
 @UnstableApi
-class OwnTVRenderersFactory(
+open class OwnTVRenderersFactory( // open only so the unit test can reach buildAudioSink
     private val context: Context,
     private val forceStereo: Boolean,
 ) : DefaultRenderersFactory(context) {
 
+    @Suppress("DEPRECATION") // setAudioTrackProvider (diagnostics) and the context-less Builder (stereo)
     override fun buildAudioSink(
         context: Context,
         enableFloatOutput: Boolean,
         enableAudioOutputPlaybackParams: Boolean,
     ): AudioSink? {
-        val rawCaps = AudioCapabilities.getCapabilities(context)
-        
-        val caps = if (forceStereo) AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES
-                   else filterAudioCapabilities(rawCaps)
-
+        val kind = AudioSinkKind.of(forceStereo)
         return runCatching<AudioSink?> {
-            @Suppress("DEPRECATION")
-            DefaultAudioSink.Builder()
-                .setAudioCapabilities(caps)
-                .setAudioTrackProvider(DiagnosticAudioTrackProvider())
-                .setEnableFloatOutput(enableFloatOutput)
-                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
-                .build()
+            when (kind) {
+                // The context-less builder is the only one that honours fixed capabilities. Fixed is
+                // right here: stereo PCM is what the user asked for whatever the HDMI output reports.
+                AudioSinkKind.STEREO_PCM -> DefaultAudioSink.Builder()
+                    .setAudioCapabilities(AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
+                    .setAudioTrackProvider(DiagnosticAudioTrackProvider())
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+                    .build()
+                // With a Context, Media3 reads capabilities lazily on the playback thread and keeps
+                // them current. It listens for HDMI plug, the Global surround setting and device
+                // changes, follows the routed device, and falls back to PCM after a passthrough write
+                // error. The 4.2.15 sink read them once at build time instead, and the Live engine
+                // keeps one player across tunes, so a snapshot from before an AVR/soundbar woke up
+                // (or from another route) stayed in force.
+                AudioSinkKind.DYNAMIC_FILTERED -> PassthroughFilteringAudioSink(
+                    DefaultAudioSink.Builder(context)
+                        .setAudioTrackProvider(DiagnosticAudioTrackProvider())
+                        .setEnableFloatOutput(enableFloatOutput)
+                        .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+                        .build(),
+                )
+            }
         }.getOrElse {
             android.util.Log.w("AudioOutputPolicy", "sink build failed, falling back", it)
-            super.buildAudioSink(context, enableFloatOutput, enableAudioOutputPlaybackParams)
+            val fallback = super.buildAudioSink(context, enableFloatOutput, enableAudioOutputPlaybackParams)
+            if (kind == AudioSinkKind.DYNAMIC_FILTERED && fallback != null) PassthroughFilteringAudioSink(fallback) else fallback
         }
-    }
-
-    private fun filterAudioCapabilities(caps: AudioCapabilities): AudioCapabilities {
-        val supported = mutableListOf<Int>()
-        supported.add(C.ENCODING_PCM_16BIT)
-        supported.add(C.ENCODING_PCM_FLOAT)
-
-        // Section 6: Explicitly block AAC passthrough. 
-        val candidates = intArrayOf(
-            C.ENCODING_AC3, C.ENCODING_E_AC3, C.ENCODING_E_AC3_JOC,
-            C.ENCODING_DTS, C.ENCODING_DTS_HD
-        )
-        for (encoding in candidates) {
-            if (caps.supportsEncoding(encoding)) supported.add(encoding)
-        }
-
-        @Suppress("DEPRECATION")
-        return AudioCapabilities(supported.toIntArray(), caps.maxChannelCount)
     }
 
     private class DiagnosticAudioTrackProvider : DefaultAudioSink.AudioTrackProvider {

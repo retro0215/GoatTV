@@ -3734,7 +3734,7 @@
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AUDIO_TRACK_INIT encoding=${config.encoding} rate=${config.sampleRate}
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AVAILABLE_DEVICE id=${dev.id} type=${dev.type} product='${dev.productName}'
 2	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	AudioOutputPolicy
-3	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DEPRECATION
+2	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DEPRECATION
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	DTS_HD
 1	app/src/main/java/tv/own/owntv/player/AudioOutputPolicy.kt	ENCODING_${audioTrackConfig.encoding}
